@@ -1,0 +1,86 @@
+{
+  "kind": "AppSpec",
+  "meta": {
+    "name": "mysql57",
+    "version": "28",
+    "created": 20170508074208489,
+    "updated": 20170512053147738
+  },
+  "roles": [
+    100
+  ],
+  "packages": [
+    {
+      "name": "mysql57",
+      "version": "5.7.18",
+      "release": "7",
+      "dist": "el7",
+      "arch": "x64"
+    }
+  ],
+  "executors": [
+    {
+      "name": "keeper",
+      "exec_start": "if pidof keeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/mysql57/\nrsync -av {{.lpm_prefix_mysql57}}/* /home/action/apps/mysql57/\n\n/home/action/apps/mysql57/bin/keeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0\n",
+      "exec_stop": "killall mysql57d\nkillall keeper",
+      "plan": {
+        "on_tick": 60
+      }
+    }
+  ],
+  "service_ports": [
+    {
+      "name": "mysql",
+      "box_port": 3306
+    }
+  ],
+  "configurator": {
+    "name": "cfg/mysql",
+    "fields": [
+      {
+        "name": "root_password",
+        "title": "Password",
+        "type": 1,
+        "validates": [
+          {
+            "key": "[a-zA-Z0-9_]{20,50}",
+            "value": "20 ~ 50 length of letters, numbers, and the underscore character"
+          }
+        ]
+      },
+      {
+        "name": "db_name",
+        "title": "Database Name",
+        "type": 1,
+        "default": "dbaction",
+        "validates": [
+          {
+            "key": "[a-z]{1}[a-z0-9_]{2,30}"
+          }
+        ]
+      },
+      {
+        "name": "db_auth",
+        "title": "Database Password",
+        "type": 1,
+        "validates": [
+          {
+            "key": "[a-zA-Z0-9_]{20,50}",
+            "value": "20 ~ 50 length of letters, numbers, and the underscore character"
+          }
+        ]
+      },
+      {
+        "name": "db_user",
+        "title": "Database User",
+        "type": 1,
+        "default": "dbuser",
+        "validates": [
+          {
+            "key": "[a-z]{1}[a-z0-9_]{3,19}"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+_*/
+*~
+etc/*.json
+bin/*
+*.deb
+*.rpm
+*.draft
+*.aci
+*.txz
+*.repo
+var/*
+vendor/*
+webui/*
+.build*
+build-*
+
