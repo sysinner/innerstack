@@ -22,6 +22,9 @@ install bin/lpinit {{.buildroot}}/bin/lpinit
 install bin/keeper {{.buildroot}}/bin/keeper
 install vendor/code.hooto.com/lessos/lospack/etc/lps_config.tpl.json {{.buildroot}}/vendor/code.hooto.com/lessos/lospack/etc/lps_config.json
 
+sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/cp/js/main.js
+sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/ops/js/main.js
+
 rm -rf /tmp/rpmbuild/*
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
 
@@ -39,8 +42,6 @@ rpmbuild -ba /tmp/rpmbuild/SOURCES/los-soho-{{.project__version}}/misc/lospack/r
   --define='_builddir /tmp/rpmbuild/BUILD' \
   --define='_topdir /tmp/rpmbuild' \
   --define='dist .{{.project__dist}}'
-
-sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/htpm/js/main.js
 
 %files
 misc/
