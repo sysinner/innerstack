@@ -2,9 +2,9 @@
   "kind": "AppSpec",
   "meta": {
     "name": "hootopress",
-    "version": "17",
-    "created": 20170508074159175,
-    "updated": 20170512060912621
+    "version": "18",
+    "created": 20170520070146428,
+    "updated": 20170520070146428
   },
   "roles": [
     100
@@ -13,7 +13,7 @@
     {
       "name": "hootopress",
       "version": "0.1.7.dev",
-      "release": "15",
+      "release": "18",
       "dist": "el7",
       "arch": "x64"
     }

@@ -125,14 +125,18 @@ func main() {
 			los_cf.Config.Host.LanAddr.IP(),
 			los_cf.Config.Host.HttpPort,
 		)
-		if los_cf.Config.Host.WanAddr.IP() != "" {
-			iam_cli.ServiceUrlFrontend = fmt.Sprintf(
-				"http://%s:%d/iam",
-				los_cf.Config.Host.WanAddr.IP(),
-				los_cf.Config.Host.HttpPort,
-			)
+		if los_cf.Config.IamServiceUrlFrontend == "" {
+			if los_cf.Config.Host.WanAddr.IP() != "" {
+				iam_cli.ServiceUrlFrontend = fmt.Sprintf(
+					"http://%s:%d/iam",
+					los_cf.Config.Host.WanAddr.IP(),
+					los_cf.Config.Host.HttpPort,
+				)
+			} else {
+				iam_cli.ServiceUrlFrontend = iam_cli.ServiceUrl
+			}
 		} else {
-			iam_cli.ServiceUrlFrontend = iam_cli.ServiceUrl
+			iam_cli.ServiceUrlFrontend = los_cf.Config.IamServiceUrlFrontend
 		}
 		logger.Printf("info", "IAM ServiceUrl %s", iam_cli.ServiceUrl)
 		logger.Printf("info", "IAM ServiceUrlFrontend %s", iam_cli.ServiceUrlFrontend)

@@ -2,9 +2,9 @@
   "kind": "AppSpec",
   "meta": {
     "name": "mysql57",
-    "version": "28",
-    "created": 20170508074208489,
-    "updated": 20170512053147738
+    "version": "29",
+    "created": 20170520070126764,
+    "updated": 20170520070126764
   },
   "roles": [
     100

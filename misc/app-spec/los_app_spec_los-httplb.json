@@ -1,0 +1,40 @@
+{
+  "kind": "AppSpec",
+  "meta": {
+    "name": "los-httplb",
+    "version": "29",
+    "created": 20170520070224203,
+    "updated": 20170520071011299
+  },
+  "packages": [
+    {
+      "name": "los-httplb",
+      "version": "0.0.1",
+      "release": "6",
+      "dist": "el7",
+      "arch": "x64"
+    }
+  ],
+  "executors": [
+    {
+      "name": "nd",
+      "exec_start": "if pidof ngxkeeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/los-httplb/\nrsync -av {{.lpm_prefix_los_httplb}}/* /home/action/apps/los-httplb/\n\n{{.lpm_prefix_los_httplb}}/bin/ngxkeeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
+      "exec_stop": "killall ngxkeeper",
+      "plan": {
+        "on_tick": 60
+      }
+    }
+  ],
+  "service_ports": [
+    {
+      "name": "http",
+      "box_port": 8080,
+      "host_port": 80
+    },
+    {
+      "name": "https",
+      "box_port": 8443,
+      "host_port": 443
+    }
+  ]
+}
