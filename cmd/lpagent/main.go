@@ -18,18 +18,18 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
 
-	// "github.com/lessos/lessgo/deps/go.net/websocket"
+	"github.com/lessos/lessgo/deps/go.net/websocket"
 	"github.com/lessos/lessgo/httpsrv"
 	"github.com/lessos/lessgo/logger"
 
 	"code.hooto.com/lessos/loscore/config"
+	"code.hooto.com/lessos/loscore/losapi"
 	"code.hooto.com/lessos/loscore/lpagent/executor"
-	// "code.hooto.com/lessos/loscore/lpagent/v1"
+	"code.hooto.com/lessos/loscore/lpagent/v1"
 )
 
 const (
@@ -37,7 +37,6 @@ const (
 )
 
 var (
-	id_pat = regexp.MustCompile("^[a-f0-9]{12,24}$")
 	pod_id = ""
 )
 
@@ -47,7 +46,7 @@ func main() {
 
 	//
 	pod_id = strings.TrimSpace(os.Getenv("POD_ID"))
-	if !id_pat.MatchString(pod_id) {
+	if !losapi.PodIdReg.MatchString(pod_id) {
 		os.Exit(1)
 	}
 
@@ -77,6 +76,7 @@ func main() {
 	//
 	os.MkdirAll("/home/action/var/log", 0755)
 	logger.LogDirSet("/home/action/var/log")
+	logger.Printf("info", "started")
 
 	//
 	go executor.Runner("/home/action")
@@ -84,11 +84,11 @@ func main() {
 	//
 	httpsrv.GlobalService.Config.HttpAddr = "unix:" + addr_sock
 
-	// httpsrv.GlobalService.HandlerRegisterPrev(
-	// 	"/los/v1/pod/"+pod_id+"/terminal/wsopen",
-	// 	websocket.Handler(v1.TerminalWsOpenAction))
+	httpsrv.GlobalService.HandlerRegister(
+		"/los/v1/pb/termws",
+		websocket.Handler(v1.TerminalWsOpenAction))
 
-	// httpsrv.GlobalService.ModuleRegister("/los/v1", v1.NewModule())
+	httpsrv.GlobalService.ModuleRegister("/los/v1/", v1.NewModule())
 
 	httpsrv.GlobalService.Start()
 

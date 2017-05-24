@@ -24,6 +24,7 @@ install vendor/code.hooto.com/lessos/lospack/etc/lps_config.tpl.json {{.buildroo
 
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/cp/js/main.js
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/ops/js/main.js
+sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/vendor/code.hooto.com/lessos/iam/webui/iam/js/main.js
 
 rm -rf /tmp/rpmbuild/*
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}

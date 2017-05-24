@@ -60,6 +60,8 @@ var (
 
 func main() {
 
+	hs := httpsrv.NewService()
+
 	// initialize configuration
 	{
 		if err = los_cf.Init(); err != nil {
@@ -148,8 +150,8 @@ func main() {
 		iam_sto.SysConfigRefresh()
 
 		//
-		httpsrv.GlobalService.ModuleRegister("/iam/v1", iam_api.NewModule())
-		httpsrv.GlobalService.ModuleRegister("/iam", iam_web.NewModule())
+		hs.ModuleRegister("/iam/v1", iam_api.NewModule())
+		hs.ModuleRegister("/iam", iam_web.NewModule())
 	}
 
 	// module/LPS: init lps database and webserver
@@ -166,8 +168,8 @@ func main() {
 			log.Fatalf("lps.Data.Init error: %s", err.Error())
 		}
 
-		httpsrv.GlobalService.ModuleRegister("/lps/v1", lps_v1.NewModule())
-		httpsrv.GlobalService.ModuleRegister("/lps", lps_ui.NewModule())
+		hs.ModuleRegister("/lps/v1", lps_v1.NewModule())
+		hs.ModuleRegister("/lps", lps_ui.NewModule())
 
 		// TODO
 		los_cf.Config.LpsServiceUrl = fmt.Sprintf("http://127.0.0.1:%d/", los_cf.Config.Host.HttpPort)
@@ -179,16 +181,18 @@ func main() {
 			log.Fatalf("los.Data.Init error: %s", err.Error())
 		}
 
+		hs.HandlerFuncRegister("/los/v1/pb/termws", los_ws_v1.PodBoundTerminalWsHandlerFunc)
+
 		// Frontend APIs/UI for Users
-		httpsrv.GlobalService.ModuleRegister("/los/v1", los_ws_v1.NewModule())
-		httpsrv.GlobalService.ModuleRegister("/los/cp", los_ws_cp.NewModule())
+		hs.ModuleRegister("/los/v1", los_ws_v1.NewModule())
+		hs.ModuleRegister("/los/cp", los_ws_cp.NewModule())
 
 		// Backend Operating APIs/UI for System Operators
-		httpsrv.GlobalService.ModuleRegister("/los/ops", los_ws_op.NewModule())
+		hs.ModuleRegister("/los/ops", los_ws_op.NewModule())
 
 		// i18n
-		// httpsrv.GlobalService.Config.I18n(los_cf.Prefix + "/i18n/en.json")
-		// httpsrv.GlobalService.Config.I18n(los_cf.Prefix + "/i18n/zh_CN.json")
+		// hs.Config.I18n(los_cf.Prefix + "/i18n/en.json")
+		// hs.Config.I18n(los_cf.Prefix + "/i18n/zh_CN.json")
 	}
 
 	// init zonemaster
@@ -222,8 +226,8 @@ func main() {
 	}
 
 	// http service
-	httpsrv.GlobalService.Config.HttpPort = los_cf.Config.Host.HttpPort
-	go httpsrv.GlobalService.Start()
+	hs.Config.HttpPort = los_cf.Config.Host.HttpPort
+	go hs.Start()
 
 	// job/task
 	// go nodelet.Start()
