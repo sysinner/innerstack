@@ -28,7 +28,7 @@ var (
 func IamAppInstance() iamapi.AppInstance {
 
 	return iamapi.AppInstance{
-		Meta: types.ObjectMeta{
+		Meta: types.InnerObjectMeta{
 			ID: InstanceId,
 		},
 		Version:  Version,
