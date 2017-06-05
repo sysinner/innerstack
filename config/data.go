@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/lessos/lessgo/encoding/json"
+	"github.com/lessos/lessgo/logger"
 	"github.com/lessos/lessgo/types"
 
 	loscfg "code.hooto.com/lessos/loscore/config"
@@ -241,6 +243,21 @@ func InitZoneMasterData() map[string]interface{} {
 
 	//
 	items[losapi.NsGlobalPodSpec("plan", plan.Meta.ID)] = plan
+
+	specs := []string{
+		"los_app_spec_hooto-press.json",
+		"los_app_spec_los-httplb.json",
+		"los_app_spec_los-mysql.json",
+	}
+	for _, v := range specs {
+		var spec losapi.AppSpec
+		if err := json.DecodeFile(loscfg.Prefix+"/misc/app-spec/"+v, &spec); err != nil || spec.Meta.ID == "" {
+			logger.Printf("warn", "init app spec %s error", v)
+			continue
+		}
+		spec.Meta.User = "sysadmin"
+		items[losapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
+	}
 
 	return items
 }

@@ -29,7 +29,8 @@ mkdir -p %{buildroot}%{app_home}/
 mkdir -p %{buildroot}/etc/cron.d/
 
 cp -rp * %{buildroot}%{app_home}/
-cp -rp etc/config.json.tpl %{buildroot}%{app_home}/etc/config.json
+install -m 644 etc/config.tpl.json     %{buildroot}%{app_home}/etc/config.json
+install -m 644 etc/lps_config.tpl.json %{buildroot}%{app_home}/etc/lps_config.json
 install -m 600 misc/lospack/crond %{buildroot}/etc/cron.d/los-soho
 
 %clean
@@ -50,6 +51,7 @@ exit 0
 %defattr(-,root,root,-)
 %dir %{app_home}
 %config(noreplace) %{app_home}/etc/config.json
+%config(noreplace) %{app_home}/etc/lps_config.json
 %config            /etc/cron.d/los-soho
 
 %{app_home}/

@@ -1,10 +1,9 @@
 {
   "kind": "AppSpec",
   "meta": {
-    "name": "mysql57",
-    "version": "29",
-    "created": 20170520070126764,
-    "updated": 20170520070126764
+    "id": "7347713d5b6e3d2b",
+    "name": "los-mysql",
+    "version": "1"
   },
   "roles": [
     100
@@ -13,16 +12,23 @@
     {
       "name": "mysql57",
       "version": "5.7.18",
-      "release": "7",
+      "release": "1",
+      "dist": "el7",
+      "arch": "x64"
+    },
+    {
+      "name": "los-mysql-keeper",
+      "version": "0.1.0-dev",
+      "release": "6",
       "dist": "el7",
       "arch": "x64"
     }
   ],
   "executors": [
     {
-      "name": "keeper",
-      "exec_start": "if pidof keeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/mysql57/\nrsync -av {{.lpm_prefix_mysql57}}/* /home/action/apps/mysql57/\n\n/home/action/apps/mysql57/bin/keeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0\n",
-      "exec_stop": "killall mysql57d\nkillall keeper",
+      "name": "main",
+      "exec_start": "if pidof los-mysql-keeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/mysql57/\nrsync -av {{.lpm_prefix_mysql57}}/* /home/action/apps/mysql57/\n\nmkdir -p /home/action/apps/los-mysql-keeper/\nrsync -av {{.lpm_prefix_los_mysql_keeper}}/* /home/action/apps/los-mysql-keeper/\n\n/home/action/apps/los-mysql-keeper/bin/los-mysql-keeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0\n",
+      "exec_stop": "killall los-mysql-keeper\nkillall mysql57d",
       "plan": {
         "on_tick": 60
       }
@@ -35,19 +41,8 @@
     }
   ],
   "configurator": {
-    "name": "cfg/mysql",
+    "name": "cfg/los-mysql",
     "fields": [
-      {
-        "name": "root_password",
-        "title": "Password",
-        "type": 1,
-        "validates": [
-          {
-            "key": "[a-zA-Z0-9_]{20,50}",
-            "value": "20 ~ 50 length of letters, numbers, and the underscore character"
-          }
-        ]
-      },
       {
         "name": "db_name",
         "title": "Database Name",

@@ -1,25 +1,34 @@
 {
   "kind": "AppSpec",
   "meta": {
+    "id": "c2bf45a57aba4b3d",
     "name": "los-httplb",
-    "version": "29",
-    "created": 20170520070224203,
-    "updated": 20170520071011299
+    "version": "1"
   },
+  "roles": [
+    100
+  ],
   "packages": [
     {
-      "name": "los-httplb",
-      "version": "0.0.1",
-      "release": "6",
+      "name": "los-httplb-keeper",
+      "version": "0.0.2",
+      "release": "1",
+      "dist": "el7",
+      "arch": "x64"
+    },
+    {
+      "name": "openresty",
+      "version": "1.11.2.3",
+      "release": "1",
       "dist": "el7",
       "arch": "x64"
     }
   ],
   "executors": [
     {
-      "name": "nd",
-      "exec_start": "if pidof ngxkeeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/los-httplb/\nrsync -av {{.lpm_prefix_los_httplb}}/* /home/action/apps/los-httplb/\n\n{{.lpm_prefix_los_httplb}}/bin/ngxkeeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
-      "exec_stop": "killall ngxkeeper",
+      "name": "main",
+      "exec_start": "if pidof los-httplb-keeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/openresty/\nrsync -av {{.lpm_prefix_openresty}}/* /home/action/apps/openresty/\n\nmkdir -p /home/action/apps/los-httplb-keeper/\nrsync -av {{.lpm_prefix_los_httplb_keeper}}/* /home/action/apps/los-httplb-keeper/\n\n/home/action/apps/los-httplb-keeper/bin/los-httplb-keeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
+      "exec_stop": "killall los-httplb-keeper",
       "plan": {
         "on_tick": 60
       }

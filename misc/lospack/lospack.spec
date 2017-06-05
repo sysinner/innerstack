@@ -11,16 +11,17 @@ export GOPATH=/opt/gopath
 mkdir -p {{.buildroot}}/etc
 mkdir -p {{.buildroot}}/bin
 mkdir -p {{.buildroot}}/misc/lospack
-mkdir -p {{.buildroot}}/var/{log,tmp}
+mkdir -p {{.buildroot}}/var/{log,tmp,lps_storage}
 mkdir -p {{.buildroot}}/webui/los
-mkdir -p {{.buildroot}}/vendor/code.hooto.com/lessos/lospack/{etc,var/lps_storage}
 
 go build -ldflags "-s -w" -o {{.buildroot}}/bin/los-soho cmd/server/main.go
 go build -ldflags "-s -w" -o {{.buildroot}}/bin/lpagent  cmd/lpagent/main.go
+go build -ldflags "-s -w" -o {{.buildroot}}/bin/los-opcli  cmd/opcli/main.go
 
 install bin/lpinit {{.buildroot}}/bin/lpinit
 install bin/keeper {{.buildroot}}/bin/keeper
-install vendor/code.hooto.com/lessos/lospack/etc/lps_config.tpl.json {{.buildroot}}/vendor/code.hooto.com/lessos/lospack/etc/lps_config.json
+install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.json
+install -m 644 vendor/code.hooto.com/lessos/lospack/etc/lps_config.tpl.json {{.buildroot}}/etc/lps_config.tpl.json
 
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/cp/js/main.js
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/ops/js/main.js
@@ -55,7 +56,6 @@ webui/los/lessui/css
 webui/los/lessui/img
 webui/los/purecss/
 webui/los/twbs/
-etc/config.json.tpl
 websrv/mgr/views/
 vendor/code.hooto.com/lessos/iam/websrv/views/
 vendor/code.hooto.com/lessos/iam/webui/

@@ -156,7 +156,7 @@ func main() {
 
 	// module/LPS: init lps database and webserver
 	{
-		if err = lps_cf.Init(los_cf.Prefix + "/vendor/code.hooto.com/lessos/lospack"); err != nil {
+		if err = lps_cf.Init(los_cf.Prefix); err != nil {
 			log.Fatalf("lps.Config.Init error: %s", err.Error())
 		}
 
@@ -169,10 +169,14 @@ func main() {
 		}
 
 		hs.ModuleRegister("/lps/v1", lps_v1.NewModule())
-		hs.ModuleRegister("/lps", lps_ui.NewModule())
+		hs.ModuleRegister("/lps", lps_ui.NewModule(los_cf.Prefix+"/vendor/code.hooto.com/lessos/lospack"))
 
 		// TODO
-		los_cf.Config.LpsServiceUrl = fmt.Sprintf("http://127.0.0.1:%d/", los_cf.Config.Host.HttpPort)
+		los_cf.Config.LpsServiceUrl = fmt.Sprintf(
+			"http://%s:%d/",
+			los_cf.Config.Host.LanAddr.IP(),
+			los_cf.Config.Host.HttpPort,
+		)
 	}
 
 	// loscore
