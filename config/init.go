@@ -22,7 +22,9 @@ import (
 	"code.hooto.com/lessos/loscore/losapi"
 )
 
-func Init() error {
+func Init(v string) error {
+
+	version = v
 
 	loscfg.Config.Masters = []losapi.HostNodeAddress{
 		loscfg.Config.Host.LanAddr,

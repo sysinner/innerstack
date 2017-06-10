@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	Version    = "0.0.1.dev"
+	version    = "0.0.1.dev"
 	InstanceId = idhash.HashToHexString([]byte("los-soho"), 16)
 )
 
@@ -31,9 +31,9 @@ func IamAppInstance() iamapi.AppInstance {
 		Meta: types.InnerObjectMeta{
 			ID: InstanceId,
 		},
-		Version:  Version,
+		Version:  version,
 		AppID:    "los-soho",
-		AppTitle: "lessOS Cube",
+		AppTitle: "lessOS for SOHO",
 		Status:   1,
 		Url:      "",
 		Privileges: []iamapi.AppPrivilege{

@@ -37,6 +37,7 @@ import (
 	lps_ui "code.hooto.com/lessos/lospack/websrv/ui"
 	lps_v1 "code.hooto.com/lessos/lospack/websrv/v1"
 
+	los_webui "code.hooto.com/lessos/los-webui"
 	los_ws_cp "code.hooto.com/lessos/loscore/websrv/cp"
 	los_ws_op "code.hooto.com/lessos/loscore/websrv/ops"
 	los_ws_v1 "code.hooto.com/lessos/loscore/websrv/v1"
@@ -68,7 +69,7 @@ func main() {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 
-		if err = config.Init(); err != nil {
+		if err = config.Init(Version); err != nil {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 	}
@@ -78,6 +79,12 @@ func main() {
 		if err = los_sts.Init(); err != nil {
 			log.Fatalf("status.Init error: %s", err.Error())
 		}
+	}
+
+	{
+		logger.Printf("info", "loscore version %s", los_cf.Version)
+		logger.Printf("info", "los-webui version %s", los_webui.Version)
+		logger.Printf("info", "los-soho version %s", Version)
 	}
 
 	// initialize data/io connection
