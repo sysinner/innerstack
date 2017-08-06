@@ -56,30 +56,26 @@ webui/los/lessui/css
 webui/los/lessui/img
 webui/los/purecss/
 webui/los/twbs/
+webui/lps/lps/
 websrv/mgr/views/
 vendor/code.hooto.com/lessos/iam/websrv/views/
 vendor/code.hooto.com/lessos/iam/webui/
-vendor/code.hooto.com/lessos/lospack/webui/lps
-vendor/code.hooto.com/lessos/lospack/webui/lessui/
-vendor/code.hooto.com/lessos/lospack/webui/purecss/
-vendor/code.hooto.com/lessos/lospack/webui/twbs/
-vendor/code.hooto.com/lessos/lospack/webui/lps.htm
 
 %js_compress
 webui/los/cp/js/
 webui/los/ops/js/
 webui/los/twbs/3.3/js/
+webui/lps/lps/js/
 vendor/code.hooto.com/lessos/iam/webui/iam/js/
-vendor/code.hooto.com/lessos/lospack/webui/lps/js/
 
 %css_compress
+webui/lps/lps/css/
 vendor/code.hooto.com/lessos/iam/webui/iam/css/
-vendor/code.hooto.com/lessos/lospack/webui/lps/css/
 
 %html_compress
 websrv/mgr/views/
+webui/lps/lps/tpl/
 vendor/code.hooto.com/lessos/iam/websrv/views/
 vendor/code.hooto.com/lessos/iam/webui/tpl/
-vendor/code.hooto.com/lessos/lospack/webui/lps/tpl/
 
 %png_compress
