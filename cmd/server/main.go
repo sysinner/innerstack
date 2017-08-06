@@ -34,7 +34,6 @@ import (
 
 	lps_cf "code.hooto.com/lessos/lospack/server/config"
 	lps_db "code.hooto.com/lessos/lospack/server/data"
-	lps_ui "code.hooto.com/lessos/lospack/websrv/ui"
 	lps_v1 "code.hooto.com/lessos/lospack/websrv/v1"
 
 	los_webui "code.hooto.com/lessos/los-webui"
@@ -84,6 +83,7 @@ func main() {
 	{
 		logger.Printf("info", "loscore version %s", los_cf.Version)
 		logger.Printf("info", "los-webui version %s", los_webui.Version)
+		logger.Printf("info", "lospack version %s", lps_cf.Version)
 		logger.Printf("info", "los-soho version %s", Version)
 	}
 
@@ -176,7 +176,7 @@ func main() {
 		}
 
 		hs.ModuleRegister("/lps/v1", lps_v1.NewModule())
-		hs.ModuleRegister("/lps", lps_ui.NewModule(los_cf.Prefix+"/vendor/code.hooto.com/lessos/lospack"))
+		hs.ModuleRegister("/los/cp/lps/~", httpsrv.NewStaticModule("lps_ui", los_cf.Prefix+"/webui/lps"))
 
 		// TODO
 		los_cf.Config.LpsServiceUrl = fmt.Sprintf(
@@ -197,7 +197,6 @@ func main() {
 		// Frontend APIs/UI for Users
 		hs.ModuleRegister("/los/v1", los_ws_v1.NewModule())
 		hs.ModuleRegister("/los/cp", los_ws_cp.NewModule())
-
 		// Backend Operating APIs/UI for System Operators
 		hs.ModuleRegister("/los/ops", los_ws_op.NewModule())
 

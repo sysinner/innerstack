@@ -3,7 +3,7 @@
   "meta": {
     "id": "726c505ad5b0754e",
     "name": "hooto-press",
-    "version": "1"
+    "version": "2"
   },
   "roles": [
     100
@@ -12,7 +12,7 @@
     {
       "name": "hooto-press",
       "version": "0.2.0.dev",
-      "release": "5",
+      "release": "6",
       "dist": "el7",
       "arch": "x64"
     }

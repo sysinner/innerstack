@@ -29,7 +29,8 @@ func IamAppInstance() iamapi.AppInstance {
 
 	return iamapi.AppInstance{
 		Meta: types.InnerObjectMeta{
-			ID: InstanceId,
+			ID:   InstanceId,
+			User: "sysadmin",
 		},
 		Version:  version,
 		AppID:    "los-soho",

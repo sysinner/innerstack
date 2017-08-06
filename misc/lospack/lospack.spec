@@ -20,7 +20,7 @@ go build -ldflags "-s -w" -o {{.buildroot}}/bin/los-opcli  cmd/opcli/main.go
 
 install bin/lpinit {{.buildroot}}/bin/lpinit
 install bin/keeper {{.buildroot}}/bin/keeper
-install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.json
+install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.tpl.json
 install -m 644 vendor/code.hooto.com/lessos/lospack/etc/lps_config.tpl.json {{.buildroot}}/etc/lps_config.tpl.json
 
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/cp/js/main.js

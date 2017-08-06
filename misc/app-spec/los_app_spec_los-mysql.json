@@ -3,7 +3,7 @@
   "meta": {
     "id": "7347713d5b6e3d2b",
     "name": "los-mysql",
-    "version": "1"
+    "version": "6"
   },
   "roles": [
     100
@@ -19,7 +19,7 @@
     {
       "name": "los-mysql-keeper",
       "version": "0.1.0-dev",
-      "release": "6",
+      "release": "7",
       "dist": "el7",
       "arch": "x64"
     }
@@ -48,33 +48,20 @@
         "title": "Database Name",
         "type": 1,
         "default": "dbaction",
-        "validates": [
-          {
-            "key": "[a-z]{1}[a-z0-9_]{2,30}"
-          }
-        ]
+        "auto_fill": "defval"
       },
       {
         "name": "db_auth",
         "title": "Database Password",
         "type": 1,
-        "validates": [
-          {
-            "key": "[a-zA-Z0-9_]{20,50}",
-            "value": "20 ~ 50 length of letters, numbers, and the underscore character"
-          }
-        ]
+        "auto_fill": "hexstr_32"
       },
       {
         "name": "db_user",
         "title": "Database User",
         "type": 1,
         "default": "dbuser",
-        "validates": [
-          {
-            "key": "[a-z]{1}[a-z0-9_]{3,19}"
-          }
-        ]
+        "auto_fill": "defval"
       }
     ]
   }
