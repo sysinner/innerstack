@@ -3,7 +3,7 @@
   "meta": {
     "id": "c2bf45a57aba4b3d",
     "name": "los-httplb",
-    "version": "2"
+    "version": "5"
   },
   "roles": [
     100
@@ -11,15 +11,15 @@
   "packages": [
     {
       "name": "openresty",
-      "version": "1.11.2.3",
+      "version": "1.11.2.4",
       "release": "1",
       "dist": "el7",
       "arch": "x64"
     },
     {
       "name": "los-httplb-keeper",
-      "version": "0.0.2",
-      "release": "2",
+      "version": "0.0.3",
+      "release": "3",
       "dist": "el7",
       "arch": "x64"
     }

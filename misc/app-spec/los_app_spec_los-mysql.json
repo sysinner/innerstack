@@ -3,7 +3,7 @@
   "meta": {
     "id": "7347713d5b6e3d2b",
     "name": "los-mysql",
-    "version": "6"
+    "version": "7"
   },
   "roles": [
     100
@@ -12,14 +12,14 @@
     {
       "name": "mysql57",
       "version": "5.7.18",
-      "release": "1",
+      "release": "2",
       "dist": "el7",
       "arch": "x64"
     },
     {
       "name": "los-mysql-keeper",
       "version": "0.1.0-dev",
-      "release": "7",
+      "release": "8",
       "dist": "el7",
       "arch": "x64"
     }
