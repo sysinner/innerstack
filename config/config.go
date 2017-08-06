@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	version    = "0.0.1.dev"
+	version    = "0.2.1.dev"
 	InstanceId = idhash.HashToHexString([]byte("los-soho"), 16)
 )
 

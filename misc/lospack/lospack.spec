@@ -1,5 +1,5 @@
 project.name = los-soho
-project.version = 0.2.0.dev
+project.version = 0.2.1.dev
 project.vendor = hooto.com
 project.homepage = https://code.hooto.com/lessos/los-soho
 project.groups = dev/sys-srv
