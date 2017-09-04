@@ -15,8 +15,8 @@
 package config
 
 import (
-	"code.hooto.com/lynkdb/iomix/connect"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/connect"
 
 	loscfg "code.hooto.com/lessos/loscore/config"
 	"code.hooto.com/lessos/loscore/losapi"

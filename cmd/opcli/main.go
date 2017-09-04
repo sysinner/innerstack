@@ -26,10 +26,10 @@ import (
 	"strings"
 
 	"code.hooto.com/lessos/los-soho/internal/cliflags"
-	"code.hooto.com/lynkdb/iomix/connect"
-	"code.hooto.com/lynkdb/iomix/skv"
-	"code.hooto.com/lynkdb/kvgo"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/connect"
+	"github.com/lynkdb/iomix/skv"
+	"github.com/lynkdb/kvgo"
 )
 
 var (

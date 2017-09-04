@@ -75,7 +75,7 @@ func main() {
 
 	//
 	os.MkdirAll("/home/action/var/log", 0755)
-	hlog4g.LogDirSet("/home/action/var/log")
+	hlog.LogDirSet("/home/action/var/log")
 	hlog.Printf("info", "started")
 
 	//

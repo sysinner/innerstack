@@ -15,7 +15,7 @@
 package config
 
 import (
-	"code.hooto.com/lessos/iam/iamapi"
+	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 )

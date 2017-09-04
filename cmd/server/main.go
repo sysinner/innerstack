@@ -21,16 +21,16 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	"code.hooto.com/lynkdb/kvgo"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
+	"github.com/lynkdb/kvgo"
 
-	iam_cfg "code.hooto.com/lessos/iam/config"
-	iam_cli "code.hooto.com/lessos/iam/iamclient"
-	iam_sto "code.hooto.com/lessos/iam/store"
-	iam_web "code.hooto.com/lessos/iam/websrv/ctrl"
-	iam_api "code.hooto.com/lessos/iam/websrv/v1"
+	iam_cfg "github.com/hooto/iam/config"
+	iam_cli "github.com/hooto/iam/iamclient"
+	iam_sto "github.com/hooto/iam/store"
+	iam_web "github.com/hooto/iam/websrv/ctrl"
+	iam_api "github.com/hooto/iam/websrv/v1"
 
 	lps_cf "code.hooto.com/lessos/lospack/server/config"
 	lps_db "code.hooto.com/lessos/lospack/server/data"
@@ -115,7 +115,7 @@ func main() {
 	// module/IAM
 	{
 		//
-		iam_cfg.Prefix = los_cf.Prefix + "/vendor/code.hooto.com/lessos/iam"
+		iam_cfg.Prefix = los_cf.Prefix + "/vendor/github.com/hooto/iam"
 		iam_cfg.Config.InstanceID = idhash.HashToHexString([]byte("los-soho/iam"), 16)
 
 		// init database
