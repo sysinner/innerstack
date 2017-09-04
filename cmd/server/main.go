@@ -22,9 +22,9 @@ import (
 	_ "net/http/pprof"
 
 	"code.hooto.com/lynkdb/kvgo"
+	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
-	"github.com/lessos/lessgo/httpsrv"
-	"github.com/lessos/lessgo/logger"
 
 	iam_cfg "code.hooto.com/lessos/iam/config"
 	iam_cli "code.hooto.com/lessos/iam/iamclient"
@@ -81,10 +81,10 @@ func main() {
 	}
 
 	{
-		logger.Printf("info", "loscore version %s", los_cf.Version)
-		logger.Printf("info", "los-webui version %s", los_webui.Version)
-		logger.Printf("info", "lospack version %s", lps_cf.Version)
-		logger.Printf("info", "los-soho version %s", Version)
+		hlog.Printf("info", "loscore version %s", los_cf.Version)
+		hlog.Printf("info", "los-webui version %s", los_webui.Version)
+		hlog.Printf("info", "lospack version %s", lps_cf.Version)
+		hlog.Printf("info", "los-soho version %s", Version)
 	}
 
 	// initialize data/io connection
@@ -147,8 +147,8 @@ func main() {
 		} else {
 			iam_cli.ServiceUrlFrontend = los_cf.Config.IamServiceUrlFrontend
 		}
-		logger.Printf("info", "IAM ServiceUrl %s", iam_cli.ServiceUrl)
-		logger.Printf("info", "IAM ServiceUrlFrontend %s", iam_cli.ServiceUrlFrontend)
+		hlog.Printf("info", "IAM ServiceUrl %s", iam_cli.ServiceUrl)
+		hlog.Printf("info", "IAM ServiceUrlFrontend %s", iam_cli.ServiceUrlFrontend)
 
 		//
 		if err := iam_cfg.InitConfig(); err != nil {

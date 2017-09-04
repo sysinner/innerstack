@@ -22,9 +22,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/lessos/lessgo/deps/go.net/websocket"
-	"github.com/lessos/lessgo/httpsrv"
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/httpsrv"
+	"github.com/hooto/httpsrv/deps/go.net/websocket"
 
 	"code.hooto.com/lessos/loscore/config"
 	"code.hooto.com/lessos/loscore/losapi"
@@ -75,8 +75,8 @@ func main() {
 
 	//
 	os.MkdirAll("/home/action/var/log", 0755)
-	logger.LogDirSet("/home/action/var/log")
-	logger.Printf("info", "started")
+	hlog4g.LogDirSet("/home/action/var/log")
+	hlog.Printf("info", "started")
 
 	//
 	go executor.Runner("/home/action")
