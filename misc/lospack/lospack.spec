@@ -1,7 +1,7 @@
 project.name = los-soho
 project.version = 0.2.1.dev
 project.vendor = hooto.com
-project.homepage = https://code.hooto.com/lessos/los-soho
+project.homepage = https://github.com/lessos/los-soho
 project.groups = dev/sys-srv
 
 %build
@@ -21,11 +21,11 @@ go build -ldflags "-s -w" -o {{.buildroot}}/bin/los-opcli  cmd/opcli/main.go
 install bin/lpinit {{.buildroot}}/bin/lpinit
 install bin/keeper {{.buildroot}}/bin/keeper
 install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.tpl.json
-install -m 644 vendor/code.hooto.com/lessos/lospack/etc/lps_config.tpl.json {{.buildroot}}/etc/lps_config.tpl.json
+install -m 644 vendor/github.com/lessos/lospack/etc/lps_config.tpl.json {{.buildroot}}/etc/lps_config.tpl.json
 
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/cp/js/main.js
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/los/ops/js/main.js
-sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/vendor/code.hooto.com/lessos/iam/webui/iam/js/main.js
+sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/vendor/github.com/hooto/iam/webui/iam/js/main.js
 
 rm -rf /tmp/rpmbuild/*
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
@@ -58,24 +58,24 @@ webui/los/purecss/
 webui/los/twbs/
 webui/lps/lps/
 websrv/mgr/views/
-vendor/code.hooto.com/lessos/iam/websrv/views/
-vendor/code.hooto.com/lessos/iam/webui/
+vendor/github.com/hooto/iam/websrv/views/
+vendor/github.com/hooto/iam/webui/
 
 %js_compress
 webui/los/cp/js/
 webui/los/ops/js/
 webui/los/twbs/3.3/js/
 webui/lps/lps/js/
-vendor/code.hooto.com/lessos/iam/webui/iam/js/
+vendor/github.com/hooto/iam/webui/iam/js/
 
 %css_compress
 webui/lps/lps/css/
-vendor/code.hooto.com/lessos/iam/webui/iam/css/
+vendor/github.com/hooto/iam/webui/iam/css/
 
 %html_compress
 websrv/mgr/views/
 webui/lps/lps/tpl/
-vendor/code.hooto.com/lessos/iam/websrv/views/
-vendor/code.hooto.com/lessos/iam/webui/tpl/
+vendor/github.com/hooto/iam/websrv/views/
+vendor/github.com/hooto/iam/webui/tpl/
 
 %png_compress
