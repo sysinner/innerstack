@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cliflags // import "code.hooto.com/lessos/los-soho/internal/cliflags"
+package cliflags // import "github.com/lessos/los-soho/internal/cliflags"
 
 import (
 	"os"

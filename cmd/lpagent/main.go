@@ -26,10 +26,10 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/httpsrv/deps/go.net/websocket"
 
-	"code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/lpagent/executor"
-	"code.hooto.com/lessos/loscore/lpagent/v1"
+	"github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/lpagent/executor"
+	"github.com/lessos/loscore/lpagent/v1"
 )
 
 const (

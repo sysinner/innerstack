@@ -18,8 +18,8 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/connect"
 
-	loscfg "code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/losapi"
+	loscfg "github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/losapi"
 )
 
 func Init(v string) error {

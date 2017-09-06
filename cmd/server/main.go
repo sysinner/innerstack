@@ -32,25 +32,25 @@ import (
 	iam_web "github.com/hooto/iam/websrv/ctrl"
 	iam_api "github.com/hooto/iam/websrv/v1"
 
-	lps_cf "code.hooto.com/lessos/lospack/server/config"
-	lps_db "code.hooto.com/lessos/lospack/server/data"
-	lps_v1 "code.hooto.com/lessos/lospack/websrv/v1"
+	lps_cf "github.com/lessos/lospack/server/config"
+	lps_db "github.com/lessos/lospack/server/data"
+	lps_v1 "github.com/lessos/lospack/websrv/v1"
 
-	los_webui "code.hooto.com/lessos/los-webui"
-	los_ws_cp "code.hooto.com/lessos/loscore/websrv/cp"
-	los_ws_op "code.hooto.com/lessos/loscore/websrv/ops"
-	los_ws_v1 "code.hooto.com/lessos/loscore/websrv/v1"
+	los_webui "github.com/lessos/los-webui"
+	los_ws_cp "github.com/lessos/loscore/websrv/cp"
+	los_ws_op "github.com/lessos/loscore/websrv/ops"
+	los_ws_v1 "github.com/lessos/loscore/websrv/v1"
 
-	los_cf "code.hooto.com/lessos/loscore/config"
-	los_db "code.hooto.com/lessos/loscore/data"
-	los_host "code.hooto.com/lessos/loscore/hostlet"
-	los_api "code.hooto.com/lessos/loscore/losapi"
-	los_rpc "code.hooto.com/lessos/loscore/rpcsrv"
-	los_sched "code.hooto.com/lessos/loscore/scheduler"
-	los_sts "code.hooto.com/lessos/loscore/status"
-	los_zm "code.hooto.com/lessos/loscore/zonemaster"
+	los_cf "github.com/lessos/loscore/config"
+	los_db "github.com/lessos/loscore/data"
+	los_host "github.com/lessos/loscore/hostlet"
+	los_api "github.com/lessos/loscore/losapi"
+	los_rpc "github.com/lessos/loscore/rpcsrv"
+	los_sched "github.com/lessos/loscore/scheduler"
+	los_sts "github.com/lessos/loscore/status"
+	los_zm "github.com/lessos/loscore/zonemaster"
 
-	"code.hooto.com/lessos/los-soho/config"
+	"github.com/lessos/los-soho/config"
 )
 
 var (

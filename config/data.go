@@ -22,8 +22,8 @@ import (
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
-	loscfg "code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/losapi"
+	loscfg "github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/losapi"
 )
 
 func InitHostletData() map[string]interface{} {
