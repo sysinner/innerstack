@@ -57,6 +57,7 @@ webui/los/lessui/img
 webui/los/purecss/
 webui/los/twbs/
 webui/lps/lps/
+webui/hchart/webui/chartjs/
 websrv/mgr/views/
 vendor/github.com/hooto/iam/websrv/views/
 vendor/github.com/hooto/iam/webui/
@@ -66,6 +67,8 @@ webui/los/cp/js/
 webui/los/ops/js/
 webui/los/twbs/3.3/js/
 webui/lps/lps/js/
+webui/hchart/webui/chartjs/
+webui/hchart/webui/hchart.js
 vendor/github.com/hooto/iam/webui/iam/js/
 
 %css_compress

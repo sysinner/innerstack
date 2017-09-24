@@ -186,6 +186,11 @@ func main() {
 		)
 	}
 
+	// module/hchart
+	{
+		hs.ModuleRegister("/los/cp/hchart/~", httpsrv.NewStaticModule("hchart_ui", los_cf.Prefix+"/webui/hchart/webui"))
+	}
+
 	// loscore
 	{
 		if err := iam_sto.AppInstanceRegister(config.IamAppInstance()); err != nil {
