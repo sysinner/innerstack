@@ -14,7 +14,7 @@ mkdir -p {{.buildroot}}/misc/lospack
 mkdir -p {{.buildroot}}/var/{log,tmp,lps_storage}
 mkdir -p {{.buildroot}}/webui/los
 
-go build -ldflags "-s -w" -o {{.buildroot}}/bin/los-soho cmd/server/main.go
+go build -ldflags "-s -w -X main.Released=`date -u '+%Y-%m-%d_%I:%M:%S%p'`" -o {{.buildroot}}/bin/los-soho cmd/server/main.go
 go build -ldflags "-s -w" -o {{.buildroot}}/bin/lpagent  cmd/lpagent/main.go
 go build -ldflags "-s -w" -o {{.buildroot}}/bin/los-opcli  cmd/opcli/main.go
 

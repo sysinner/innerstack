@@ -54,8 +54,9 @@ import (
 )
 
 var (
-	Version = "0.1.2.dev"
-	err     error
+	Version  = "0.1.2.dev"
+	Released = ""
+	err      error
 )
 
 func main() {
@@ -85,6 +86,8 @@ func main() {
 		hlog.Printf("info", "los-webui version %s", los_webui.Version)
 		hlog.Printf("info", "lospack version %s", lps_cf.Version)
 		hlog.Printf("info", "los-soho version %s", Version)
+		los_webui.VersionHash = idhash.HashToHexString([]byte(
+			(los_webui.Version + Released)), 16)
 	}
 
 	// initialize data/io connection
