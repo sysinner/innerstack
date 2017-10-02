@@ -19,12 +19,33 @@ import (
 	"sort"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/iam/iamapi"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
 	loscfg "github.com/lessos/loscore/config"
 	"github.com/lessos/loscore/losapi"
 )
+
+var (
+	init_cache_akacc iamapi.AccessKey
+	init_zone_id     = "local"
+	init_cell_id     = "general"
+	init_sys_user    = "sysadmin"
+)
+
+func init() {
+	init_cache_akacc = iamapi.AccessKey{
+		User: init_sys_user,
+		AccessKey: idhash.HashToHexString(
+			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 16),
+		SecretKey: idhash.RandBase64String(40),
+		Bounds: []iamapi.AccessKeyBound{{
+			Name: "sys/zm/" + init_zone_id,
+		}},
+	}
+}
 
 func InitHostletData() map[string]interface{} {
 
@@ -44,13 +65,17 @@ func InitHostletData() map[string]interface{} {
 	return items
 }
 
+func InitIamAccessKeyData() []iamapi.AccessKey {
+	return []iamapi.AccessKey{
+		init_cache_akacc,
+	}
+}
+
 func InitZoneMasterData() map[string]interface{} {
 
 	var (
 		items         = map[string]interface{}{}
 		name          types.NameIdentifier
-		zone_id       = "local"
-		cell_id       = "general"
 		host_id       = loscfg.Config.Host.Id
 		host_lan_addr = string(loscfg.Config.Host.LanAddr)
 		host_wan_addr = string(loscfg.Config.Host.WanAddr)
@@ -59,7 +84,7 @@ func InitZoneMasterData() map[string]interface{} {
 	// sys zone
 	sys_zone := losapi.ResZone{
 		Meta: &losapi.ObjectMeta{
-			Id:      zone_id,
+			Id:      init_zone_id,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
 		},
@@ -73,22 +98,27 @@ func InitZoneMasterData() map[string]interface{} {
 			host_wan_addr,
 		}
 	}
-	items[losapi.NsGlobalSysZone(zone_id)] = sys_zone
-	items[losapi.NsZoneSysInfo(zone_id)] = sys_zone
+
+	//
+	sys_zone.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
+	sys_zone.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
+
+	items[losapi.NsGlobalSysZone(init_zone_id)] = sys_zone
+	items[losapi.NsZoneSysInfo(init_zone_id)] = sys_zone
 
 	// sys cell
 	sys_cell := losapi.ResCell{
 		Meta: &losapi.ObjectMeta{
-			Id:      cell_id,
+			Id:      init_cell_id,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
 		},
-		ZoneId:      zone_id,
+		ZoneId:      init_zone_id,
 		Phase:       1,
 		Description: "",
 	}
-	items[losapi.NsGlobalSysCell(zone_id, cell_id)] = sys_cell
-	items[losapi.NsZoneSysCell(zone_id, cell_id)] = sys_cell
+	items[losapi.NsGlobalSysCell(init_zone_id, init_cell_id)] = sys_cell
+	items[losapi.NsZoneSysCell(init_zone_id, init_cell_id)] = sys_cell
 
 	// sys host
 	sys_host := losapi.ResHost{
@@ -99,25 +129,25 @@ func InitZoneMasterData() map[string]interface{} {
 		},
 		Operate: &losapi.ResHostOperate{
 			Action: 1,
-			ZoneId: zone_id,
-			CellId: cell_id,
+			ZoneId: init_zone_id,
+			CellId: init_cell_id,
 		},
 		Spec: &losapi.ResHostSpec{
 			PeerLanAddr: host_lan_addr,
 		},
 	}
-	items[losapi.NsZoneSysHost(zone_id, host_id)] = sys_host
-	items[losapi.NsZoneSysHostSecretKey(zone_id, host_id)] = loscfg.Config.Host.SecretKey
+	items[losapi.NsZoneSysHost(init_zone_id, host_id)] = sys_host
+	items[losapi.NsZoneSysHostSecretKey(init_zone_id, host_id)] = loscfg.Config.Host.SecretKey
 
 	//
 
 	// zone-master node(s)/leader
-	items[losapi.NsZoneSysMasterNode(zone_id, host_id)] = losapi.ResZoneMasterNode{
+	items[losapi.NsZoneSysMasterNode(init_zone_id, host_id)] = losapi.ResZoneMasterNode{
 		Id:     host_id,
 		Addr:   host_lan_addr,
 		Action: 1,
 	}
-	items[losapi.NsZoneSysMasterLeader(zone_id)] = host_id
+	items[losapi.NsZoneSysMasterLeader(init_zone_id)] = host_id
 
 	//
 	name = types.NewNameIdentifier("pod/spec/plan/b1")
@@ -134,8 +164,8 @@ func InitZoneMasterData() map[string]interface{} {
 		Status: losapi.SpecStatusActive,
 		Zones: []losapi.PodSpecPlanZone{
 			{
-				Name:  zone_id,
-				Cells: []string{cell_id},
+				Name:  init_zone_id,
+				Cells: []string{init_cell_id},
 			},
 		},
 	}

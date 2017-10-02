@@ -162,6 +162,12 @@ func main() {
 		//
 		hs.ModuleRegister("/iam/v1", iam_api.NewModule())
 		hs.ModuleRegister("/iam", iam_web.NewModule())
+
+		//
+		aks := config.InitIamAccessKeyData()
+		for _, v := range aks {
+			iam_sto.AccessKeyInitData(v)
+		}
 	}
 
 	// module/LPS: init lps database and webserver
