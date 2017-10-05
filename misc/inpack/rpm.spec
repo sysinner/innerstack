@@ -1,11 +1,11 @@
-%define app_home    /opt/los/soho
+%define app_home    /opt/sysinner/soho
 %define app_user    action
 %define app_user_id 2048
 
-Name:    los-soho
+Name:    insoho
 Version: __version__
 Release: __release__%{?dist}
-Vendor:  lessOS.com
+Vendor:  sysinner.com
 Summary: Productivity Tools for Small Office or Home Office
 License: Apache 2
 Group:   Applications
@@ -30,8 +30,8 @@ mkdir -p %{buildroot}/etc/cron.d/
 
 cp -rp * %{buildroot}%{app_home}/
 install -m 644 etc/config.tpl.json     %{buildroot}%{app_home}/etc/config.json
-install -m 644 etc/lps_config.tpl.json %{buildroot}%{app_home}/etc/lps_config.json
-install -m 600 misc/lospack/crond %{buildroot}/etc/cron.d/los-soho
+install -m 644 etc/ips_config.tpl.json %{buildroot}%{app_home}/etc/ips_config.json
+install -m 600 misc/inpack/crond %{buildroot}/etc/cron.d/insoho
 
 %clean
 rm -rf %{buildroot}
@@ -51,8 +51,8 @@ exit 0
 %defattr(-,root,root,-)
 %dir %{app_home}
 %config(noreplace) %{app_home}/etc/config.json
-%config(noreplace) %{app_home}/etc/lps_config.json
-%config            /etc/cron.d/los-soho
+%config(noreplace) %{app_home}/etc/ips_config.json
+%config            /etc/cron.d/insoho
 
 %{app_home}/
 

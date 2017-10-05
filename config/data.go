@@ -20,44 +20,30 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
-	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
-	loscfg "github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/losapi"
+	incfg "github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
-	init_cache_akacc iamapi.AccessKey
-	init_zone_id     = "local"
-	init_cell_id     = "general"
-	init_sys_user    = "sysadmin"
+	init_zone_id  = "local"
+	init_cell_id  = "general"
+	init_sys_user = "sysadmin"
 )
-
-func init() {
-	init_cache_akacc = iamapi.AccessKey{
-		User: init_sys_user,
-		AccessKey: idhash.HashToHexString(
-			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 16),
-		SecretKey: idhash.RandBase64String(40),
-		Bounds: []iamapi.AccessKeyBound{{
-			Name: "sys/zm/" + init_zone_id,
-		}},
-	}
-}
 
 func InitHostletData() map[string]interface{} {
 
 	items := map[string]interface{}{}
 
-	items[losapi.NsLocalZoneMasterList()] = losapi.ResZoneMasterList{
-		Leader:  loscfg.Config.Host.Id,
+	items[inapi.NsLocalZoneMasterList()] = inapi.ResZoneMasterList{
+		Leader:  incfg.Config.Host.Id,
 		Updated: uint64(types.MetaTimeNow()),
-		Items: []*losapi.ResZoneMasterNode{
+		Items: []*inapi.ResZoneMasterNode{
 			{
-				Id:   loscfg.Config.Host.Id,
-				Addr: string(loscfg.Config.Host.LanAddr),
+				Id:   incfg.Config.Host.Id,
+				Addr: string(incfg.Config.Host.LanAddr),
 			},
 		},
 	}
@@ -76,14 +62,14 @@ func InitZoneMasterData() map[string]interface{} {
 	var (
 		items         = map[string]interface{}{}
 		name          types.NameIdentifier
-		host_id       = loscfg.Config.Host.Id
-		host_lan_addr = string(loscfg.Config.Host.LanAddr)
-		host_wan_addr = string(loscfg.Config.Host.WanAddr)
+		host_id       = incfg.Config.Host.Id
+		host_lan_addr = string(incfg.Config.Host.LanAddr)
+		host_wan_addr = string(incfg.Config.Host.WanAddr)
 	)
 
 	// sys zone
-	sys_zone := losapi.ResZone{
-		Meta: &losapi.ObjectMeta{
+	sys_zone := inapi.ResZone{
+		Meta: &inapi.ObjectMeta{
 			Id:      init_zone_id,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
@@ -93,7 +79,7 @@ func InitZoneMasterData() map[string]interface{} {
 			host_lan_addr,
 		},
 	}
-	if loscfg.Config.Host.WanAddr.Valid() {
+	if incfg.Config.Host.WanAddr.Valid() {
 		sys_zone.WanAddrs = []string{
 			host_wan_addr,
 		}
@@ -103,12 +89,12 @@ func InitZoneMasterData() map[string]interface{} {
 	sys_zone.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
 	sys_zone.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
 
-	items[losapi.NsGlobalSysZone(init_zone_id)] = sys_zone
-	items[losapi.NsZoneSysInfo(init_zone_id)] = sys_zone
+	items[inapi.NsGlobalSysZone(init_zone_id)] = sys_zone
+	items[inapi.NsZoneSysInfo(init_zone_id)] = sys_zone
 
 	// sys cell
-	sys_cell := losapi.ResCell{
-		Meta: &losapi.ObjectMeta{
+	sys_cell := inapi.ResCell{
+		Meta: &inapi.ObjectMeta{
 			Id:      init_cell_id,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
@@ -117,41 +103,41 @@ func InitZoneMasterData() map[string]interface{} {
 		Phase:       1,
 		Description: "",
 	}
-	items[losapi.NsGlobalSysCell(init_zone_id, init_cell_id)] = sys_cell
-	items[losapi.NsZoneSysCell(init_zone_id, init_cell_id)] = sys_cell
+	items[inapi.NsGlobalSysCell(init_zone_id, init_cell_id)] = sys_cell
+	items[inapi.NsZoneSysCell(init_zone_id, init_cell_id)] = sys_cell
 
 	// sys host
-	sys_host := losapi.ResHost{
-		Meta: &losapi.ObjectMeta{
+	sys_host := inapi.ResHost{
+		Meta: &inapi.ObjectMeta{
 			Id:      host_id,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
 		},
-		Operate: &losapi.ResHostOperate{
+		Operate: &inapi.ResHostOperate{
 			Action: 1,
 			ZoneId: init_zone_id,
 			CellId: init_cell_id,
 		},
-		Spec: &losapi.ResHostSpec{
+		Spec: &inapi.ResHostSpec{
 			PeerLanAddr: host_lan_addr,
 		},
 	}
-	items[losapi.NsZoneSysHost(init_zone_id, host_id)] = sys_host
-	items[losapi.NsZoneSysHostSecretKey(init_zone_id, host_id)] = loscfg.Config.Host.SecretKey
+	items[inapi.NsZoneSysHost(init_zone_id, host_id)] = sys_host
+	items[inapi.NsZoneSysHostSecretKey(init_zone_id, host_id)] = incfg.Config.Host.SecretKey
 
 	//
 
 	// zone-master node(s)/leader
-	items[losapi.NsZoneSysMasterNode(init_zone_id, host_id)] = losapi.ResZoneMasterNode{
+	items[inapi.NsZoneSysMasterNode(init_zone_id, host_id)] = inapi.ResZoneMasterNode{
 		Id:     host_id,
 		Addr:   host_lan_addr,
 		Action: 1,
 	}
-	items[losapi.NsZoneSysMasterLeader(init_zone_id)] = host_id
+	items[inapi.NsZoneSysMasterLeader(init_zone_id)] = host_id
 
 	//
 	name = types.NewNameIdentifier("pod/spec/plan/b1")
-	plan := losapi.PodSpecPlan{
+	plan := inapi.PodSpecPlan{
 		Meta: types.InnerObjectMeta{
 			ID:      name.HashToString(16),
 			Name:    name.String(),
@@ -161,8 +147,8 @@ func InitZoneMasterData() map[string]interface{} {
 			Updated: types.MetaTimeNow(),
 			Title:   "Basic B1",
 		},
-		Status: losapi.SpecStatusActive,
-		Zones: []losapi.PodSpecPlanZone{
+		Status: inapi.SpecStatusActive,
+		Zones: []inapi.PodSpecPlanZone{
 			{
 				Name:  init_zone_id,
 				Cells: []string{init_cell_id},
@@ -174,9 +160,9 @@ func InitZoneMasterData() map[string]interface{} {
 	plan.Annotations.Set("meta/homepage", "http://example.com")
 
 	// Spec/Image
-	name = types.NewNameIdentifier("pod/spec/box/image/d1el7b1")
+	name = types.NewNameIdentifier("pod/spec/box/image/a1el7v1")
 
-	image := losapi.PodSpecBoxImage{
+	image := inapi.PodSpecBoxImage{
 		Meta: types.InnerObjectMeta{
 			ID:      name.HashToString(16),
 			Name:    name.String(),
@@ -185,16 +171,16 @@ func InitZoneMasterData() map[string]interface{} {
 			Created: types.MetaTimeNow(),
 			Updated: types.MetaTimeNow(),
 		},
-		Status:    losapi.SpecStatusActive,
-		Driver:    losapi.PodSpecBoxImageDocker,
+		Status:    inapi.SpecStatusActive,
+		Driver:    inapi.PodSpecBoxImageDocker,
 		OsType:    "linux",
 		OsDist:    "el7",
 		OsVersion: "7",
 		OsName:    "CentOS 7",
 		Arch:      "x64",
 	}
-	image.Options.Set("docker/image/name", "lessos:d1el7b1")
-	items[losapi.NsGlobalPodSpec("box/image", image.Meta.ID)] = image
+	image.Options.Set("docker/image/name", "sysinner:a1el7v1")
+	items[inapi.NsGlobalPodSpec("box/image", image.Meta.ID)] = image
 
 	image.Meta.User = ""
 	image.Meta.Created = 0
@@ -216,7 +202,7 @@ func InitZoneMasterData() map[string]interface{} {
 
 		name = types.NewNameIdentifier(fmt.Sprintf("pod/spec/res/compute/c%06dm%06d", v[0], v[1]))
 
-		res := losapi.PodSpecResourceCompute{
+		res := inapi.PodSpecResourceCompute{
 			Meta: types.InnerObjectMeta{
 				ID:      name.HashToString(16),
 				Name:    name.String(),
@@ -225,16 +211,16 @@ func InitZoneMasterData() map[string]interface{} {
 				Created: types.MetaTimeNow(),
 				Updated: types.MetaTimeNow(),
 			},
-			Status:      losapi.SpecStatusActive,
+			Status:      inapi.SpecStatusActive,
 			CpuLimit:    v[0],
-			MemoryLimit: v[1] * losapi.ByteMB,
+			MemoryLimit: v[1] * inapi.ByteMB,
 		}
 
 		if v[0] == 100 {
 			plan.ResourceComputeDefault = res.Meta.ID
 		}
 
-		items[losapi.NsGlobalPodSpec("res/compute", res.Meta.ID)] = res
+		items[inapi.NsGlobalPodSpec("res/compute", res.Meta.ID)] = res
 
 		res.Meta.User = ""
 		res.Meta.Created = 0
@@ -246,7 +232,7 @@ func InitZoneMasterData() map[string]interface{} {
 
 	//
 	name = types.NewNameIdentifier("pod/spec/res/volume/local.g01.h01")
-	vol := losapi.PodSpecResourceVolume{
+	vol := inapi.PodSpecResourceVolume{
 		Meta: types.InnerObjectMeta{
 			ID:      name.HashToString(16),
 			Name:    name.String(),
@@ -255,14 +241,14 @@ func InitZoneMasterData() map[string]interface{} {
 			Created: types.MetaTimeNow(),
 			Updated: types.MetaTimeNow(),
 		},
-		Status:  losapi.SpecStatusActive,
-		Limit:   10 * losapi.ByteGB,
-		Request: 100 * losapi.ByteMB,
-		Step:    100 * losapi.ByteMB,
-		Default: 100 * losapi.ByteMB,
+		Status:  inapi.SpecStatusActive,
+		Limit:   10 * inapi.ByteGB,
+		Request: 100 * inapi.ByteMB,
+		Step:    100 * inapi.ByteMB,
+		Default: 100 * inapi.ByteMB,
 	}
 	vol.Labels.Set("pod/spec/res/volume/type", "system")
-	items[losapi.NsGlobalPodSpec("res/volume", vol.Meta.ID)] = vol
+	items[inapi.NsGlobalPodSpec("res/volume", vol.Meta.ID)] = vol
 
 	vol.Meta.User = ""
 	vol.Meta.Created = 0
@@ -272,21 +258,21 @@ func InitZoneMasterData() map[string]interface{} {
 	plan.ResourceVolumeDefault = vol.Meta.ID
 
 	//
-	items[losapi.NsGlobalPodSpec("plan", plan.Meta.ID)] = plan
+	items[inapi.NsGlobalPodSpec("plan", plan.Meta.ID)] = plan
 
 	specs := []string{
-		"los_app_spec_hooto-press.json",
-		"los_app_spec_los-httplb.json",
-		"los_app_spec_los-mysql.json",
+		"app_spec_hooto-press.json",
+		"app_spec_sysinner-httplb.json",
+		"app_spec_sysinner-mysql.json",
 	}
 	for _, v := range specs {
-		var spec losapi.AppSpec
-		if err := json.DecodeFile(loscfg.Prefix+"/misc/app-spec/"+v, &spec); err != nil || spec.Meta.ID == "" {
+		var spec inapi.AppSpec
+		if err := json.DecodeFile(incfg.Prefix+"/misc/app-spec/"+v, &spec); err != nil || spec.Meta.ID == "" {
 			hlog.Printf("warn", "init app spec %s error", v)
 			continue
 		}
 		spec.Meta.User = "sysadmin"
-		items[losapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
+		items[inapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
 	}
 
 	return items

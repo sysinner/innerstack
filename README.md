@@ -1,6 +1,6 @@
 **THIS IS A DEVELOPMENT PREVIEW - DO NOT USE IT IN PRODUCTION!**
 
-## lessOS SOHO (los-soho)
+## SysInner SOHO (insoho)
 
 An on-premise, single-node container and application manager in local server for development
 

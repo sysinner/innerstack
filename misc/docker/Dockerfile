@@ -1,7 +1,7 @@
 FROM centos:centos7
 MAINTAINER Eryx <evorui#gmail.com>
 
-LABEL "docker/image/name"="lessos:d1el7b1"
+LABEL "docker/image/name"="sysinner:d1el7b1"
 
 #RUN rm -f /etc/yum.repos.d/* && \
 #    curl -X GET http://mirrors.aliyun.com/repo/Centos-7.repo -o /etc/yum.repos.d/CentOS-Base.repo && \
@@ -10,7 +10,7 @@ LABEL "docker/image/name"="lessos:d1el7b1"
 RUN rm -f /etc/yum.repos.d/*
 ADD el7.aliyun.repo /etc/yum.repos.d/base.repo
 
-RUN yum install -y vim openssh-server sysvinit-tools psmisc rsync && \
+RUN yum install -y vim openssh-server sysvinit-tools psmisc rsync libaio numactl-libs && \
     yum clean all
 
 RUN useradd -u 2048 -d /home/action action

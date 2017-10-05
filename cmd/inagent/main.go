@@ -26,14 +26,14 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/httpsrv/deps/go.net/websocket"
 
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/lpagent/executor"
-	"github.com/lessos/loscore/lpagent/v1"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inagent/executor"
+	"github.com/sysinner/incore/inagent/v1"
 )
 
 const (
-	addr_sock = "/home/action/.los/lpagent.sock"
+	addr_sock = "/home/action/.sysinner/inagent.sock"
 )
 
 var (
@@ -46,7 +46,7 @@ func main() {
 
 	//
 	pod_id = strings.TrimSpace(os.Getenv("POD_ID"))
-	if !losapi.PodIdReg.MatchString(pod_id) {
+	if !inapi.PodIdReg.MatchString(pod_id) {
 		os.Exit(1)
 	}
 
@@ -85,10 +85,10 @@ func main() {
 	httpsrv.GlobalService.Config.HttpAddr = "unix:" + addr_sock
 
 	httpsrv.GlobalService.HandlerRegister(
-		"/los/v1/pb/termws",
+		"/in/v1/pb/termws",
 		websocket.Handler(v1.TerminalWsOpenAction))
 
-	httpsrv.GlobalService.ModuleRegister("/los/v1/", v1.NewModule())
+	httpsrv.GlobalService.ModuleRegister("/in/v1/", v1.NewModule())
 
 	httpsrv.GlobalService.Start()
 

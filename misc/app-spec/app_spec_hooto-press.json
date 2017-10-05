@@ -20,7 +20,7 @@
   "executors": [
     {
       "name": "main",
-      "exec_start": "DAEMON=/home/action/apps/hooto-press/bin/hooto-press\nDAEMON_ARGS=\"-log_dir=/home/action/apps/hooto-press/var/log -minloglevel=1 -logtolevels=true\"\nNAME=hooto-press\n\nif pidof $NAME; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/hooto-press/\nrsync -av {{.lpm_prefix_hooto_press}}/* /home/action/apps/hooto-press/\n\n$DAEMON $DAEMON_ARGS \u003e\u003e /home/action/var/log/hooto-press.log 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
+      "exec_start": "DAEMON=/home/action/apps/hooto-press/bin/hooto-press\nDAEMON_ARGS=\"-log_dir=/home/action/apps/hooto-press/var/log -minloglevel=1 -logtolevels=true\"\nNAME=hooto-press\n\nif pidof $NAME; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/hooto-press/\nrsync -av {{.inpack_prefix_hooto_press}}/* /home/action/apps/hooto-press/\n\n$DAEMON $DAEMON_ARGS \u003e\u003e /home/action/var/log/hooto-press.log 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
       "exec_stop": "killall hooto-press",
       "plan": {
         "on_tick": 60
@@ -47,10 +47,10 @@
         "type": 1
       },
       {
-        "name": "bound_los_mysql",
+        "name": "bound_sysinner_mysql",
         "title": "Bound App",
         "type": 10,
-        "default": "cfg/los-mysql"
+        "default": "cfg/sysinner-mysql"
       }
     ]
   }

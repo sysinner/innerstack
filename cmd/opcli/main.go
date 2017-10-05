@@ -26,10 +26,10 @@ import (
 	"strings"
 
 	"github.com/lessos/lessgo/types"
-	"github.com/lessos/los-soho/internal/cliflags"
 	"github.com/lynkdb/iomix/connect"
 	"github.com/lynkdb/iomix/skv"
 	"github.com/lynkdb/kvgo"
+	"github.com/sysinner/insoho/internal/cliflags"
 )
 
 var (

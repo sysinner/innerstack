@@ -2,7 +2,7 @@
   "kind": "AppSpec",
   "meta": {
     "id": "7347713d5b6e3d2b",
-    "name": "los-mysql",
+    "name": "sysinner-mysql",
     "version": "7"
   },
   "roles": [
@@ -12,14 +12,14 @@
     {
       "name": "mysql57",
       "version": "5.7.18",
-      "release": "2",
+      "release": "1",
       "dist": "el7",
       "arch": "x64"
     },
     {
-      "name": "los-mysql-keeper",
+      "name": "sysinner-mysql",
       "version": "0.1.0-dev",
-      "release": "8",
+      "release": "1",
       "dist": "el7",
       "arch": "x64"
     }
@@ -27,8 +27,8 @@
   "executors": [
     {
       "name": "main",
-      "exec_start": "if pidof los-mysql-keeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/mysql57/\nrsync -av {{.lpm_prefix_mysql57}}/* /home/action/apps/mysql57/\n\nmkdir -p /home/action/apps/los-mysql-keeper/\nrsync -av {{.lpm_prefix_los_mysql_keeper}}/* /home/action/apps/los-mysql-keeper/\n\n/home/action/apps/los-mysql-keeper/bin/los-mysql-keeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0\n",
-      "exec_stop": "killall los-mysql-keeper\nkillall mysql57d",
+      "exec_start": "if pidof sysinner-mysql; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/mysql57/\nrsync -av {{.inpack_prefix_mysql57}}/* /home/action/apps/mysql57/\n\nmkdir -p /home/action/apps/sysinner-mysql/\nrsync -av {{.inpack_prefix_sysinner_mysql}}/* /home/action/apps/sysinner-mysql/\n\n/home/action/apps/sysinner-mysql/bin/sysinner-mysql \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0\n",
+      "exec_stop": "killall sysinner-mysql\nkillall mysql57d",
       "plan": {
         "on_tick": 60
       }
@@ -41,7 +41,7 @@
     }
   ],
   "configurator": {
-    "name": "cfg/los-mysql",
+    "name": "cfg/sysinner-mysql",
     "fields": [
       {
         "name": "db_name",

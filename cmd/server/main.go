@@ -32,25 +32,25 @@ import (
 	iam_web "github.com/hooto/iam/websrv/ctrl"
 	iam_api "github.com/hooto/iam/websrv/v1"
 
-	lps_cf "github.com/lessos/lospack/server/config"
-	lps_db "github.com/lessos/lospack/server/data"
-	lps_v1 "github.com/lessos/lospack/websrv/v1"
+	ips_cf "github.com/sysinner/inpack/server/config"
+	ips_db "github.com/sysinner/inpack/server/data"
+	ips_v1 "github.com/sysinner/inpack/websrv/v1"
 
-	los_webui "github.com/lessos/los-webui"
-	los_ws_cp "github.com/lessos/loscore/websrv/cp"
-	los_ws_op "github.com/lessos/loscore/websrv/ops"
-	los_ws_v1 "github.com/lessos/loscore/websrv/v1"
+	in_ws_cp "github.com/sysinner/incore/websrv/cp"
+	in_ws_op "github.com/sysinner/incore/websrv/ops"
+	in_ws_v1 "github.com/sysinner/incore/websrv/v1"
+	in_webui "github.com/sysinner/inpanel"
 
-	los_cf "github.com/lessos/loscore/config"
-	los_db "github.com/lessos/loscore/data"
-	los_host "github.com/lessos/loscore/hostlet"
-	los_api "github.com/lessos/loscore/losapi"
-	los_rpc "github.com/lessos/loscore/rpcsrv"
-	los_sched "github.com/lessos/loscore/scheduler"
-	los_sts "github.com/lessos/loscore/status"
-	los_zm "github.com/lessos/loscore/zonemaster"
+	in_cf "github.com/sysinner/incore/config"
+	in_db "github.com/sysinner/incore/data"
+	in_host "github.com/sysinner/incore/hostlet"
+	in_api "github.com/sysinner/incore/inapi"
+	in_rpc "github.com/sysinner/incore/rpcsrv"
+	in_sched "github.com/sysinner/incore/scheduler"
+	in_sts "github.com/sysinner/incore/status"
+	in_zm "github.com/sysinner/incore/zonemaster"
 
-	"github.com/lessos/los-soho/config"
+	"github.com/sysinner/insoho/config"
 )
 
 var (
@@ -65,65 +65,65 @@ func main() {
 
 	// initialize configuration
 	{
-		if err = los_cf.Init(); err != nil {
+		if err = in_cf.Init(); err != nil {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 
-		if err = config.Init(Version); err != nil {
+		if err = config.Init(Version, in_cf.Config.Host.SecretKey); err != nil {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 	}
 
 	// initialize status
 	{
-		if err = los_sts.Init(); err != nil {
+		if err = in_sts.Init(); err != nil {
 			log.Fatalf("status.Init error: %s", err.Error())
 		}
 	}
 
 	{
-		hlog.Printf("info", "loscore version %s", los_cf.Version)
-		hlog.Printf("info", "los-webui version %s", los_webui.Version)
-		hlog.Printf("info", "lospack version %s", lps_cf.Version)
-		hlog.Printf("info", "los-soho version %s", Version)
-		los_webui.VersionHash = idhash.HashToHexString([]byte(
-			(los_webui.Version + Released)), 16)
+		hlog.Printf("info", "inCore  version %s", in_cf.Version)
+		hlog.Printf("info", "inPanel version %s", in_webui.Version)
+		hlog.Printf("info", "inPack  version %s", ips_cf.Version)
+		hlog.Printf("info", "inSoho  version %s", Version)
+		in_webui.VersionHash = idhash.HashToHexString([]byte(
+			(in_webui.Version + Released)), 16)
 	}
 
 	// initialize data/io connection
 	{
 		// init local cache database
-		opts := los_cf.Config.IoConnectors.Options("los_local_cache")
+		opts := in_cf.Config.IoConnectors.Options("in_local_cache")
 		if opts == nil {
-			log.Fatalf("conf.Data No IoConnector (%s) Found", "los_local_cache")
+			log.Fatalf("conf.Data No IoConnector (%s) Found", "in_local_cache")
 		}
 
-		if los_db.LocalDB, err = kvgo.Open(*opts); err != nil {
+		if in_db.LocalDB, err = kvgo.Open(*opts); err != nil {
 			log.Fatalf("Can Not Connect To %s, Error: %s", opts.Name, err.Error())
 		}
 
 		// init zone master database
-		opts = los_cf.Config.IoConnectors.Options("los_zone_master")
+		opts = in_cf.Config.IoConnectors.Options("in_zone_master")
 		if opts == nil {
-			log.Fatalf("conf.Data No IoConnector (%s) Found", "los_zone_master")
+			log.Fatalf("conf.Data No IoConnector (%s) Found", "in_zone_master")
 		}
 
-		if los_db.ZoneMaster, err = kvgo.Open(*opts); err != nil {
+		if in_db.ZoneMaster, err = kvgo.Open(*opts); err != nil {
 			log.Fatalf("Can Not Connect To %s, Error: %s", opts.Name, err.Error())
 		}
 
-		los_db.HiMaster = los_db.ZoneMaster
+		in_db.HiMaster = in_db.ZoneMaster
 	}
 
 	// module/IAM
 	{
 		//
-		iam_cfg.Prefix = los_cf.Prefix + "/vendor/github.com/hooto/iam"
-		iam_cfg.Config.InstanceID = idhash.HashToHexString([]byte("los-soho/iam"), 16)
+		iam_cfg.Prefix = in_cf.Prefix + "/vendor/github.com/hooto/iam_static"
+		iam_cfg.Config.InstanceID = idhash.HashToHexString([]byte("insoho/iam"), 16)
 
 		// init database
 		iam_sto.PathPrefixSet("/global/iam")
-		iam_sto.Data = los_db.ZoneMaster
+		iam_sto.Data = in_db.ZoneMaster
 		if err := iam_sto.Init(); err != nil {
 			log.Fatalf("iam.Store.Init error: %s", err.Error())
 		}
@@ -134,21 +134,21 @@ func main() {
 		//
 		iam_cli.ServiceUrl = fmt.Sprintf(
 			"http://%s:%d/iam",
-			los_cf.Config.Host.LanAddr.IP(),
-			los_cf.Config.Host.HttpPort,
+			in_cf.Config.Host.LanAddr.IP(),
+			in_cf.Config.Host.HttpPort,
 		)
-		if los_cf.Config.IamServiceUrlFrontend == "" {
-			if los_cf.Config.Host.WanAddr.IP() != "" {
+		if in_cf.Config.IamServiceUrlFrontend == "" {
+			if in_cf.Config.Host.WanAddr.IP() != "" {
 				iam_cli.ServiceUrlFrontend = fmt.Sprintf(
 					"http://%s:%d/iam",
-					los_cf.Config.Host.WanAddr.IP(),
-					los_cf.Config.Host.HttpPort,
+					in_cf.Config.Host.WanAddr.IP(),
+					in_cf.Config.Host.HttpPort,
 				)
 			} else {
 				iam_cli.ServiceUrlFrontend = iam_cli.ServiceUrl
 			}
 		} else {
-			iam_cli.ServiceUrlFrontend = los_cf.Config.IamServiceUrlFrontend
+			iam_cli.ServiceUrlFrontend = in_cf.Config.IamServiceUrlFrontend
 		}
 		hlog.Printf("info", "IAM ServiceUrl %s", iam_cli.ServiceUrl)
 		hlog.Printf("info", "IAM ServiceUrlFrontend %s", iam_cli.ServiceUrlFrontend)
@@ -170,98 +170,98 @@ func main() {
 		}
 	}
 
-	// module/LPS: init lps database and webserver
+	// module/LPS: init ips database and webserver
 	{
-		if err = lps_cf.Init(los_cf.Prefix); err != nil {
-			log.Fatalf("lps.Config.Init error: %s", err.Error())
+		if err = ips_cf.Init(in_cf.Prefix); err != nil {
+			log.Fatalf("ips.Config.Init error: %s", err.Error())
 		}
 
-		if err = lps_db.Init(lps_cf.Config.IoConnectors); err != nil {
-			log.Fatalf("lps.Data.Init error: %s", err.Error())
+		if err = ips_db.Init(ips_cf.Config.IoConnectors); err != nil {
+			log.Fatalf("ips.Data.Init error: %s", err.Error())
 		}
 
-		if err := iam_sto.AppInstanceRegister(lps_cf.IamAppInstance()); err != nil {
-			log.Fatalf("lps.Data.Init error: %s", err.Error())
+		if err := iam_sto.AppInstanceRegister(ips_cf.IamAppInstance()); err != nil {
+			log.Fatalf("ips.Data.Init error: %s", err.Error())
 		}
 
-		hs.ModuleRegister("/lps/v1", lps_v1.NewModule())
-		hs.ModuleRegister("/los/cp/lps/~", httpsrv.NewStaticModule("lps_ui", los_cf.Prefix+"/webui/lps"))
+		hs.ModuleRegister("/ips/v1", ips_v1.NewModule())
+		hs.ModuleRegister("/in/cp/ips/~", httpsrv.NewStaticModule("ips_ui", in_cf.Prefix+"/webui/ips"))
 
 		// TODO
-		los_cf.Config.LpsServiceUrl = fmt.Sprintf(
+		in_cf.Config.InpackServiceUrl = fmt.Sprintf(
 			"http://%s:%d/",
-			los_cf.Config.Host.LanAddr.IP(),
-			los_cf.Config.Host.HttpPort,
+			in_cf.Config.Host.LanAddr.IP(),
+			in_cf.Config.Host.HttpPort,
 		)
 	}
 
 	// module/hchart
 	{
-		hs.ModuleRegister("/los/cp/hchart/~", httpsrv.NewStaticModule("hchart_ui", los_cf.Prefix+"/webui/hchart/webui"))
+		hs.ModuleRegister("/in/cp/hchart/~", httpsrv.NewStaticModule("hchart_ui", in_cf.Prefix+"/webui/hchart/webui"))
 	}
 
-	// loscore
+	// incore
 	{
 		if err := iam_sto.AppInstanceRegister(config.IamAppInstance()); err != nil {
-			log.Fatalf("los.Data.Init error: %s", err.Error())
+			log.Fatalf("in.Data.Init error: %s", err.Error())
 		}
 
-		hs.HandlerFuncRegister("/los/v1/pb/termws", los_ws_v1.PodBoundTerminalWsHandlerFunc)
+		hs.HandlerFuncRegister("/in/v1/pb/termws", in_ws_v1.PodBoundTerminalWsHandlerFunc)
 
 		// Frontend APIs/UI for Users
-		hs.ModuleRegister("/los/v1", los_ws_v1.NewModule())
-		hs.ModuleRegister("/los/cp", los_ws_cp.NewModule())
+		hs.ModuleRegister("/in/v1", in_ws_v1.NewModule())
+		hs.ModuleRegister("/in/cp", in_ws_cp.NewModule())
 		// Backend Operating APIs/UI for System Operators
-		hs.ModuleRegister("/los/ops", los_ws_op.NewModule())
+		hs.ModuleRegister("/in/ops", in_ws_op.NewModule())
 
 		// i18n
-		// hs.Config.I18n(los_cf.Prefix + "/i18n/en.json")
-		// hs.Config.I18n(los_cf.Prefix + "/i18n/zh_CN.json")
+		// hs.Config.I18n(in_cf.Prefix + "/i18n/en.json")
+		// hs.Config.I18n(in_cf.Prefix + "/i18n/zh_CN.json")
 	}
 
 	// init zonemaster
 	{
-		if err := los_zm.InitData(config.InitZoneMasterData()); err != nil {
+		if err := in_zm.InitData(config.InitZoneMasterData()); err != nil {
 			log.Fatal(err.Error())
 		}
 
-		los_zm.Scheduler = los_sched.NewScheduler()
-		los_api.RegisterApiZoneMasterServer(los_rpc.Server, new(los_zm.ApiZoneMaster))
+		in_zm.Scheduler = in_sched.NewScheduler()
+		in_api.RegisterApiZoneMasterServer(in_rpc.Server, new(in_zm.ApiZoneMaster))
 
-		if err := los_zm.Start(); err != nil {
+		if err := in_zm.Start(); err != nil {
 			log.Fatal(err.Error())
 		}
 	}
 
 	//
 	{
-		if err := los_host.InitData(config.InitHostletData()); err != nil {
+		if err := in_host.InitData(config.InitHostletData()); err != nil {
 			log.Fatal(err.Error())
 		}
 
-		if err := los_host.Start(); err != nil {
+		if err := in_host.Start(); err != nil {
 			log.Fatal(err.Error())
 		}
 	}
 
 	//
-	if err := los_rpc.Start(los_cf.Config.Host.LanAddr.Port()); err != nil {
+	if err := in_rpc.Start(in_cf.Config.Host.LanAddr.Port()); err != nil {
 		log.Fatalf("rpc.server.Start error: %v", err)
 	}
 
 	// http service
-	hs.Config.HttpPort = los_cf.Config.Host.HttpPort
+	hs.Config.HttpPort = in_cf.Config.Host.HttpPort
 	go hs.Start()
 
 	// job/task
 	// go nodelet.Start()
 	// go scheduler.Start()
 
-	if los_cf.Config.PprofHttpPort > 0 {
-		go http.ListenAndServe(fmt.Sprintf(":%d", los_cf.Config.PprofHttpPort), nil)
+	if in_cf.Config.PprofHttpPort > 0 {
+		go http.ListenAndServe(fmt.Sprintf(":%d", in_cf.Config.PprofHttpPort), nil)
 	}
 
-	los_cf.Config.Sync()
+	in_cf.Config.Sync()
 
 	select {}
 }

@@ -15,25 +15,44 @@
 package config
 
 import (
+	"fmt"
+
+	"github.com/hooto/iam/iamapi"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/connect"
 
-	loscfg "github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/losapi"
+	incfg "github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
 )
 
-func Init(v string) error {
+var (
+	init_cache_akacc iamapi.AccessKey
+)
 
-	version = v
+func Init(ver, seed string) error {
 
-	loscfg.Config.Masters = []losapi.HostNodeAddress{
-		loscfg.Config.Host.LanAddr,
+	version = ver
+
+	incfg.Config.Masters = []inapi.HostNodeAddress{
+		incfg.Config.Host.LanAddr,
 	}
 
-	loscfg.Config.Host.ZoneId = "local"
+	incfg.Config.Host.ZoneId = "local"
 
 	if err := init_data(); err != nil {
 		return err
+	}
+
+	init_cache_akacc = iamapi.AccessKey{
+		User: init_sys_user,
+		AccessKey: idhash.HashToHexString(
+			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 16),
+		SecretKey: idhash.HashToBase64String(idhash.AlgMd5, []byte(seed), 40),
+		Bounds: []iamapi.AccessKeyBound{{
+			Name: "sys/zm/" + init_zone_id,
+		}},
+		Description: "ZoneMaster AccCharge",
 	}
 
 	return nil
@@ -42,8 +61,8 @@ func Init(v string) error {
 //
 func init_data() error {
 
-	io_name := types.NewNameIdentifier("los_zone_master")
-	opts := loscfg.Config.IoConnectors.Options(io_name)
+	io_name := types.NewNameIdentifier("in_zone_master")
+	opts := incfg.Config.IoConnectors.Options(io_name)
 
 	if opts == nil {
 
@@ -55,10 +74,10 @@ func init_data() error {
 	}
 
 	if opts.Value("data_dir") == "" {
-		opts.SetValue("data_dir", loscfg.Prefix+"/var/"+string(io_name))
+		opts.SetValue("data_dir", incfg.Prefix+"/var/"+string(io_name))
 	}
 
-	loscfg.Config.IoConnectors.SetOptions(*opts)
+	incfg.Config.IoConnectors.SetOptions(*opts)
 
 	return nil
 }

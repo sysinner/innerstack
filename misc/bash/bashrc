@@ -9,7 +9,7 @@ HISTFILESIZE=2000
 shopt -s checkwinsize
 
 
-export PS1='\[\e[1;32m\][\u@los-soho \W]\$\[\e[0m\] '
+export PS1='\[\e[1;32m\][\u@SysInner \W]\$\[\e[0m\] '
 
 export LANG=en_US.UTF-8
 export TERM=linux

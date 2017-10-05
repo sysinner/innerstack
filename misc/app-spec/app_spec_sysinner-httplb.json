@@ -2,7 +2,7 @@
   "kind": "AppSpec",
   "meta": {
     "id": "c2bf45a57aba4b3d",
-    "name": "los-httplb",
+    "name": "sysinner-httplb",
     "version": "5"
   },
   "roles": [
@@ -17,7 +17,7 @@
       "arch": "x64"
     },
     {
-      "name": "los-httplb-keeper",
+      "name": "sysinner-httplb",
       "version": "0.0.3",
       "release": "3",
       "dist": "el7",
@@ -27,8 +27,8 @@
   "executors": [
     {
       "name": "main",
-      "exec_start": "if pidof los-httplb-keeper; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/openresty/\nrsync -av {{.lpm_prefix_openresty}}/* /home/action/apps/openresty/\n\nmkdir -p /home/action/apps/los-httplb-keeper/\nrsync -av {{.lpm_prefix_los_httplb_keeper}}/* /home/action/apps/los-httplb-keeper/\n\n/home/action/apps/los-httplb-keeper/bin/los-httplb-keeper \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
-      "exec_stop": "killall los-httplb-keeper",
+      "exec_start": "if pidof sysinner-httplb; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/openresty/\nrsync -av {{.inpack_prefix_openresty}}/* /home/action/apps/openresty/\n\nmkdir -p /home/action/apps/sysinner-httplb/\nrsync -av {{.inpack_prefix_sysinner_httplb}}/* /home/action/apps/sysinner-httplb/\n\n/home/action/apps/sysinner-httplb/bin/sysinner-httplb \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
+      "exec_stop": "killall sysinner-httplb",
       "plan": {
         "on_tick": 60
       }

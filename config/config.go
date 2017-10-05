@@ -22,7 +22,7 @@ import (
 
 var (
 	version    = "0.2.1.dev"
-	InstanceId = idhash.HashToHexString([]byte("los-soho"), 16)
+	InstanceId = idhash.HashToHexString([]byte("insoho"), 16)
 )
 
 func IamAppInstance() iamapi.AppInstance {
@@ -33,15 +33,15 @@ func IamAppInstance() iamapi.AppInstance {
 			User: "sysadmin",
 		},
 		Version:  version,
-		AppID:    "los-soho",
-		AppTitle: "lessOS for SOHO",
+		AppID:    "insoho",
+		AppTitle: "SysInner for SOHO",
 		Status:   1,
 		Url:      "",
 		Privileges: []iamapi.AppPrivilege{
 			{
-				Privilege: "los.admin",
+				Privilege: "sysinner.admin",
 				Roles:     []uint32{1},
-				Desc:      "lessOS Management",
+				Desc:      "SysInner Management",
 			},
 		},
 	}
