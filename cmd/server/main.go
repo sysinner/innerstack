@@ -122,7 +122,6 @@ func main() {
 		iam_cfg.Config.InstanceID = idhash.HashToHexString([]byte("insoho/iam"), 16)
 
 		// init database
-		iam_sto.PathPrefixSet("/global/iam")
 		iam_sto.Data = in_db.ZoneMaster
 		if err := iam_sto.Init(); err != nil {
 			log.Fatalf("iam.Store.Init error: %s", err.Error())

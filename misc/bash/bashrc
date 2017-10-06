@@ -21,4 +21,6 @@ fi
 
 TMOUT=3600
 
+export JAVA_HOME=/home/action/apps/java-jre8/
+export PATH=$JAVA_HOME/bin:$PATH
 
