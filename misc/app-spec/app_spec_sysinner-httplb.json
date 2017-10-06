@@ -3,7 +3,7 @@
   "meta": {
     "id": "c2bf45a57aba4b3d",
     "name": "sysinner-httplb",
-    "version": "5"
+    "version": "6"
   },
   "roles": [
     100
@@ -19,7 +19,7 @@
     {
       "name": "sysinner-httplb",
       "version": "0.0.3",
-      "release": "3",
+      "release": "1",
       "dist": "el7",
       "arch": "x64"
     }
