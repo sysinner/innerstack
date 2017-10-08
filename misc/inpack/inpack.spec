@@ -1,8 +1,9 @@
-project.name = insoho
-project.version = 0.2.1.dev
-project.vendor = hooto.com
-project.homepage = https://github.com/sysinner/insoho
-project.groups = dev/sys-srv
+[project]
+name = insoho
+version = 0.2.2.dev
+vendor = hooto.com
+homepage = https://github.com/sysinner/insoho
+groups = dev/sys-srv
 
 %build
 export PATH=$PATH:/usr/local/go/bin:/opt/gopath/bin

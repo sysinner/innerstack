@@ -3,23 +3,24 @@
   "meta": {
     "id": "7347713d5b6e3d2b",
     "name": "sysinner-mysql",
-    "version": "8"
+    "version": "21"
   },
   "roles": [
-    100
+    100,
+    101
   ],
   "packages": [
     {
       "name": "mysql57",
       "version": "5.7.18",
-      "release": "1",
+      "release": "2",
       "dist": "el7",
       "arch": "x64"
     },
     {
       "name": "sysinner-mysql",
-      "version": "0.1.0-dev",
-      "release": "1",
+      "version": "0.1.1-dev",
+      "release": "2",
       "dist": "el7",
       "arch": "x64"
     }
@@ -62,6 +63,13 @@
         "type": 1,
         "default": "dbuser",
         "auto_fill": "defval"
+      },
+      {
+        "name": "memory_usage_limit",
+        "title": "Memory Usage In Percentage (10 ~ 100)",
+        "prompt": "Range in 10 ~ 100",
+        "type": 1,
+        "default": "50"
       }
     ]
   }

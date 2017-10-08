@@ -1,4 +1,4 @@
-// Copyright 2015 Authors, All rights reserved.
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import (
 	in_ws_cp "github.com/sysinner/incore/websrv/cp"
 	in_ws_op "github.com/sysinner/incore/websrv/ops"
 	in_ws_v1 "github.com/sysinner/incore/websrv/v1"
-	in_webui "github.com/sysinner/inpanel"
+	in_ws_ui "github.com/sysinner/inpanel"
 
 	in_cf "github.com/sysinner/incore/config"
 	in_db "github.com/sysinner/incore/data"
@@ -83,11 +83,11 @@ func main() {
 
 	{
 		hlog.Printf("info", "inCore  version %s", in_cf.Version)
-		hlog.Printf("info", "inPanel version %s", in_webui.Version)
+		hlog.Printf("info", "inPanel version %s", in_ws_ui.Version)
 		hlog.Printf("info", "inPack  version %s", ips_cf.Version)
 		hlog.Printf("info", "inSoho  version %s", Version)
-		in_webui.VersionHash = idhash.HashToHexString([]byte(
-			(in_webui.Version + Released)), 16)
+		in_ws_ui.VersionHash = idhash.HashToHexString([]byte(
+			(in_ws_ui.Version + Released)), 16)
 	}
 
 	// initialize data/io connection
@@ -207,11 +207,12 @@ func main() {
 
 		hs.HandlerFuncRegister("/in/v1/pb/termws", in_ws_v1.PodBoundTerminalWsHandlerFunc)
 
-		// Frontend APIs/UI for Users
-		hs.ModuleRegister("/in/v1", in_ws_v1.NewModule())
-		hs.ModuleRegister("/in/cp", in_ws_cp.NewModule())
 		// Backend Operating APIs/UI for System Operators
 		hs.ModuleRegister("/in/ops", in_ws_op.NewModule())
+
+		// Frontend APIs/UI for Users
+		hs.ModuleRegister("/in/v1", in_ws_v1.NewModule())
+		hs.ModuleRegister("/in", in_ws_cp.NewModule())
 
 		// i18n
 		// hs.Config.I18n(in_cf.Prefix + "/i18n/en.json")

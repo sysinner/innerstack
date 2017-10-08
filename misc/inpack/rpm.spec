@@ -30,7 +30,7 @@ mkdir -p %{buildroot}/etc/cron.d/
 
 cp -rp * %{buildroot}%{app_home}/
 install -m 644 etc/config.tpl.json     %{buildroot}%{app_home}/etc/config.json
-install -m 644 etc/ips_config.tpl.json %{buildroot}%{app_home}/etc/ips_config.json
+install -m 644 etc/inpack_config.tpl.json %{buildroot}%{app_home}/etc/inpack_config.json
 install -m 600 misc/inpack/crond %{buildroot}/etc/cron.d/insoho
 
 %clean
@@ -51,7 +51,7 @@ exit 0
 %defattr(-,root,root,-)
 %dir %{app_home}
 %config(noreplace) %{app_home}/etc/config.json
-%config(noreplace) %{app_home}/etc/ips_config.json
+%config(noreplace) %{app_home}/etc/inpack_config.json
 %config            /etc/cron.d/insoho
 
 %{app_home}/
