@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Authors, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -207,12 +207,15 @@ func main() {
 
 		hs.HandlerFuncRegister("/in/v1/pb/termws", in_ws_v1.PodBoundTerminalWsHandlerFunc)
 
+		// Frontend APIs/UI for Users
+		hs.ModuleRegister("/in/v1", in_ws_v1.NewModule())
+		hs.ModuleRegister("/in/cp", in_ws_cp.NewModule())
+
 		// Backend Operating APIs/UI for System Operators
 		hs.ModuleRegister("/in/ops", in_ws_op.NewModule())
 
-		// Frontend APIs/UI for Users
-		hs.ModuleRegister("/in/v1", in_ws_v1.NewModule())
-		hs.ModuleRegister("/in", in_ws_cp.NewModule())
+		// Frontend UI Index
+		hs.ModuleRegister("/in", in_ws_cp.NewIndexModule())
 
 		// i18n
 		// hs.Config.I18n(in_cf.Prefix + "/i18n/en.json")
