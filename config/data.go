@@ -61,7 +61,7 @@ func InitZoneMasterData() map[string]interface{} {
 
 	var (
 		items         = map[string]interface{}{}
-		name          types.NameIdentifier
+		name          string
 		host_id       = incfg.Config.Host.Id
 		host_lan_addr = string(incfg.Config.Host.LanAddr)
 		host_wan_addr = string(incfg.Config.Host.WanAddr)
@@ -136,36 +136,36 @@ func InitZoneMasterData() map[string]interface{} {
 	items[inapi.NsZoneSysMasterLeader(init_zone_id)] = host_id
 
 	//
-	name = types.NewNameIdentifier("pod/spec/plan/b1")
+	name = "g1"
 	plan := inapi.PodSpecPlan{
 		Meta: types.InnerObjectMeta{
-			ID:      name.HashToString(16),
-			Name:    name.String(),
+			ID:      name,
+			Name:    name,
 			User:    "sysadmin",
 			Version: "1",
 			Created: types.MetaTimeNow(),
 			Updated: types.MetaTimeNow(),
-			Title:   "Basic B1",
+			Title:   "General g1",
 		},
 		Status: inapi.SpecStatusActive,
-		Zones: []inapi.PodSpecPlanZone{
+		Zones: []*inapi.PodSpecPlanZoneBound{
 			{
 				Name:  init_zone_id,
-				Cells: []string{init_cell_id},
+				Cells: types.ArrayString([]string{init_cell_id}),
 			},
 		},
 	}
-	plan.Labels.Set("pod/spec/plan/type", "b1")
-	plan.Annotations.Set("meta/name", "Basic B1")
+	plan.Labels.Set("pod/spec/plan/type", "g1")
+	plan.Annotations.Set("meta/name", "General g1")
 	plan.Annotations.Set("meta/homepage", "http://example.com")
 
 	// Spec/Image
-	name = types.NewNameIdentifier("pod/spec/box/image/a1el7v1")
+	name = "a1el7v1"
 
 	image := inapi.PodSpecBoxImage{
 		Meta: types.InnerObjectMeta{
-			ID:      name.HashToString(16),
-			Name:    name.String(),
+			ID:      name,
+			Name:    name,
 			User:    "sysadmin",
 			Version: "1",
 			Created: types.MetaTimeNow(),
@@ -186,34 +186,40 @@ func InitZoneMasterData() map[string]interface{} {
 	image.Meta.Created = 0
 	image.Meta.Updated = 0
 
-	plan.Images = append(plan.Images, image)
+	plan.Images = append(plan.Images, &inapi.PodSpecPlanBoxImageBound{
+		RefId:   image.Meta.ID,
+		Driver:  inapi.PodSpecBoxImageDocker,
+		Options: image.Options,
+		OsDist:  image.OsDist,
+		Arch:    image.Arch,
+	})
 	plan.ImageDefault = image.Meta.ID
 
 	for _, v := range [][]int64{
 		{100, 128},
 		{200, 256},
-		{300, 512},
-		{500, 1024},
+		{400, 512},
+		{600, 1024},
+		{800, 1024},
 		{1000, 2048},
 		{2000, 4096},
 		{4000, 8192},
 		{8000, 16384},
 	} {
 
-		name = types.NewNameIdentifier(fmt.Sprintf("pod/spec/res/compute/c%06dm%06d", v[0], v[1]))
+		name = fmt.Sprintf("c%dm%d", v[0], v[1])
 
 		res := inapi.PodSpecResourceCompute{
 			Meta: types.InnerObjectMeta{
-				ID:      name.HashToString(16),
-				Name:    name.String(),
+				ID:      name,
+				Name:    name,
 				User:    "sysadmin",
-				Version: "1",
 				Created: types.MetaTimeNow(),
 				Updated: types.MetaTimeNow(),
 			},
-			Status:      inapi.SpecStatusActive,
-			CpuLimit:    v[0],
-			MemoryLimit: v[1] * inapi.ByteMB,
+			Status:   inapi.SpecStatusActive,
+			CpuLimit: v[0],
+			MemLimit: v[1] * inapi.ByteMB,
 		}
 
 		if v[0] == 100 {
@@ -226,16 +232,20 @@ func InitZoneMasterData() map[string]interface{} {
 		res.Meta.Created = 0
 		res.Meta.Updated = 0
 
-		plan.ResourceComputes = append(plan.ResourceComputes, &res)
+		plan.ResourceComputes = append(plan.ResourceComputes, &inapi.PodSpecPlanResComputeBound{
+			RefId:    res.Meta.ID,
+			CpuLimit: res.CpuLimit,
+			MemLimit: res.MemLimit,
+		})
 	}
 	sort.Sort(plan.ResourceComputes)
 
 	//
-	name = types.NewNameIdentifier("pod/spec/res/volume/local.g01.h01")
+	name = "lg1"
 	vol := inapi.PodSpecResourceVolume{
 		Meta: types.InnerObjectMeta{
-			ID:      name.HashToString(16),
-			Name:    name.String(),
+			ID:      name,
+			Name:    name,
 			User:    "sysadmin",
 			Version: "1",
 			Created: types.MetaTimeNow(),
@@ -254,7 +264,13 @@ func InitZoneMasterData() map[string]interface{} {
 	vol.Meta.Created = 0
 	vol.Meta.Updated = 0
 
-	plan.ResourceVolumes = append(plan.ResourceVolumes, vol)
+	plan.ResourceVolumes = append(plan.ResourceVolumes, &inapi.PodSpecPlanResVolumeBound{
+		RefId:   vol.Meta.ID,
+		Limit:   vol.Limit,
+		Request: vol.Request,
+		Step:    vol.Step,
+		Default: vol.Default,
+	})
 	plan.ResourceVolumeDefault = vol.Meta.ID
 
 	//

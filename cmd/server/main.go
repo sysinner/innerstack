@@ -201,8 +201,13 @@ func main() {
 
 	// incore
 	{
-		if err := iam_sto.AppInstanceRegister(config.IamAppInstance()); err != nil {
+		in_inst := config.IamAppInstance()
+		if err := iam_sto.AppInstanceRegister(in_inst); err != nil {
 			log.Fatalf("in.Data.Init error: %s", err.Error())
+		}
+		if in_cf.Config.InstanceId == "" {
+			in_cf.Config.InstanceId = in_inst.Meta.ID
+			in_cf.Config.Sync()
 		}
 
 		hs.HandlerFuncRegister("/in/v1/pb/termws", in_ws_v1.PodBoundTerminalWsHandlerFunc)
