@@ -137,15 +137,14 @@ func InitZoneMasterData() map[string]interface{} {
 
 	//
 	name = "g1"
-	plan := inapi.PodSpecPlan{
+	plan_g1 := inapi.PodSpecPlan{
 		Meta: types.InnerObjectMeta{
 			ID:      name,
-			Name:    name,
+			Name:    "General g1",
 			User:    "sysadmin",
 			Version: "1",
 			Created: types.MetaTimeNow(),
 			Updated: types.MetaTimeNow(),
-			Title:   "General g1",
 		},
 		Status: inapi.SpecStatusActive,
 		Zones: []*inapi.PodSpecPlanZoneBound{
@@ -155,9 +154,17 @@ func InitZoneMasterData() map[string]interface{} {
 			},
 		},
 	}
-	plan.Labels.Set("pod/spec/plan/type", "g1")
-	plan.Annotations.Set("meta/name", "General g1")
-	plan.Annotations.Set("meta/homepage", "http://example.com")
+	plan_g1.Labels.Set("pod/spec/plan/type", "g1")
+	plan_g1.Annotations.Set("meta/homepage", "http://www.sysinner.com")
+	plan_g1.SortOrder = 2
+
+	//
+	plan_t1 := plan_g1
+	plan_t1.Meta.ID = "t1"
+	plan_t1.Meta.Name = "Tiny t1"
+	plan_t1.Labels.Set("pod/spec/plan/type", "t1")
+	plan_t1.Annotations.Set("meta/homepage", "http://www.sysinner.com")
+	plan_t1.SortOrder = 1
 
 	// Spec/Image
 	name = "a1el7v1"
@@ -186,30 +193,48 @@ func InitZoneMasterData() map[string]interface{} {
 	image.Meta.Created = 0
 	image.Meta.Updated = 0
 
-	plan.Images = append(plan.Images, &inapi.PodSpecPlanBoxImageBound{
+	plan_g1.Images = append(plan_g1.Images, &inapi.PodSpecPlanBoxImageBound{
 		RefId:   image.Meta.ID,
 		Driver:  inapi.PodSpecBoxImageDocker,
 		Options: image.Options,
 		OsDist:  image.OsDist,
 		Arch:    image.Arch,
 	})
-	plan.ImageDefault = image.Meta.ID
+	plan_g1.ImageDefault = image.Meta.ID
+
+	plan_t1.Images = plan_g1.Images
+	plan_t1.ImageDefault = plan_g1.ImageDefault
 
 	for _, v := range [][]int64{
+		{100, 64},
+		{100, 96},
 		{100, 128},
+		{200, 128},
+		{200, 192},
 		{200, 256},
+		{400, 256},
+		{400, 384},
 		{400, 512},
+		{600, 512},
+		{600, 768},
 		{600, 1024},
-		{800, 1024},
+		{1000, 1024},
 		{1000, 2048},
+		{1000, 4096},
+		{2000, 2048},
 		{2000, 4096},
+		{2000, 8192},
+		{4000, 4096},
 		{4000, 8192},
+		{4000, 16384},
+		{8000, 8192},
 		{8000, 16384},
+		{8000, 32768},
 	} {
 
 		name = fmt.Sprintf("c%dm%d", v[0], v[1])
 
-		res := inapi.PodSpecResourceCompute{
+		res := inapi.PodSpecResCompute{
 			Meta: types.InnerObjectMeta{
 				ID:      name,
 				Name:    name,
@@ -222,8 +247,12 @@ func InitZoneMasterData() map[string]interface{} {
 			MemLimit: v[1] * inapi.ByteMB,
 		}
 
-		if v[0] == 100 {
-			plan.ResourceComputeDefault = res.Meta.ID
+		if v[0] == 100 && v[1] == 128 {
+			plan_t1.ResComputeDefault = res.Meta.ID
+		}
+
+		if v[0] == 1000 && v[1] == 1024 {
+			plan_g1.ResComputeDefault = res.Meta.ID
 		}
 
 		items[inapi.NsGlobalPodSpec("res/compute", res.Meta.ID)] = res
@@ -232,17 +261,28 @@ func InitZoneMasterData() map[string]interface{} {
 		res.Meta.Created = 0
 		res.Meta.Updated = 0
 
-		plan.ResourceComputes = append(plan.ResourceComputes, &inapi.PodSpecPlanResComputeBound{
-			RefId:    res.Meta.ID,
-			CpuLimit: res.CpuLimit,
-			MemLimit: res.MemLimit,
-		})
+		if v[0] < 1000 {
+			plan_t1.ResComputes = append(plan_t1.ResComputes, &inapi.PodSpecPlanResComputeBound{
+				RefId:    res.Meta.ID,
+				CpuLimit: res.CpuLimit,
+				MemLimit: res.MemLimit,
+			})
+		}
+
+		if v[0] >= 1000 {
+			plan_g1.ResComputes = append(plan_g1.ResComputes, &inapi.PodSpecPlanResComputeBound{
+				RefId:    res.Meta.ID,
+				CpuLimit: res.CpuLimit,
+				MemLimit: res.MemLimit,
+			})
+		}
 	}
-	sort.Sort(plan.ResourceComputes)
+	sort.Sort(plan_g1.ResComputes)
+	sort.Sort(plan_t1.ResComputes)
 
 	//
-	name = "lg1"
-	vol := inapi.PodSpecResourceVolume{
+	name = "lt1"
+	vol_t1 := inapi.PodSpecResVolume{
 		Meta: types.InnerObjectMeta{
 			ID:      name,
 			Name:    name,
@@ -252,34 +292,60 @@ func InitZoneMasterData() map[string]interface{} {
 			Updated: types.MetaTimeNow(),
 		},
 		Status:  inapi.SpecStatusActive,
-		Limit:   10 * inapi.ByteGB,
-		Request: 100 * inapi.ByteMB,
-		Step:    100 * inapi.ByteMB,
-		Default: 100 * inapi.ByteMB,
+		Limit:   5 * inapi.ByteGB,
+		Request: 200 * inapi.ByteMB,
+		Step:    200 * inapi.ByteMB,
+		Default: 200 * inapi.ByteMB,
 	}
-	vol.Labels.Set("pod/spec/res/volume/type", "system")
-	items[inapi.NsGlobalPodSpec("res/volume", vol.Meta.ID)] = vol
+	vol_t1.Labels.Set("pod/spec/res/volume/type", "system")
 
-	vol.Meta.User = ""
-	vol.Meta.Created = 0
-	vol.Meta.Updated = 0
+	vol_g1 := vol_t1
+	vol_g1.Meta.ID = "lg1"
+	vol_g1.Meta.Name = "lg1"
+	vol_g1.Limit = 100 * inapi.ByteGB
+	vol_g1.Request = 10 * inapi.ByteGB
+	vol_g1.Step = 10 * inapi.ByteGB
+	vol_g1.Default = 10 * inapi.ByteGB
 
-	plan.ResourceVolumes = append(plan.ResourceVolumes, &inapi.PodSpecPlanResVolumeBound{
-		RefId:   vol.Meta.ID,
-		Limit:   vol.Limit,
-		Request: vol.Request,
-		Step:    vol.Step,
-		Default: vol.Default,
-	})
-	plan.ResourceVolumeDefault = vol.Meta.ID
+	items[inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID)] = vol_t1
+	items[inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID)] = vol_g1
+
+	vol_t1.Meta.User = ""
+	vol_t1.Meta.Created = 0
+	vol_t1.Meta.Updated = 0
+	vol_g1.Meta.User = ""
+	vol_g1.Meta.Created = 0
+	vol_g1.Meta.Updated = 0
 
 	//
-	items[inapi.NsGlobalPodSpec("plan", plan.Meta.ID)] = plan
+	plan_t1.ResVolumes = append(plan_t1.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
+		RefId:   vol_t1.Meta.ID,
+		Limit:   vol_t1.Limit,
+		Request: vol_t1.Request,
+		Step:    vol_t1.Step,
+		Default: vol_t1.Default,
+	})
+	plan_t1.ResVolumeDefault = vol_t1.Meta.ID
+
+	//
+	plan_g1.ResVolumes = append(plan_g1.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
+		RefId:   vol_g1.Meta.ID,
+		Limit:   vol_g1.Limit,
+		Request: vol_g1.Request,
+		Step:    vol_g1.Step,
+		Default: vol_g1.Default,
+	})
+	plan_g1.ResVolumeDefault = vol_g1.Meta.ID
+
+	//
+	items[inapi.NsGlobalPodSpec("plan", plan_t1.Meta.ID)] = plan_t1
+	items[inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID)] = plan_g1
 
 	specs := []string{
 		"app_spec_hooto-press.json",
+		"app_spec_hooto-press-x1.json",
 		"app_spec_sysinner-httplb.json",
-		"app_spec_sysinner-mysql.json",
+		"app_spec_sysinner-mysql-x1.json",
 	}
 	for _, v := range specs {
 		var spec inapi.AppSpec
