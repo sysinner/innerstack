@@ -3,7 +3,7 @@
   "meta": {
     "id": "5a12a217c4f63526",
     "name": "hooto-press-x1",
-    "version": "15"
+    "version": "18"
   },
   "roles": [
     100,
@@ -41,13 +41,13 @@
         "name": "iam_service_url",
         "title": "IAM Service URL",
         "type": 1,
-        "default": "{{.xcs_sysinner_iam_service_url_frontend}}"
+        "default": "{{.xcs_sysinner_iam_service_url}}"
       },
       {
         "name": "iam_service_url_frontend",
         "title": "IAM Service URL for Frontend",
         "type": 1,
-        "default": "{{.xcs_sysinner_iam_service_url}}"
+        "default": "{{.xcs_sysinner_iam_service_url_frontend}}"
       }
     ]
   },
