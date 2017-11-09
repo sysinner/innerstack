@@ -1,18 +1,19 @@
 {
   "kind": "AppSpec",
   "meta": {
-    "id": "726c505ad5b0754e",
-    "name": "hooto-press",
-    "version": "11"
+    "id": "5a12a217c4f63526",
+    "name": "hooto-press-x1",
+    "version": "15"
   },
   "roles": [
-    100
+    100,
+    101
   ],
   "packages": [
     {
       "name": "hooto-press",
-      "version": "0.2.2.dev",
-      "release": "7",
+      "version": "0.2.4.dev",
+      "release": "3",
       "dist": "el7",
       "arch": "x64"
     }
@@ -39,19 +40,22 @@
       {
         "name": "iam_service_url",
         "title": "IAM Service URL",
-        "type": 1
+        "type": 1,
+        "default": "{{.xcs_sysinner_iam_service_url_frontend}}"
       },
       {
         "name": "iam_service_url_frontend",
         "title": "IAM Service URL for Frontend",
-        "type": 1
-      },
-      {
-        "name": "bound_sysinner_mysql",
-        "title": "Bound App",
-        "type": 10,
-        "default": "cfg/sysinner-mysql"
+        "type": 1,
+        "default": "{{.xcs_sysinner_iam_service_url}}"
       }
     ]
-  }
+  },
+  "depends": [
+    {
+      "id": "7347713d5b6e3d2b",
+      "name": "sysinner-mysql-x1",
+      "version": "25"
+    }
+  ]
 }

@@ -2,8 +2,8 @@
   "kind": "AppSpec",
   "meta": {
     "id": "7347713d5b6e3d2b",
-    "name": "sysinner-mysql",
-    "version": "21"
+    "name": "sysinner-mysql-x1",
+    "version": "25"
   },
   "roles": [
     100,
@@ -19,16 +19,16 @@
     },
     {
       "name": "sysinner-mysql",
-      "version": "0.1.1-dev",
-      "release": "2",
+      "version": "0.1.2-dev",
+      "release": "1",
       "dist": "el7",
       "arch": "x64"
     }
   ],
   "executors": [
     {
-      "name": "main",
-      "exec_start": "if pidof sysinner-mysql; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/mysql57/\nrsync -av {{.inpack_prefix_mysql57}}/* /home/action/apps/mysql57/\n\nmkdir -p /home/action/apps/sysinner-mysql/\nrsync -av {{.inpack_prefix_sysinner_mysql}}/* /home/action/apps/sysinner-mysql/\n\n/home/action/apps/sysinner-mysql/bin/sysinner-mysql \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0\n",
+      "name": "sysinner-mysql-x1",
+      "exec_start": "if pidof sysinner-mysql; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/mysql57/\nrsync -av {{.inpack_prefix_mysql57}}/* /home/action/apps/mysql57/\n\nmkdir -p /home/action/apps/sysinner-mysql/\nrsync -av {{.inpack_prefix_sysinner_mysql}}/* /home/action/apps/sysinner-mysql/\n\n/home/action/apps/sysinner-mysql/bin/sysinner-mysql -log_dir=/home/action/apps/sysinner-mysql/log -minloglevel=1 -logtolevels=true \u003e /dev/null 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0\n",
       "exec_stop": "killall sysinner-mysql\nkillall mysql57d",
       "plan": {
         "on_tick": 60

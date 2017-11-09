@@ -3,7 +3,7 @@
   "meta": {
     "id": "c2bf45a57aba4b3d",
     "name": "sysinner-httplb",
-    "version": "6"
+    "version": "8"
   },
   "roles": [
     100
@@ -11,7 +11,7 @@
   "packages": [
     {
       "name": "openresty",
-      "version": "1.11.2.4",
+      "version": "1.11.2.5",
       "release": "1",
       "dist": "el7",
       "arch": "x64"
