@@ -1,6 +1,6 @@
 [project]
 name = insoho
-version = 0.2.3.dev
+version = 0.3.0.alpha
 vendor = hooto.com
 homepage = https://github.com/sysinner/insoho
 groups = dev/sys-srv
@@ -15,7 +15,7 @@ mkdir -p {{.buildroot}}/misc/inpack
 mkdir -p {{.buildroot}}/var/{log,tmp,inpack_storage}
 mkdir -p {{.buildroot}}/webui/in
 
-go build -ldflags "-s -w -X main.Released=`date -u '+%Y-%m-%d_%I:%M:%S%p'`" -o {{.buildroot}}/bin/insoho cmd/server/main.go
+go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}} -X main.released=`date -u '+%Y-%m-%d_%I:%M:%S%p'`" -o {{.buildroot}}/bin/insoho cmd/server/main.go
 go build -ldflags "-s -w" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
 # go build -ldflags "-s -w" -o {{.buildroot}}/bin/in-opcli  cmd/opcli/main.go
 

@@ -54,8 +54,9 @@ import (
 )
 
 var (
-	Version  = "0.1.2.dev"
-	Released = ""
+	version  = "0.3.0.alpha"
+	release  = ""
+	released = ""
 	err      error
 )
 
@@ -69,7 +70,7 @@ func main() {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 
-		if err = config.Init(Version, in_cf.Config.Host.SecretKey); err != nil {
+		if err = config.Init(version, in_cf.Config.Host.SecretKey); err != nil {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 	}
@@ -85,9 +86,9 @@ func main() {
 		hlog.Printf("info", "inCore  version %s", in_cf.Version)
 		hlog.Printf("info", "inPanel version %s", in_ws_ui.Version)
 		hlog.Printf("info", "inPack  version %s", ips_cf.Version)
-		hlog.Printf("info", "inSoho  version %s", Version)
+		hlog.Printf("info", "inSoho  version %s", version)
 		in_ws_ui.VersionHash = idhash.HashToHexString([]byte(
-			(in_ws_ui.Version + Released)), 16)
+			(in_ws_ui.Version + released)), 16)
 	}
 
 	// initialize data/io connection
