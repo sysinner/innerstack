@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
@@ -27,6 +28,7 @@ import (
 	"github.com/hooto/httpsrv/deps/go.net/websocket"
 
 	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inagent/cmd/confrender"
 	"github.com/sysinner/incore/inagent/executor"
 	"github.com/sysinner/incore/inagent/v1"
 	"github.com/sysinner/incore/inapi"
@@ -43,6 +45,30 @@ var (
 func main() {
 
 	runtime.GOMAXPROCS(1)
+
+	action := "agent"
+	if len(os.Args) > 1 {
+		action = os.Args[1]
+	}
+
+	switch action {
+
+	case "confrender":
+		if err := confrender.ActionConfig(); err != nil {
+			fmt.Println("cmd error :", err)
+			os.Exit(1)
+		}
+
+	case "agent":
+		action_agent()
+
+	default:
+		fmt.Println("invalid command")
+		os.Exit(1)
+	}
+}
+
+func action_agent() {
 
 	//
 	pod_id = strings.TrimSpace(os.Getenv("POD_ID"))
@@ -74,6 +100,7 @@ func main() {
 	syscall.Chdir("/home/action")
 
 	//
+	os.MkdirAll("/home/action/var/tmp", 0755)
 	os.MkdirAll("/home/action/var/log", 0755)
 	hlog.LogDirSet("/home/action/var/log")
 	hlog.Printf("info", "started")
