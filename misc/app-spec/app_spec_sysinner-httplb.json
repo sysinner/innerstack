@@ -10,14 +10,14 @@
   "packages": [
     {
       "name": "openresty",
-      "version": "1.11.2.5",
+      "version": "1.13.6.1",
       "release": "1",
       "dist": "el7",
       "arch": "x64"
     },
     {
       "name": "sysinner-httplb",
-      "version": "0.0.3",
+      "version": "0.2.0",
       "release": "1",
       "dist": "el7",
       "arch": "x64"
