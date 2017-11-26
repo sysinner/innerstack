@@ -342,7 +342,6 @@ func InitZoneMasterData() map[string]interface{} {
 	items[inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID)] = plan_g1
 
 	specs := []string{
-		"app_spec_hooto-press.json",
 		"app_spec_hooto-press-x1.json",
 		"app_spec_sysinner-httplb.json",
 		"app_spec_sysinner-mysql-x1.json",

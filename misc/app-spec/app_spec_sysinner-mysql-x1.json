@@ -1,9 +1,8 @@
 {
   "kind": "AppSpec",
   "meta": {
-    "id": "7347713d5b6e3d2b",
-    "name": "sysinner-mysql-x1",
-    "version": "25"
+    "id": "sysinner-mysql-x1",
+    "version": "1"
   },
   "roles": [
     100,
@@ -12,14 +11,14 @@
   "packages": [
     {
       "name": "mysql57",
-      "version": "5.7.18",
-      "release": "2",
+      "version": "5.7.20",
+      "release": "1",
       "dist": "el7",
       "arch": "x64"
     },
     {
       "name": "sysinner-mysql",
-      "version": "0.1.2-dev",
+      "version": "0.2.1",
       "release": "1",
       "dist": "el7",
       "arch": "x64"

@@ -1,9 +1,8 @@
 {
   "kind": "AppSpec",
   "meta": {
-    "id": "c2bf45a57aba4b3d",
-    "name": "sysinner-httplb",
-    "version": "8"
+    "id": "sysinner-httplb",
+    "version": "1"
   },
   "roles": [
     100

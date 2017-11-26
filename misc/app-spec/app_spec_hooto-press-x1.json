@@ -1,9 +1,8 @@
 {
   "kind": "AppSpec",
   "meta": {
-    "id": "5a12a217c4f63526",
-    "name": "hooto-press-x1",
-    "version": "18"
+    "id": "hooto-press-x1",
+    "version": "1"
   },
   "roles": [
     100,
@@ -13,7 +12,7 @@
     {
       "name": "hooto-press",
       "version": "0.2.4.dev",
-      "release": "3",
+      "release": "1",
       "dist": "el7",
       "arch": "x64"
     }
@@ -53,9 +52,8 @@
   },
   "depends": [
     {
-      "id": "7347713d5b6e3d2b",
-      "name": "sysinner-mysql-x1",
-      "version": "25"
+      "id": "sysinner-mysql-x1",
+      "version": "1"
     }
   ]
 }

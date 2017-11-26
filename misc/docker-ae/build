@@ -1,0 +1,14 @@
+#!/bin/bash
+
+mkdir -p rootfs_addon/usr/local/bin
+install /usr/bin/git rootfs_addon/usr/local/bin/git
+install /usr/bin/git-receive-pack rootfs_addon/usr/local/bin/git-receive-pack
+install /usr/bin/git-shell rootfs_addon/usr/local/bin/git-shell
+install /usr/bin/git-upload-archive rootfs_addon/usr/local/bin/git-upload-archive
+install /usr/bin/git-upload-pack rootfs_addon/usr/local/bin/git-upload-pack
+
+mkdir -p rootfs_addon/usr/share/git-core/templates
+rsync -av /usr/share/git-core/templates/* rootfs_addon/usr/share/git-core/templates/
+
+docker build -t sysinner:a1el7v1 .
+
