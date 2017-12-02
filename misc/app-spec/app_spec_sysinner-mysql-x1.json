@@ -3,7 +3,7 @@
   "meta": {
     "id": "sysinner-mysql-x1",
     "name": "MySQL Inner x1",
-    "version": "2"
+    "version": "3"
   },
   "roles": [
     100,
@@ -76,6 +76,6 @@
   "exp_res": {
     "cpu_min": 100,
     "mem_min": 67108864,
-    "vol_min": 219781528
+    "vol_min": 209715200
   }
 }

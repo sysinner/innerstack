@@ -3,7 +3,7 @@
   "meta": {
     "id": "sysinner-httplb",
     "name": "Http Load Balancer ",
-    "version": "4"
+    "version": "5"
   },
   "packages": [
     {
@@ -46,6 +46,6 @@
   "exp_res": {
     "cpu_min": 100,
     "mem_min": 67108864,
-    "vol_min": 219781528
+    "vol_min": 209715200
   }
 }
