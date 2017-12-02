@@ -51,7 +51,7 @@ import (
 	in_sts "github.com/sysinner/incore/status"
 	in_zm "github.com/sysinner/incore/zonemaster"
 
-	"github.com/sysinner/insoho/config"
+	insoho_cf "github.com/sysinner/insoho/config"
 )
 
 var (
@@ -71,7 +71,7 @@ func main() {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 
-		if err = config.Init(version, in_cf.Config.Host.SecretKey); err != nil {
+		if err = insoho_cf.Init(version, in_cf.Config.Host.SecretKey); err != nil {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 	}
@@ -171,7 +171,7 @@ func main() {
 		hs.ModuleRegister("/iam", iam_web.NewModule())
 
 		//
-		if aks := config.InitIamAccessKeyData(); len(aks) > 0 {
+		if aks := insoho_cf.InitIamAccessKeyData(); len(aks) > 0 {
 			for _, v := range aks {
 				iam_sto.AccessKeyInitData(v)
 			}
@@ -217,14 +217,12 @@ func main() {
 
 	// incore
 	{
-		in_inst := config.IamAppInstance()
+		in_inst := insoho_cf.IamAppInstance()
 		if err := iam_sto.AppInstanceRegister(in_inst); err != nil {
 			log.Fatalf("in.Data.Init error: %s", err.Error())
 		}
-		if in_cf.Config.InstanceId == "" {
-			in_cf.Config.InstanceId = in_inst.Meta.ID
-			in_cf.Config.Sync()
-		}
+		in_cf.Config.InstanceId = in_inst.Meta.ID
+		in_cf.Config.Sync()
 
 		hs.HandlerFuncRegister("/in/v1/pb/termws", in_ws_v1.PodBoundTerminalWsHandlerFunc)
 
@@ -245,15 +243,15 @@ func main() {
 
 	// init zonemaster
 	{
-		if err := in_zm.InitData(config.InitZoneMasterData()); err != nil {
+		if err := in_zm.InitData(insoho_cf.InitZoneMasterData()); err != nil {
 			log.Fatal(err.Error())
 		}
 
-		if err := config.UpgradeZoneMasterData(in_db.ZoneMaster); err != nil {
+		if err := insoho_cf.UpgradeZoneMasterData(in_db.ZoneMaster); err != nil {
 			log.Fatal(err.Error())
 		}
 
-		if err := config.UpgradeIamData(iam_sto.Data); err != nil {
+		if err := insoho_cf.UpgradeIamData(iam_sto.Data); err != nil {
 			log.Fatal(err.Error())
 		}
 
@@ -267,7 +265,7 @@ func main() {
 
 	//
 	{
-		if err := in_host.InitData(config.InitHostletData()); err != nil {
+		if err := in_host.InitData(insoho_cf.InitHostletData()); err != nil {
 			log.Fatal(err.Error())
 		}
 

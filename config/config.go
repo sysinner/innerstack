@@ -15,15 +15,74 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/connect"
+
+	incfg "github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
-	version    = "0.3.0"
-	InstanceId = "00" + idhash.HashToHexString([]byte("insoho"), 14)
+	version          = "0.3.0"
+	InstanceId       = "00" + idhash.HashToHexString([]byte("insoho"), 14)
+	init_cache_akacc iamapi.AccessKey
 )
+
+func Init(ver, seed string) error {
+
+	version = ver
+
+	incfg.Config.Masters = []inapi.HostNodeAddress{
+		incfg.Config.Host.LanAddr,
+	}
+
+	incfg.Config.Host.ZoneId = "local"
+
+	if err := init_data(); err != nil {
+		return err
+	}
+
+	init_cache_akacc = iamapi.AccessKey{
+		User: init_sys_user,
+		AccessKey: "00" + idhash.HashToHexString(
+			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 14),
+		SecretKey: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
+		Bounds: []iamapi.AccessKeyBound{{
+			Name: "sys/zm/" + init_zone_id,
+		}},
+		Description: "ZoneMaster AccCharge",
+	}
+
+	return nil
+}
+
+//
+func init_data() error {
+
+	io_name := types.NewNameIdentifier("in_zone_master")
+	opts := incfg.Config.IoConnectors.Options(io_name)
+
+	if opts == nil {
+
+		opts = &connect.ConnOptions{
+			Name:      io_name,
+			Connector: "iomix/skv/Connector",
+			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
+		}
+	}
+
+	if opts.Value("data_dir") == "" {
+		opts.SetValue("data_dir", incfg.Prefix+"/var/"+string(io_name))
+	}
+
+	incfg.Config.IoConnectors.SetOptions(*opts)
+
+	return nil
+}
 
 func IamAppInstance() iamapi.AppInstance {
 
