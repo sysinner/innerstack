@@ -12,8 +12,8 @@ RUN yum install -y sysvinit-tools psmisc rsync libaio numactl-libs openssl-libs 
 
 RUN useradd -u 2048 -d /home/action action
 
-ADD rootfs_addon/usr/local/bin /usr/local/bin
-ADD rootfs_addon/usr/share /usr/share
+#ADD rootfs_addon/usr/local/bin /usr/local/bin
+#ADD rootfs_addon/usr/share /usr/share
 
 ENV USER action
 ENV LANG en_US.UTF-8

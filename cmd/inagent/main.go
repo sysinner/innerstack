@@ -100,6 +100,8 @@ func action_agent() {
 	syscall.Chdir("/home/action")
 
 	//
+	os.MkdirAll("/home/action/local/bin", 0755)
+	os.MkdirAll("/home/action/local/share", 0755)
 	os.MkdirAll("/home/action/var/tmp", 0755)
 	os.MkdirAll("/home/action/var/log", 0755)
 	hlog.LogDirSet("/home/action/var/log")
