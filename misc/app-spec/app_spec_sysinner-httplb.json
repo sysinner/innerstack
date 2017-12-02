@@ -2,11 +2,9 @@
   "kind": "AppSpec",
   "meta": {
     "id": "sysinner-httplb",
-    "version": "1"
+    "name": "Http Load Balancer ",
+    "version": "4"
   },
-  "roles": [
-    100
-  ],
   "packages": [
     {
       "name": "openresty",
@@ -17,7 +15,7 @@
     },
     {
       "name": "sysinner-httplb",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "release": "1",
       "dist": "el7",
       "arch": "x64"
@@ -44,5 +42,10 @@
       "box_port": 8443,
       "host_port": 443
     }
-  ]
+  ],
+  "exp_res": {
+    "cpu_min": 100,
+    "mem_min": 67108864,
+    "vol_min": 219781528
+  }
 }

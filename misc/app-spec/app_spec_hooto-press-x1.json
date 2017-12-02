@@ -2,7 +2,8 @@
   "kind": "AppSpec",
   "meta": {
     "id": "hooto-press-x1",
-    "version": "1"
+    "name": "Hooto Press x1",
+    "version": "4"
   },
   "roles": [
     100,
@@ -11,7 +12,7 @@
   "packages": [
     {
       "name": "hooto-press",
-      "version": "0.2.4.dev",
+      "version": "0.3.2.alpha",
       "release": "1",
       "dist": "el7",
       "arch": "x64"
@@ -55,5 +56,10 @@
       "id": "sysinner-mysql-x1",
       "version": "1"
     }
-  ]
+  ],
+  "exp_res": {
+    "cpu_min": 100,
+    "mem_min": 67108864,
+    "vol_min": 219781528
+  }
 }

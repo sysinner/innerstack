@@ -2,7 +2,8 @@
   "kind": "AppSpec",
   "meta": {
     "id": "sysinner-mysql-x1",
-    "version": "1"
+    "name": "MySQL Inner x1",
+    "version": "2"
   },
   "roles": [
     100,
@@ -18,7 +19,7 @@
     },
     {
       "name": "sysinner-mysql",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "release": "1",
       "dist": "el7",
       "arch": "x64"
@@ -65,11 +66,16 @@
       },
       {
         "name": "memory_usage_limit",
-        "title": "Memory Usage In Percentage (10 ~ 100)",
+        "title": "Memory Usage In Percentage (will allocating 10% ~ 100% Memory Size to this Instance)",
         "prompt": "Range in 10 ~ 100",
         "type": 1,
         "default": "50"
       }
     ]
+  },
+  "exp_res": {
+    "cpu_min": 100,
+    "mem_min": 67108864,
+    "vol_min": 219781528
   }
 }
