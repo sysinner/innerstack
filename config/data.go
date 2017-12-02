@@ -15,13 +15,16 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
@@ -57,10 +60,14 @@ func InitIamAccessKeyData() []iamapi.AccessKey {
 	}
 }
 
+var (
+	init_zmd_items         = map[string]interface{}{}
+	init_zmd_items_upgrade = map[string]interface{}{}
+)
+
 func InitZoneMasterData() map[string]interface{} {
 
 	var (
-		items         = map[string]interface{}{}
 		name          string
 		host_id       = incfg.Config.Host.Id
 		host_lan_addr = string(incfg.Config.Host.LanAddr)
@@ -89,8 +96,8 @@ func InitZoneMasterData() map[string]interface{} {
 	sys_zone.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
 	sys_zone.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
 
-	items[inapi.NsGlobalSysZone(init_zone_id)] = sys_zone
-	items[inapi.NsZoneSysInfo(init_zone_id)] = sys_zone
+	init_zmd_items[inapi.NsGlobalSysZone(init_zone_id)] = sys_zone
+	init_zmd_items[inapi.NsZoneSysInfo(init_zone_id)] = sys_zone
 
 	// sys cell
 	sys_cell := inapi.ResCell{
@@ -103,8 +110,8 @@ func InitZoneMasterData() map[string]interface{} {
 		Phase:       1,
 		Description: "",
 	}
-	items[inapi.NsGlobalSysCell(init_zone_id, init_cell_id)] = sys_cell
-	items[inapi.NsZoneSysCell(init_zone_id, init_cell_id)] = sys_cell
+	init_zmd_items[inapi.NsGlobalSysCell(init_zone_id, init_cell_id)] = sys_cell
+	init_zmd_items[inapi.NsZoneSysCell(init_zone_id, init_cell_id)] = sys_cell
 
 	// sys host
 	sys_host := inapi.ResHost{
@@ -122,18 +129,18 @@ func InitZoneMasterData() map[string]interface{} {
 			PeerLanAddr: host_lan_addr,
 		},
 	}
-	items[inapi.NsZoneSysHost(init_zone_id, host_id)] = sys_host
-	items[inapi.NsZoneSysHostSecretKey(init_zone_id, host_id)] = incfg.Config.Host.SecretKey
+	init_zmd_items[inapi.NsZoneSysHost(init_zone_id, host_id)] = sys_host
+	init_zmd_items[inapi.NsZoneSysHostSecretKey(init_zone_id, host_id)] = incfg.Config.Host.SecretKey
 
 	//
 
 	// zone-master node(s)/leader
-	items[inapi.NsZoneSysMasterNode(init_zone_id, host_id)] = inapi.ResZoneMasterNode{
+	init_zmd_items[inapi.NsZoneSysMasterNode(init_zone_id, host_id)] = inapi.ResZoneMasterNode{
 		Id:     host_id,
 		Addr:   host_lan_addr,
 		Action: 1,
 	}
-	items[inapi.NsZoneSysMasterLeader(init_zone_id)] = host_id
+	init_zmd_items[inapi.NsZoneSysMasterLeader(init_zone_id)] = host_id
 
 	//
 	name = "g1"
@@ -187,7 +194,7 @@ func InitZoneMasterData() map[string]interface{} {
 		Arch:      "x64",
 	}
 	image.Options.Set("docker/image/name", "sysinner:a1el7v1")
-	items[inapi.NsGlobalPodSpec("box/image", image.Meta.ID)] = image
+	init_zmd_items[inapi.NsGlobalPodSpec("box/image", image.Meta.ID)] = image
 
 	image.Meta.User = ""
 	image.Meta.Created = 0
@@ -255,7 +262,7 @@ func InitZoneMasterData() map[string]interface{} {
 			plan_g1.ResComputeDefault = res.Meta.ID
 		}
 
-		items[inapi.NsGlobalPodSpec("res/compute", res.Meta.ID)] = res
+		init_zmd_items[inapi.NsGlobalPodSpec("res/compute", res.Meta.ID)] = res
 
 		res.Meta.User = ""
 		res.Meta.Created = 0
@@ -307,8 +314,8 @@ func InitZoneMasterData() map[string]interface{} {
 	vol_g1.Step = 10 * inapi.ByteGB
 	vol_g1.Default = 10 * inapi.ByteGB
 
-	items[inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID)] = vol_t1
-	items[inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID)] = vol_g1
+	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID)] = vol_t1
+	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID)] = vol_g1
 
 	vol_t1.Meta.User = ""
 	vol_t1.Meta.Created = 0
@@ -338,8 +345,8 @@ func InitZoneMasterData() map[string]interface{} {
 	plan_g1.ResVolumeDefault = vol_g1.Meta.ID
 
 	//
-	items[inapi.NsGlobalPodSpec("plan", plan_t1.Meta.ID)] = plan_t1
-	items[inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID)] = plan_g1
+	init_zmd_items[inapi.NsGlobalPodSpec("plan", plan_t1.Meta.ID)] = plan_t1
+	init_zmd_items[inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID)] = plan_g1
 
 	specs := []string{
 		"app_spec_hooto-press-x1.json",
@@ -353,8 +360,53 @@ func InitZoneMasterData() map[string]interface{} {
 			continue
 		}
 		spec.Meta.User = "sysadmin"
-		items[inapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
+		init_zmd_items[inapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
 	}
 
-	return items
+	return init_zmd_items
+}
+
+func UpgradeZoneMasterData(data skv.Connector) error {
+
+	if data == nil {
+		return errors.New("UpgradeZoneMasterData skv.Connector Not Found")
+	}
+
+	if version == "0.3.2.alpha.1" {
+
+		//
+		var set inapi.ResZone
+		if rs := data.PvGet(inapi.NsGlobalSysZone(init_zone_id)); !rs.OK() {
+			return errors.New("skv.Command Error 0: " + rs.Bytex().String())
+		} else if err := rs.Decode(&set); err != nil {
+			return err
+		}
+
+		set.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
+		set.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
+
+		if rs := data.PvPut(inapi.NsGlobalSysZone(init_zone_id), set, nil); !rs.OK() {
+			return errors.New("skv.Command Error 1: " + rs.Bytex().String())
+		}
+
+		if rs := data.PvPut(inapi.NsZoneSysInfo(init_zone_id), set, nil); !rs.OK() {
+			return errors.New("skv.Command Error 2: " + rs.Bytex().String())
+		}
+	}
+
+	return nil
+}
+
+func UpgradeIamData(data skv.Connector) error {
+
+	if data == nil {
+		return errors.New("UpgradeIamData skv.Connector Not Found")
+	}
+
+	if version == "0.3.2.alpha.1" {
+		instanceId := idhash.HashToHexString([]byte("insoho"), 16)
+		data.ProgDel(iamapi.DataAppInstanceKey(instanceId), nil)
+	}
+
+	return nil
 }

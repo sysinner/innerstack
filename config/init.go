@@ -46,9 +46,9 @@ func Init(ver, seed string) error {
 
 	init_cache_akacc = iamapi.AccessKey{
 		User: init_sys_user,
-		AccessKey: idhash.HashToHexString(
-			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 16),
-		SecretKey: idhash.HashToBase64String(idhash.AlgMd5, []byte(seed), 40),
+		AccessKey: "00" + idhash.HashToHexString(
+			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 14),
+		SecretKey: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
 		Bounds: []iamapi.AccessKeyBound{{
 			Name: "sys/zm/" + init_zone_id,
 		}},

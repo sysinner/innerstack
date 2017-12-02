@@ -22,7 +22,7 @@ import (
 
 var (
 	version    = "0.3.0"
-	InstanceId = idhash.HashToHexString([]byte("insoho"), 16)
+	InstanceId = "00" + idhash.HashToHexString([]byte("insoho"), 14)
 )
 
 func IamAppInstance() iamapi.AppInstance {

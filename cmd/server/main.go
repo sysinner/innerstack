@@ -27,10 +27,11 @@ import (
 	"github.com/lynkdb/kvgo"
 
 	iam_cfg "github.com/hooto/iam/config"
+	iam_api "github.com/hooto/iam/iamapi"
 	iam_cli "github.com/hooto/iam/iamclient"
 	iam_sto "github.com/hooto/iam/store"
 	iam_web "github.com/hooto/iam/websrv/ctrl"
-	iam_api "github.com/hooto/iam/websrv/v1"
+	iam_v1 "github.com/hooto/iam/websrv/v1"
 
 	ips_cf "github.com/sysinner/inpack/server/config"
 	ips_db "github.com/sysinner/inpack/server/data"
@@ -120,7 +121,7 @@ func main() {
 	{
 		//
 		iam_cfg.Prefix = in_cf.Prefix + "/vendor/github.com/hooto/iam_static"
-		iam_cfg.Config.InstanceID = idhash.HashToHexString([]byte("insoho/iam"), 16)
+		iam_cfg.Config.InstanceID = "00" + idhash.HashToHexString([]byte("insoho/iam"), 14)
 
 		// init database
 		iam_sto.Data = in_db.ZoneMaster
@@ -129,6 +130,12 @@ func main() {
 		}
 		if err := iam_sto.InitData(); err != nil {
 			log.Fatalf("iam.Store.InitData error: %s", err.Error())
+		}
+
+		//
+		if version == "0.3.2.alpha.1" {
+			instanceId := idhash.HashToHexString([]byte("insoho/iam"), 16)
+			iam_sto.Data.ProgDel(iam_api.DataAppInstanceKey(instanceId), nil)
 		}
 
 		//
@@ -160,13 +167,14 @@ func main() {
 		iam_sto.SysConfigRefresh()
 
 		//
-		hs.ModuleRegister("/iam/v1", iam_api.NewModule())
+		hs.ModuleRegister("/iam/v1", iam_v1.NewModule())
 		hs.ModuleRegister("/iam", iam_web.NewModule())
 
 		//
-		aks := config.InitIamAccessKeyData()
-		for _, v := range aks {
-			iam_sto.AccessKeyInitData(v)
+		if aks := config.InitIamAccessKeyData(); len(aks) > 0 {
+			for _, v := range aks {
+				iam_sto.AccessKeyInitData(v)
+			}
 		}
 	}
 
@@ -193,6 +201,13 @@ func main() {
 			in_cf.Config.Host.LanAddr.IP(),
 			in_cf.Config.Host.HttpPort,
 		)
+
+		//
+		if aks := ips_cf.InitIamAccessKeyData(); len(aks) > 0 {
+			for _, v := range aks {
+				iam_sto.AccessKeyInitData(v)
+			}
+		}
 	}
 
 	// module/hchart
@@ -231,6 +246,14 @@ func main() {
 	// init zonemaster
 	{
 		if err := in_zm.InitData(config.InitZoneMasterData()); err != nil {
+			log.Fatal(err.Error())
+		}
+
+		if err := config.UpgradeZoneMasterData(in_db.ZoneMaster); err != nil {
+			log.Fatal(err.Error())
+		}
+
+		if err := config.UpgradeIamData(iam_sto.Data); err != nil {
 			log.Fatal(err.Error())
 		}
 
