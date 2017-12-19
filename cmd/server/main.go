@@ -35,10 +35,12 @@ import (
 
 	ips_cf "github.com/sysinner/inpack/server/config"
 	ips_db "github.com/sysinner/inpack/server/data"
+	ips_p1 "github.com/sysinner/inpack/websrv/p1"
 	ips_v1 "github.com/sysinner/inpack/websrv/v1"
 
 	in_ws_cp "github.com/sysinner/incore/websrv/cp"
 	in_ws_op "github.com/sysinner/incore/websrv/ops"
+	in_ws_p1 "github.com/sysinner/incore/websrv/p1"
 	in_ws_v1 "github.com/sysinner/incore/websrv/v1"
 	in_ws_ui "github.com/sysinner/inpanel"
 
@@ -193,6 +195,7 @@ func main() {
 		}
 
 		hs.ModuleRegister("/ips/v1", ips_v1.NewModule())
+		hs.ModuleRegister("/ips/p1", ips_p1.NewModule())
 		hs.ModuleRegister("/in/cp/ips/~", httpsrv.NewStaticModule("ips_ui", in_cf.Prefix+"/webui/ips"))
 
 		// TODO
@@ -234,6 +237,7 @@ func main() {
 		hs.ModuleRegister("/in/ops", in_ws_op.NewModule())
 
 		// Frontend UI Index
+		hs.ModuleRegister("/in/p1", in_ws_p1.NewModule())
 		hs.ModuleRegister("/in", in_ws_cp.NewIndexModule())
 
 		// i18n
