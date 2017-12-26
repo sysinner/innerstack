@@ -1,4 +1,4 @@
-%define app_home    /opt/sysinner/soho
+%define app_home    /opt/sysinner/insoho
 %define app_user    action
 %define app_user_id 2048
 
