@@ -216,6 +216,7 @@ func main() {
 	// module/hchart
 	{
 		hs.ModuleRegister("/in/cp/hchart/~", httpsrv.NewStaticModule("hchart_ui", in_cf.Prefix+"/webui/hchart/webui"))
+		hs.ModuleRegister("/in/ops/hchart/~", httpsrv.NewStaticModule("hchart_ui_ops", in_cf.Prefix+"/webui/hchart/webui"))
 	}
 
 	// incore
