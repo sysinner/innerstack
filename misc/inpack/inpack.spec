@@ -67,12 +67,16 @@ vendor/github.com/hooto/iam_static/webui/
 webui/in/cp/js/
 webui/in/ops/js/
 webui/in/twbs/3.3/js/
+webui/in/twbs/4.0/js/
 webui/ips/ips/js/
 webui/hchart/webui/chartjs/
 webui/hchart/webui/hchart.js
 vendor/github.com/hooto/iam_static/webui/iam_static/js/
 
 %css_compress
+webui/in/cp/css/
+webui/in/ops/css/
+webui/in/twbs/4.0/css/
 webui/ips/ips/css/
 vendor/github.com/hooto/iam_static/webui/iam_static/css/
 
