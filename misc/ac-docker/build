@@ -90,6 +90,9 @@ install build_rootfs/lib64/libnssutil3.so build_rootfs_target/lib64/
 install build_rootfs/lib64/libplds4.so build_rootfs_target/lib64/
 install build_rootfs/lib64/libplc4.so build_rootfs_target/lib64/
 install build_rootfs/lib64/libnspr4.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libpam.so.0 build_rootfs_target/lib64/
+install build_rootfs/lib64/libaudit.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libcap-ng.so.0 build_rootfs_target/lib64/
 
 install build_rootfs/usr/pgsql-10/lib/libpq.so.5 build_rootfs_target/lib64/
 
