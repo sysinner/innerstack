@@ -77,6 +77,18 @@ func action_agent() {
 	}
 
 	//
+	init_dirs := []string{
+		"/home/action/local/bin",
+		"/home/action/local/share",
+		"/home/action/local/profile.d",
+		"/home/action/var/tmp",
+		"/home/action/var/log",
+	}
+	for _, v := range init_dirs {
+		os.MkdirAll(v, 0755)
+	}
+
+	//
 	if _, err := user.Lookup(config.User.Username); err != nil {
 
 		nologin, err := exec.LookPath("nologin")
@@ -100,10 +112,6 @@ func action_agent() {
 	syscall.Chdir("/home/action")
 
 	//
-	os.MkdirAll("/home/action/local/bin", 0755)
-	os.MkdirAll("/home/action/local/share", 0755)
-	os.MkdirAll("/home/action/var/tmp", 0755)
-	os.MkdirAll("/home/action/var/log", 0755)
 	hlog.LogDirSet("/home/action/var/log")
 	hlog.Printf("info", "started")
 

@@ -3,13 +3,13 @@
   "meta": {
     "id": "sysinner-httplb",
     "name": "Http Load Balancer ",
-    "version": "5"
+    "version": "6"
   },
   "packages": [
     {
       "name": "openresty",
       "version": "1.13.6.1",
-      "release": "1",
+      "release": "2",
       "dist": "el7",
       "arch": "x64"
     },

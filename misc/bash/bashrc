@@ -1,6 +1,4 @@
 
-
-
 HISTCONTROL=ignoreboth
 shopt -s histappend
 
@@ -9,7 +7,7 @@ HISTFILESIZE=2000
 shopt -s checkwinsize
 
 
-export PS1='\[\e[1;32m\][\u@SysInner \W]\$\[\e[0m\] '
+export PS1='\[\e[1;32m\][\u@Sysinner \W]\$\[\e[0m\] '
 
 export LANG=en_US.UTF-8
 export TERM=linux
@@ -21,6 +19,16 @@ fi
 
 TMOUT=3600
 
-export JAVA_HOME=/home/action/apps/java-jre8/
-export PATH=/home/action/local/bin:$JAVA_HOME/bin:$PATH
+SHELL=/bin/bash
+for i in /home/action/local/profile.d/*.sh; do
+    if [ -r "$i" ]; then
+        if [ "$PS1" ]; then
+            . "$i"
+        else
+            . "$i" >/dev/null
+        fi
+    fi
+done
 
+export JAVA_HOME=/home/action/apps/java-jre8
+export PATH=$PATH:$HOME/local/bin:$HOME/bin:$JAVA_HOME/bin

@@ -1,0 +1,112 @@
+#!/bin/bash
+
+set -e
+
+docker pull busybox:glibc
+
+docker build -t sysinner:a1el7v1_build -f Dockerfile.build .
+docker create --name sysinner_a1el7v1_build sysinner:a1el7v1_build
+docker create --name busybox_glibc busybox:glibc
+
+
+if [ ! -d "build_rootfs" ]; then
+  mkdir build_rootfs
+else
+  rm -rf build_rootfs/*
+fi
+
+
+if [ ! -d "build_rootfs_target" ]; then
+  mkdir build_rootfs_target
+else
+  rm -rf build_rootfs_target/*
+fi
+mkdir -p build_rootfs_target/usr/bin
+mkdir -p build_rootfs_target/sbin
+
+
+docker export sysinner_a1el7v1_build| tar -C build_rootfs -xvf -
+docker export busybox_glibc| tar -C build_rootfs_target -xvf -
+
+docker rm sysinner_a1el7v1_build
+docker rm busybox_glibc
+
+
+install build_rootfs/lib64/libssl.so.10 build_rootfs_target/lib64/
+install build_rootfs/lib64/libacl.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libpopt.so.0 build_rootfs_target/lib64/
+install build_rootfs/lib64/libattr.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libutil.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libaio.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnuma.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libcrypt.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libdl.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/librt.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libstdc++.so.6 build_rootfs_target/lib64/
+install build_rootfs/lib64/libgcc_s.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libfreebl3.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libncurses.so.5 build_rootfs_target/lib64/
+install build_rootfs/lib64/libtinfo.so.5 build_rootfs_target/lib64/
+install build_rootfs/lib64/libselinux.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libpcre.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libcrypt.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libz.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libcrypto.so.10 build_rootfs_target/lib64/
+install build_rootfs/lib64/libgssapi_krb5.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libkrb5.so.3 build_rootfs_target/lib64/
+install build_rootfs/lib64/libcom_err.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libk5crypto.so.3 build_rootfs_target/lib64/
+install build_rootfs/lib64/libkrb5support.so.0 build_rootfs_target/lib64/
+install build_rootfs/lib64/libkeyutils.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libreadline.so.6 build_rootfs_target/lib64/
+install build_rootfs/lib64/libxml2.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libbz2.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libcurl.so.4 build_rootfs_target/lib64/
+install build_rootfs/lib64/libpng15.so.15 build_rootfs_target/lib64/
+install build_rootfs/lib64/libjpeg.so.62 build_rootfs_target/lib64/
+install build_rootfs/lib64/libwebp.so.4 build_rootfs_target/lib64/
+install build_rootfs/lib64/libgmp.so.10 build_rootfs_target/lib64/
+install build_rootfs/lib64/libicui18n.so.50 build_rootfs_target/lib64/
+install build_rootfs/lib64/libicuuc.so.50 build_rootfs_target/lib64/
+install build_rootfs/lib64/libicudata.so.50 build_rootfs_target/lib64/
+install build_rootfs/lib64/libicuio.so.50 build_rootfs_target/lib64/
+install build_rootfs/lib64/libmcrypt.so.4 build_rootfs_target/lib64/
+install build_rootfs/lib64/libltdl.so.7 build_rootfs_target/lib64/
+install build_rootfs/lib64/libaspell.so.15 build_rootfs_target/lib64/
+install build_rootfs/lib64/libpspell.so.15 build_rootfs_target/lib64/
+install build_rootfs/lib64/libexslt.so.0 build_rootfs_target/lib64/
+install build_rootfs/lib64/libxslt.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/liblzma.so.5 build_rootfs_target/lib64/
+install build_rootfs/lib64/libbfd-2.25.1-32.base.el7_4.1.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libldap_r-2.4.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libldap-2.4.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/liblber-2.4.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libfipscheck.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libsasl2.so.3 build_rootfs_target/lib64/
+install build_rootfs/lib64/libssl3.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libsmime3.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libnss3.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libnssutil3.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libplds4.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libplc4.so build_rootfs_target/lib64/
+install build_rootfs/lib64/libnspr4.so build_rootfs_target/lib64/
+
+install build_rootfs/usr/pgsql-10/lib/libpq.so.5 build_rootfs_target/lib64/
+
+install build_rootfs/bin/bash build_rootfs_target/bin/
+install build_rootfs/usr/bin/bash build_rootfs_target/usr/bin/
+install build_rootfs/usr/bin/killall build_rootfs_target/usr/bin/
+install build_rootfs/usr/bin/ldd build_rootfs_target/usr/bin/
+install build_rootfs/usr/bin/rsync build_rootfs_target/usr/bin/
+install build_rootfs/usr/bin/strip build_rootfs_target/usr/bin/
+install build_rootfs/usr/bin/ssh-keygen build_rootfs_target/usr/bin/
+install build_rootfs/usr/sbin/useradd build_rootfs_target/usr/sbin/
+install build_rootfs/sbin/nologin build_rootfs_target/sbin/
+
+
+install build_rootfs/etc/bashrc build_rootfs_target/etc/bashrc
+
+docker build -t sysinner:a1el7v1 -f Dockerfile .
+
+rm -rf build_rootfs
+rm -rf build_rootfs_target
