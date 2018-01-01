@@ -7,7 +7,7 @@ HISTFILESIZE=2000
 shopt -s checkwinsize
 
 
-export PS1='\[\e[1;32m\][\u@Sysinner \W]\$\[\e[0m\] '
+export PS1='\[\e[1;32m\][\u@sysinner \W]\$\[\e[0m\] '
 
 export LANG=en_US.UTF-8
 export TERM=linux
@@ -17,7 +17,9 @@ if [ `uname` = Linux ]; then
     alias ll='ls -l'
 fi
 
-TMOUT=3600
+TMOUT=7200
+
+export PATH=$PATH:$HOME/local/bin
 
 SHELL=/bin/bash
 for i in /home/action/local/profile.d/*.sh; do
@@ -30,5 +32,3 @@ for i in /home/action/local/profile.d/*.sh; do
     fi
 done
 
-export JAVA_HOME=/home/action/apps/java-jre8
-export PATH=$PATH:$HOME/local/bin:$HOME/bin:$JAVA_HOME/bin

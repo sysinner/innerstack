@@ -31,6 +31,19 @@ docker export busybox_glibc| tar -C build_rootfs_target -xvf -
 docker rm sysinner_a1el7v1_build
 docker rm busybox_glibc
 
+install build_rootfs/lib64/ld-linux-x86-64.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libc.so.6 build_rootfs_target/lib64/
+install build_rootfs/lib64/libm.so.6 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnsl.so.1 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnss_compat.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnss_dns.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnss_files.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnss_hesiod.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnss_nisplus.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libnss_nis.so.2 build_rootfs_target/lib64/
+install build_rootfs/lib64/libpthread.so.0 build_rootfs_target/lib64/
+install build_rootfs/lib64/libresolv.so.2 build_rootfs_target/lib64/
+
 
 install build_rootfs/lib64/libssl.so.10 build_rootfs_target/lib64/
 install build_rootfs/lib64/libacl.so.1 build_rootfs_target/lib64/
@@ -93,6 +106,9 @@ install build_rootfs/lib64/libnspr4.so build_rootfs_target/lib64/
 install build_rootfs/lib64/libpam.so.0 build_rootfs_target/lib64/
 install build_rootfs/lib64/libaudit.so.1 build_rootfs_target/lib64/
 install build_rootfs/lib64/libcap-ng.so.0 build_rootfs_target/lib64/
+install build_rootfs/lib64/libidn.so.11 build_rootfs_target/lib64/
+install build_rootfs/lib64/libssh2.so.1 build_rootfs_target/lib64/
+
 
 install build_rootfs/usr/pgsql-10/lib/libpq.so.5 build_rootfs_target/lib64/
 
