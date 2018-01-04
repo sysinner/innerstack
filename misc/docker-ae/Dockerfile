@@ -6,14 +6,11 @@ LABEL "docker/image/name"="sysinner:a1el7v1"
 RUN rm -f /etc/yum.repos.d/*
 ADD el7.aliyun.repo /etc/yum.repos.d/base.repo
 
-RUN yum install -y sysvinit-tools psmisc rsync libaio numactl-libs openssl-libs openssh \
-    libjpeg libpng libwebp libmcrypt libpg libaspell libexslt libicui18n && \
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-redhat10-10-1.noarch.rpm && \
+    yum install -y sysvinit-tools psmisc rsync libaio numactl-libs openssl-libs openssh libjpeg libpng libwebp libicu libmcrypt libtool-ltdl aspell-devel libxslt postgresql10-libs openssh git2u && \
     yum clean all
 
 RUN useradd -u 2048 -d /home/action action
-
-#ADD rootfs_addon/usr/local/bin /usr/local/bin
-#ADD rootfs_addon/usr/share /usr/share
 
 ENV USER action
 ENV LANG en_US.UTF-8

@@ -27,6 +27,9 @@ install -m 644 vendor/github.com/sysinner/inpack/etc/inpack_config.tpl.json {{.b
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/in/ops/js/main.js
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/vendor/github.com/hooto/iam_static/webui/iam/js/main.js
+sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/cp/js/main.js
+sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/ops/js/main.js
+sed -i 's/debug:true/debug:false/g' {{.buildroot}}/vendor/github.com/hooto/iam_static/webui/iam/js/main.js
 
 rm -rf /tmp/rpmbuild/*
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}

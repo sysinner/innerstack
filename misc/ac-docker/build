@@ -112,14 +112,19 @@ install build_rootfs/lib64/libssh2.so.1 build_rootfs_target/lib64/
 
 install build_rootfs/usr/pgsql-10/lib/libpq.so.5 build_rootfs_target/lib64/
 
+
 install build_rootfs/bin/bash build_rootfs_target/bin/
+
 install build_rootfs/usr/bin/bash build_rootfs_target/usr/bin/
 install build_rootfs/usr/bin/killall build_rootfs_target/usr/bin/
 install build_rootfs/usr/bin/ldd build_rootfs_target/usr/bin/
 install build_rootfs/usr/bin/rsync build_rootfs_target/usr/bin/
 install build_rootfs/usr/bin/strip build_rootfs_target/usr/bin/
+install build_rootfs/usr/bin/ssh build_rootfs_target/usr/bin/
 install build_rootfs/usr/bin/ssh-keygen build_rootfs_target/usr/bin/
+
 install build_rootfs/usr/sbin/useradd build_rootfs_target/usr/sbin/
+
 install build_rootfs/sbin/nologin build_rootfs_target/sbin/
 
 
