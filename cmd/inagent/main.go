@@ -83,6 +83,7 @@ func action_agent() {
 		"/home/action/local/profile.d",
 		"/home/action/var/tmp",
 		"/home/action/var/log",
+		"/home/action/.ssh",
 	}
 	for _, v := range init_dirs {
 		os.MkdirAll(v, 0755)
