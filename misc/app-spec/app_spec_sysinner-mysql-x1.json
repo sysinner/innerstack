@@ -3,7 +3,7 @@
   "meta": {
     "id": "sysinner-mysql-x1",
     "name": "MySQL Inner x1",
-    "version": "3"
+    "version": "16"
   },
   "roles": [
     100,
@@ -13,14 +13,14 @@
     {
       "name": "mysql57",
       "version": "5.7.20",
-      "release": "1",
+      "release": "2",
       "dist": "el7",
       "arch": "x64"
     },
     {
       "name": "sysinner-mysql",
       "version": "0.2.2",
-      "release": "1",
+      "release": "2",
       "dist": "el7",
       "arch": "x64"
     }

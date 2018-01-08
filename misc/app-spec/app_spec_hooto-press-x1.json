@@ -3,7 +3,7 @@
   "meta": {
     "id": "hooto-press-x1",
     "name": "Hooto Press x1",
-    "version": "12"
+    "version": "15"
   },
   "roles": [
     100,
@@ -13,7 +13,7 @@
     {
       "name": "hooto-press",
       "version": "0.3.5.alpha",
-      "release": "3",
+      "release": "6",
       "dist": "el7",
       "arch": "x64"
     }
@@ -54,7 +54,7 @@
   "depends": [
     {
       "id": "sysinner-mysql-x1",
-      "version": "1"
+      "version": "16"
     }
   ],
   "exp_res": {
