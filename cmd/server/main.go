@@ -124,6 +124,8 @@ func main() {
 		//
 		iam_cfg.Prefix = in_cf.Prefix + "/vendor/github.com/hooto/iam_static"
 		iam_cfg.Config.InstanceID = "00" + idhash.HashToHexString([]byte("insoho/iam"), 14)
+		iam_cfg.VersionHash = idhash.HashToHexString([]byte(
+			(iam_cfg.Config.InstanceID + iam_cfg.Version + released)), 16)
 
 		// init database
 		iam_sto.Data = in_db.ZoneMaster
