@@ -60,6 +60,7 @@ webui/in/lessui/css
 webui/in/lessui/img
 webui/in/purecss/
 webui/in/twbs/
+webui/in/open-iconic/
 webui/ips/ips/
 webui/hchart/webui/chartjs/
 websrv/mgr/views/
@@ -69,7 +70,6 @@ vendor/github.com/hooto/iam_static/webui/
 %js_compress
 webui/in/cp/js/
 webui/in/ops/js/
-webui/in/twbs/3.3/js/
 webui/in/twbs/4.0/js/
 webui/in/jquery/
 webui/ips/ips/js/

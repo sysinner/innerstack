@@ -3,7 +3,7 @@
   "meta": {
     "id": "hooto-press-x1",
     "name": "Hooto Press x1",
-    "version": "21"
+    "version": "26"
   },
   "roles": [
     100,
@@ -23,6 +23,7 @@
       "name": "main",
       "exec_start": "DAEMON=/home/action/apps/hooto-press/bin/hooto-press\nDAEMON_ARGS=\"-log_dir=/home/action/apps/hooto-press/var/log -minloglevel=1 -logtolevels=true\"\nNAME=hooto-press\n\nif pidof $NAME; then\n    exit 0\nfi\n\nmkdir -p /home/action/apps/hooto-press/\nrsync -av {{.inpack_prefix_hooto_press}}/* /home/action/apps/hooto-press/\n\n$DAEMON $DAEMON_ARGS \u003e\u003e /home/action/var/log/hooto-press.log 2\u003e\u00261 \u0026\n\nsleep 1\nexit 0",
       "exec_stop": "killall hooto-press",
+      "priority": 8,
       "plan": {
         "on_tick": 60
       }
@@ -55,7 +56,7 @@
     {
       "id": "sysinner-mysql-x1",
       "name": "MySQL Inner x1",
-      "version": "20"
+      "version": "22"
     }
   ],
   "exp_res": {
