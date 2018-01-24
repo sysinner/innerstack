@@ -101,7 +101,6 @@ func main() {
 		if opts == nil {
 			log.Fatalf("conf.Data No IoConnector (%s) Found", "in_local_cache")
 		}
-
 		if in_db.LocalDB, err = kvgo.Open(*opts); err != nil {
 			log.Fatalf("Can Not Connect To %s, Error: %s", opts.Name, err.Error())
 		}
@@ -111,12 +110,9 @@ func main() {
 		if opts == nil {
 			log.Fatalf("conf.Data No IoConnector (%s) Found", "in_zone_master")
 		}
-
 		if in_db.ZoneMaster, err = kvgo.Open(*opts); err != nil {
 			log.Fatalf("Can Not Connect To %s, Error: %s", opts.Name, err.Error())
 		}
-
-		in_db.HiMaster = in_db.ZoneMaster
 	}
 
 	// module/IAM
@@ -289,10 +285,6 @@ func main() {
 	// http service
 	hs.Config.HttpPort = in_cf.Config.Host.HttpPort
 	go hs.Start()
-
-	// job/task
-	// go nodelet.Start()
-	// go scheduler.Start()
 
 	if in_cf.Config.PprofHttpPort > 0 {
 		go http.ListenAndServe(fmt.Sprintf(":%d", in_cf.Config.PprofHttpPort), nil)

@@ -1,6 +1,6 @@
 [project]
 name = insoho
-version = 0.3.5.alpha
+version = 0.3.6.alpha
 vendor = hooto.com
 homepage = https://github.com/sysinner/insoho
 groups = dev/sys-srv
@@ -61,6 +61,7 @@ webui/in/lessui/img
 webui/in/purecss/
 webui/in/twbs/
 webui/in/open-iconic/
+webui/about.tpl
 webui/ips/ips/
 webui/hchart/webui/chartjs/
 websrv/mgr/views/

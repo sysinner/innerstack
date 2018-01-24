@@ -14,7 +14,6 @@ Source0:   %{name}-__version__.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
 
 Requires:       redhat-lsb-core
-Requires:       docker-ce
 Requires(pre):  shadow-utils
 Requires(post): chkconfig
 
