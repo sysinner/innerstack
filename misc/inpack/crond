@@ -1,1 +1,5 @@
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=
+
 */1 * * * * root /opt/sysinner/insoho/bin/keeper

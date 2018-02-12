@@ -51,6 +51,7 @@ import (
 	in_rpc "github.com/sysinner/incore/rpcsrv"
 	in_sched "github.com/sysinner/incore/scheduler"
 	in_sts "github.com/sysinner/incore/status"
+	in_ver "github.com/sysinner/incore/version"
 	in_zm "github.com/sysinner/incore/zonemaster"
 
 	insoho_cf "github.com/sysinner/insoho/config"
@@ -86,7 +87,7 @@ func main() {
 	}
 
 	{
-		hlog.Printf("info", "inCore  version %s", in_cf.Version)
+		hlog.Printf("info", "inCore  version %s", in_ver.Version)
 		hlog.Printf("info", "inPanel version %s", in_ws_ui.Version)
 		hlog.Printf("info", "inPack  version %s", ips_cf.Version)
 		hlog.Printf("info", "inSoho  version %s", version)
@@ -115,6 +116,10 @@ func main() {
 		}
 	}
 
+	{
+		in_db.GlobalMaster = in_db.ZoneMaster
+	}
+
 	// module/IAM
 	{
 		//
@@ -124,7 +129,7 @@ func main() {
 			(iam_cfg.Config.InstanceID + iam_cfg.Version + released)), 16)
 
 		// init database
-		iam_sto.Data = in_db.ZoneMaster
+		iam_sto.Data = in_db.GlobalMaster
 		if err := iam_sto.Init(); err != nil {
 			log.Fatalf("iam.Store.Init error: %s", err.Error())
 		}
