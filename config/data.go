@@ -174,40 +174,44 @@ func InitZoneMasterData() map[string]interface{} {
 	plan_t1.SortOrder = 1
 
 	// Spec/Image
-	name = "a1el7v1"
+	plan_g1.ImageDefault = "a1el7v1"
+	for _, vi := range [][]string{
+		{plan_g1.ImageDefault, inapi.PodSpecBoxImageDocker},
+		{"a2p1el7", inapi.PodSpecBoxImagePouch},
+	} {
 
-	image := inapi.PodSpecBoxImage{
-		Meta: types.InnerObjectMeta{
-			ID:      name,
-			Name:    name,
-			User:    "sysadmin",
-			Version: "1",
-			Created: types.MetaTimeNow(),
-			Updated: types.MetaTimeNow(),
-		},
-		Status:    inapi.SpecStatusActive,
-		Driver:    inapi.PodSpecBoxImageDocker,
-		OsType:    "linux",
-		OsDist:    "el7",
-		OsVersion: "7",
-		OsName:    "CentOS 7",
-		Arch:      "x64",
+		image := inapi.PodSpecBoxImage{
+			Meta: types.InnerObjectMeta{
+				ID:      vi[0],
+				Name:    vi[0],
+				User:    "sysadmin",
+				Version: "1",
+				Created: types.MetaTimeNow(),
+				Updated: types.MetaTimeNow(),
+			},
+			Status:    inapi.SpecStatusActive,
+			Driver:    vi[1],
+			OsType:    "linux",
+			OsDist:    "el7",
+			OsVersion: "7",
+			OsName:    "CentOS 7",
+			Arch:      "x64",
+		}
+		image.Options.Set(vi[1]+"/image/name", "sysinner:"+vi[0])
+		init_zmd_items[inapi.NsGlobalPodSpec("box/image", image.Meta.ID)] = image
+
+		image.Meta.User = ""
+		image.Meta.Created = 0
+		image.Meta.Updated = 0
+
+		plan_g1.Images = append(plan_g1.Images, &inapi.PodSpecPlanBoxImageBound{
+			RefId:   image.Meta.ID,
+			Driver:  image.Driver,
+			Options: image.Options,
+			OsDist:  image.OsDist,
+			Arch:    image.Arch,
+		})
 	}
-	image.Options.Set("docker/image/name", "sysinner:a1el7v1")
-	init_zmd_items[inapi.NsGlobalPodSpec("box/image", image.Meta.ID)] = image
-
-	image.Meta.User = ""
-	image.Meta.Created = 0
-	image.Meta.Updated = 0
-
-	plan_g1.Images = append(plan_g1.Images, &inapi.PodSpecPlanBoxImageBound{
-		RefId:   image.Meta.ID,
-		Driver:  inapi.PodSpecBoxImageDocker,
-		Options: image.Options,
-		OsDist:  image.OsDist,
-		Arch:    image.Arch,
-	})
-	plan_g1.ImageDefault = image.Meta.ID
 
 	plan_t1.Images = plan_g1.Images
 	plan_t1.ImageDefault = plan_g1.ImageDefault

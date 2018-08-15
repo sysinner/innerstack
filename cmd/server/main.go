@@ -21,6 +21,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"code.hooto.com/lynkdb/lynkstorgo/lynkstor"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
@@ -189,8 +190,34 @@ func main() {
 			log.Fatalf("ips.Config.Init error: %s", err.Error())
 		}
 
-		if err = ips_db.Init(ips_cf.Config.IoConnectors); err != nil {
-			log.Fatalf("ips.Data.Init error: %s", err.Error())
+		// init database
+		opts := ips_cf.Config.IoConnectors.Options("inpack_database")
+		if opts == nil {
+			log.Fatalf("ips.conf.Data No IoConnector (%s) Found", "inpack_database")
+		}
+		// if ips_db.Data, err = kvgo.Open(*opts); err != nil {
+		// 	log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
+		// }
+		if ips_db.Data, err = lynkstor.NewConnector(lynkstor.NewConfig(*opts)); err != nil {
+			log.Fatalf("ops Can Not Connect To %s, Error: %s", opts.Name, err.Error())
+		}
+		in_db.InpackData = ips_db.Data
+
+		// init storage
+		// opts = ips_cf.Config.IoConnectors.Options("inpack_storage")
+		// if opts == nil {
+		// 	log.Fatalf("ips.conf.Data No IoConnector (%s) Found", "inpack_storage")
+		// }
+		// if ips_db.Storage, err = localfs.Open(*opts); err != nil {
+		// 	log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
+		// }
+		if ips_db.Storage, err = lynkstor.NewConnector(lynkstor.NewConfig(*opts)); err != nil {
+			log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
+		}
+
+		//
+		if err = ips_db.InitData(); err != nil {
+			log.Fatalf("ips.Data.InitData error: %s", err.Error())
 		}
 
 		if err := iam_sto.AppInstanceRegister(ips_cf.IamAppInstance()); err != nil {
