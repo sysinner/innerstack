@@ -28,13 +28,15 @@ import (
 
 var (
 	version          = "0.3.0"
+	release          = "1"
 	InstanceId       = "00" + idhash.HashToHexString([]byte("insoho"), 14)
 	init_cache_akacc iamapi.AccessKey
 )
 
-func Init(ver, seed string) error {
+func Init(ver, rel, seed string) error {
 
 	version = ver
+	release = rel
 
 	incfg.Config.Masters = []inapi.HostNodeAddress{
 		incfg.Config.Host.LanAddr,
@@ -70,7 +72,7 @@ func init_data() error {
 
 		opts = &connect.ConnOptions{
 			Name:      io_name,
-			Connector: "iomix/skv/Connector",
+			Connector: "iomix/skv/connector",
 			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
 		}
 	}

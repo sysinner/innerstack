@@ -39,7 +39,9 @@ const (
 )
 
 var (
-	pod_id = ""
+	version = "0.3.0.alpha"
+	release = ""
+	pod_id  = ""
 )
 
 func main() {

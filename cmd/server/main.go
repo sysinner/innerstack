@@ -21,11 +21,11 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	"code.hooto.com/lynkdb/lynkstorgo/lynkstor"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lynkdb/kvgo"
+	"github.com/lynkdb/localfs"
 
 	iam_cfg "github.com/hooto/iam/config"
 	iam_api "github.com/hooto/iam/iamapi"
@@ -75,7 +75,7 @@ func main() {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 
-		if err = insoho_cf.Init(version, in_cf.Config.Host.SecretKey); err != nil {
+		if err = insoho_cf.Init(version, release, in_cf.Config.Host.SecretKey); err != nil {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 	}
@@ -91,9 +91,9 @@ func main() {
 		hlog.Printf("info", "inCore  version %s", in_ver.Version)
 		hlog.Printf("info", "inPanel version %s", in_ws_ui.Version)
 		hlog.Printf("info", "inPack  version %s", ips_cf.Version)
-		hlog.Printf("info", "inSoho  version %s", version)
+		hlog.Printf("info", "inSoho  version %s-%s", version, release)
 		in_ws_ui.VersionHash = idhash.HashToHexString([]byte(
-			(in_ws_ui.Version + released)), 16)
+			(version + version + released)), 16)
 	}
 
 	// initialize data/io connection
@@ -141,7 +141,7 @@ func main() {
 		//
 		if version == "0.3.2.alpha.1" {
 			instanceId := idhash.HashToHexString([]byte("insoho/iam"), 16)
-			iam_sto.Data.ProgDel(iam_api.DataAppInstanceKey(instanceId), nil)
+			iam_sto.Data.KvProgDel(iam_api.DataAppInstanceKey(instanceId), nil)
 		}
 
 		//
@@ -195,23 +195,17 @@ func main() {
 		if opts == nil {
 			log.Fatalf("ips.conf.Data No IoConnector (%s) Found", "inpack_database")
 		}
-		// if ips_db.Data, err = kvgo.Open(*opts); err != nil {
-		// 	log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
-		// }
-		if ips_db.Data, err = lynkstor.NewConnector(lynkstor.NewConfig(*opts)); err != nil {
-			log.Fatalf("ops Can Not Connect To %s, Error: %s", opts.Name, err.Error())
+		if ips_db.Data, err = kvgo.Open(*opts); err != nil {
+			log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
 		}
 		in_db.InpackData = ips_db.Data
 
 		// init storage
-		// opts = ips_cf.Config.IoConnectors.Options("inpack_storage")
-		// if opts == nil {
-		// 	log.Fatalf("ips.conf.Data No IoConnector (%s) Found", "inpack_storage")
-		// }
-		// if ips_db.Storage, err = localfs.Open(*opts); err != nil {
-		// 	log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
-		// }
-		if ips_db.Storage, err = lynkstor.NewConnector(lynkstor.NewConfig(*opts)); err != nil {
+		opts = ips_cf.Config.IoConnectors.Options("inpack_storage")
+		if opts == nil {
+			log.Fatalf("ips.conf.Data No IoConnector (%s) Found", "inpack_storage")
+		}
+		if ips_db.Storage, err = localfs.FileObjectConnect(*opts); err != nil {
 			log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
 		}
 

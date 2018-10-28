@@ -19,10 +19,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
-	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
@@ -174,42 +172,43 @@ func InitZoneMasterData() map[string]interface{} {
 	plan_t1.SortOrder = 1
 
 	// Spec/Image
-	plan_g1.ImageDefault = "a1el7v1"
+	plan_g1.ImageDefault = inapi.BoxImageRepoDefault + ":a1el7v1"
 	for _, vi := range [][]string{
-		{plan_g1.ImageDefault, inapi.PodSpecBoxImageDocker},
-		{"a2p1el7", inapi.PodSpecBoxImagePouch},
+		// {name, tag, driver}
+		{inapi.BoxImageRepoDefault, "a1el7v1", inapi.PodSpecBoxImageDocker},
+		{inapi.BoxImageRepoDefault, "a2p1el7", inapi.PodSpecBoxImagePouch},
 	} {
+
+		imageRef := vi[0] + ":" + vi[1]
 
 		image := inapi.PodSpecBoxImage{
 			Meta: types.InnerObjectMeta{
-				ID:      vi[0],
-				Name:    vi[0],
+				ID:      imageRef,
+				Name:    vi[1],
 				User:    "sysadmin",
 				Version: "1",
 				Created: types.MetaTimeNow(),
 				Updated: types.MetaTimeNow(),
 			},
 			Status:    inapi.SpecStatusActive,
-			Driver:    vi[1],
+			Driver:    vi[2],
 			OsType:    "linux",
 			OsDist:    "el7",
 			OsVersion: "7",
 			OsName:    "CentOS 7",
 			Arch:      "x64",
 		}
-		image.Options.Set(vi[1]+"/image/name", "sysinner:"+vi[0])
-		init_zmd_items[inapi.NsGlobalPodSpec("box/image", image.Meta.ID)] = image
+		init_zmd_items[inapi.NsGlobalBoxImage(vi[0], vi[1])] = image
 
 		image.Meta.User = ""
 		image.Meta.Created = 0
 		image.Meta.Updated = 0
 
 		plan_g1.Images = append(plan_g1.Images, &inapi.PodSpecPlanBoxImageBound{
-			RefId:   image.Meta.ID,
-			Driver:  image.Driver,
-			Options: image.Options,
-			OsDist:  image.OsDist,
-			Arch:    image.Arch,
+			RefId:  image.Meta.ID,
+			Driver: image.Driver,
+			OsDist: image.OsDist,
+			Arch:   image.Arch,
 		})
 	}
 
@@ -352,20 +351,20 @@ func InitZoneMasterData() map[string]interface{} {
 	init_zmd_items[inapi.NsGlobalPodSpec("plan", plan_t1.Meta.ID)] = plan_t1
 	init_zmd_items[inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID)] = plan_g1
 
-	specs := []string{
-		"app_spec_hooto-press-x1.json",
-		"app_spec_sysinner-httplb.json",
-		"app_spec_sysinner-mysql-x1.json",
-	}
-	for _, v := range specs {
-		var spec inapi.AppSpec
-		if err := json.DecodeFile(incfg.Prefix+"/misc/app-spec/"+v, &spec); err != nil || spec.Meta.ID == "" {
-			hlog.Printf("warn", "init app spec %s error", v)
-			continue
-		}
-		spec.Meta.User = "sysadmin"
-		init_zmd_items[inapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
-	}
+	// specs := []string{
+	// 	"app_spec_hooto-press-x1.json",
+	// 	"app_spec_sysinner-httplb.json",
+	// 	"app_spec_sysinner-mysql-x1.json",
+	// }
+	// for _, v := range specs {
+	// 	var spec inapi.AppSpec
+	// 	if err := json.DecodeFile(incfg.Prefix+"/misc/app-spec/"+v, &spec); err != nil || spec.Meta.ID == "" {
+	// 		hlog.Printf("warn", "init app spec %s error", v)
+	// 		continue
+	// 	}
+	// 	spec.Meta.User = "sysadmin"
+	// 	init_zmd_items[inapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
+	// }
 
 	return init_zmd_items
 }
@@ -398,6 +397,12 @@ func UpgradeZoneMasterData(data skv.Connector) error {
 		}
 	}
 
+	if version == "0.4.0.alpha.2" {
+		for _, v := range []string{"a1el7v1", "a2p1el7"} {
+			data.PvDel(inapi.NsGlobalPodSpec("box/image", v), nil)
+		}
+	}
+
 	return nil
 }
 
@@ -409,7 +414,7 @@ func UpgradeIamData(data skv.Connector) error {
 
 	if version == "0.3.2.alpha.1" {
 		instanceId := idhash.HashToHexString([]byte("insoho"), 16)
-		data.ProgDel(iamapi.DataAppInstanceKey(instanceId), nil)
+		data.KvProgDel(iamapi.DataAppInstanceKey(instanceId), nil)
 	}
 
 	return nil

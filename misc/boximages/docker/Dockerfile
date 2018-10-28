@@ -1,14 +1,11 @@
 FROM centos:centos7
-MAINTAINER Eryx <evorui#gmail.com>
 
-LABEL "docker/image/name"="sysinner:a1el7v1"
+ADD app.el7.repo /etc/yum.repos.d/app.el7.repo
 
-RUN rm -f /etc/yum.repos.d/*
-ADD el7.aliyun.repo /etc/yum.repos.d/base.repo
-
-RUN yum install -y https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-redhat10-10-1.noarch.rpm && \
-    yum install -y sysvinit-tools psmisc rsync libaio numactl-libs openssl-libs openssh libjpeg libpng libwebp libicu libmcrypt libtool-ltdl aspell-devel libxslt postgresql10-libs openssh-server git2u vim && \
-    yum clean all
+RUN yum install -y sysvinit-tools psmisc rsync libaio numactl-libs openssl-libs openssh libjpeg libpng libwebp libicu libmcrypt libtool-ltdl aspell-devel libxslt postgresql10-libs openssh-server git2u vim iproute net-tools && \
+    yum clean all && \
+    rm -fr /var/cache && \
+    rm -fr /var/lib/yum
 
 RUN useradd -u 2048 -d /home/action action && \
     rm -f /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ed25519_key && \
