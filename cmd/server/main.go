@@ -93,7 +93,7 @@ func main() {
 		hlog.Printf("info", "inPack  version %s", ips_cf.Version)
 		hlog.Printf("info", "inSoho  version %s-%s", version, release)
 		in_ws_ui.VersionHash = idhash.HashToHexString([]byte(
-			(version + version + released)), 16)
+			(version + release + released)), 16)
 	}
 
 	// initialize data/io connection

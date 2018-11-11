@@ -1,4 +1,4 @@
 #!/bin/bash
 
-docker build -t sysinner:a1el7v2 .
+docker build -t sysinner:a1el7v1 .
 
