@@ -17,31 +17,15 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"os/user"
 	"runtime"
-	"strings"
-	"syscall"
 
-	"github.com/hooto/hlog4g/hlog"
-	"github.com/hooto/httpsrv"
-	"github.com/hooto/httpsrv/deps/go.net/websocket"
-
-	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inagent/cmd/confrender"
-	"github.com/sysinner/incore/inagent/executor"
-	"github.com/sysinner/incore/inagent/v1"
-	"github.com/sysinner/incore/inapi"
-)
-
-const (
-	addr_sock = "/home/action/.sysinner/inagent.sock"
+	"github.com/sysinner/incore/inagent/daemon"
 )
 
 var (
 	version = "0.3.0.alpha"
 	release = ""
-	pod_id  = ""
 )
 
 func main() {
@@ -62,75 +46,13 @@ func main() {
 		}
 
 	case "agent":
-		action_agent()
+		if err := daemon.Start(); err != nil {
+			fmt.Println("inagent/daemon failed", err)
+			os.Exit(1)
+		}
 
 	default:
 		fmt.Println("invalid command")
 		os.Exit(1)
 	}
-}
-
-func action_agent() {
-
-	//
-	pod_id = strings.TrimSpace(os.Getenv("POD_ID"))
-	if !inapi.PodIdReg.MatchString(pod_id) {
-		os.Exit(1)
-	}
-
-	//
-	init_dirs := []string{
-		"/home/action/local/bin",
-		"/home/action/local/share",
-		"/home/action/local/profile.d",
-		"/home/action/var/tmp",
-		"/home/action/var/log",
-		"/home/action/.ssh",
-	}
-	for _, v := range init_dirs {
-		os.MkdirAll(v, 0755)
-	}
-
-	//
-	if _, err := user.Lookup(config.User.Username); err != nil {
-
-		nologin, err := exec.LookPath("nologin")
-		if err != nil {
-			nologin = "/sbin/nologin"
-		}
-
-		if _, err = exec.Command(
-			"/usr/sbin/useradd",
-			"-d", "/home/action",
-			"-s", nologin,
-			"-u", config.User.Uid, config.User.Username,
-		).Output(); err != nil {
-			os.Exit(1)
-		}
-	}
-
-	//
-	syscall.Setgid(2048)
-	syscall.Setuid(2048)
-	syscall.Chdir("/home/action")
-
-	//
-	hlog.LogDirSet("/home/action/var/log")
-	hlog.Printf("info", "started")
-
-	//
-	go executor.Runner("/home/action")
-
-	//
-	httpsrv.GlobalService.Config.HttpAddr = "unix:" + addr_sock
-
-	httpsrv.GlobalService.HandlerRegister(
-		"/in/v1/pb/termws",
-		websocket.Handler(v1.TerminalWsOpenAction))
-
-	httpsrv.GlobalService.ModuleRegister("/in/v1/", v1.NewModule())
-
-	httpsrv.GlobalService.Start()
-
-	select {}
 }

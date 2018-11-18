@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	version          = "0.3.0"
+	version          = "0.4.0"
 	release          = "1"
 	InstanceId       = "00" + idhash.HashToHexString([]byte("insoho"), 14)
 	init_cache_akacc iamapi.AccessKey

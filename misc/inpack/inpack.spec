@@ -1,6 +1,6 @@
 [project]
 name = insoho
-version = 0.4.0.alpha.3
+version = 0.4.0.alpha.5
 vendor = hooto.com
 homepage = https://github.com/sysinner/insoho
 groups = dev/sys-srv
