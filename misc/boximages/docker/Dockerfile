@@ -2,7 +2,7 @@ FROM centos:centos7
 
 ADD app.el7.repo /etc/yum.repos.d/app.el7.repo
 
-RUN yum install -y sysvinit-tools psmisc rsync libaio numactl-libs openssl-libs openssh libjpeg libpng libwebp libicu libmcrypt libtool-ltdl aspell-devel libxslt postgresql10-libs openssh-server git2u vim iproute net-tools wget && \
+RUN yum install -y sysvinit-tools psmisc rsync libaio numactl-libs openssl-libs openssh libjpeg libpng libwebp libicu libmcrypt libtool-ltdl aspell-devel libxslt postgresql10-libs openssh-server git2u vim iproute net-tools wget gcc gcc-c++ && \
     yum clean all && \
     rm -fr /var/cache && \
     rm -fr /var/lib/yum

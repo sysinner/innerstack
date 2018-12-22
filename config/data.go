@@ -38,17 +38,6 @@ func InitHostletData() map[string]interface{} {
 
 	items := map[string]interface{}{}
 
-	items[inapi.NsLocalZoneMasterList()] = inapi.ResZoneMasterList{
-		Leader:  incfg.Config.Host.Id,
-		Updated: uint64(types.MetaTimeNow()),
-		Items: []*inapi.ResZoneMasterNode{
-			{
-				Id:   incfg.Config.Host.Id,
-				Addr: string(incfg.Config.Host.LanAddr),
-			},
-		},
-	}
-
 	return items
 }
 
@@ -96,6 +85,8 @@ func InitZoneMasterData() map[string]interface{} {
 
 	init_zmd_items[inapi.NsGlobalSysZone(init_zone_id)] = sys_zone
 	init_zmd_items[inapi.NsZoneSysInfo(init_zone_id)] = sys_zone
+
+	// inapi.ObjPrint("sys_zone", sys_zone)
 
 	// sys cell
 	sys_cell := inapi.ResCell{
@@ -215,31 +206,27 @@ func InitZoneMasterData() map[string]interface{} {
 	plan_t1.Images = plan_g1.Images
 	plan_t1.ImageDefault = plan_g1.ImageDefault
 
-	for _, v := range [][]int64{
-		{100, 64},
-		{100, 96},
-		{100, 128},
-		{200, 128},
-		{200, 192},
-		{200, 256},
-		{400, 256},
-		{400, 384},
-		{400, 512},
-		{600, 512},
-		{600, 768},
-		{600, 1024},
-		{1000, 1024},
-		{1000, 2048},
-		{1000, 4096},
-		{2000, 2048},
-		{2000, 4096},
-		{2000, 8192},
-		{4000, 4096},
-		{4000, 8192},
-		{4000, 16384},
-		{8000, 8192},
-		{8000, 16384},
-		{8000, 32768},
+	for _, v := range [][]int32{
+		{1, 64},
+		{1, 128},
+		{2, 128},
+		{2, 256},
+		{4, 256},
+		{4, 512},
+		{6, 512},
+		{6, 1024},
+		{10, 1024},
+		{10, 2048},
+		{10, 4096},
+		{20, 2048},
+		{20, 4096},
+		{20, 8192},
+		{40, 4096},
+		{40, 8192},
+		{40, 16384},
+		{80, 8192},
+		{80, 16384},
+		{80, 32768},
 	} {
 
 		name = fmt.Sprintf("c%dm%d", v[0], v[1])
@@ -254,14 +241,14 @@ func InitZoneMasterData() map[string]interface{} {
 			},
 			Status:   inapi.SpecStatusActive,
 			CpuLimit: v[0],
-			MemLimit: v[1] * inapi.ByteMB,
+			MemLimit: v[1],
 		}
 
-		if v[0] == 100 && v[1] == 128 {
+		if v[0] == 1 && v[1] == 128 {
 			plan_t1.ResComputeDefault = res.Meta.ID
 		}
 
-		if v[0] == 1000 && v[1] == 1024 {
+		if v[0] == 10 && v[1] == 1024 {
 			plan_g1.ResComputeDefault = res.Meta.ID
 		}
 
@@ -271,7 +258,7 @@ func InitZoneMasterData() map[string]interface{} {
 		res.Meta.Created = 0
 		res.Meta.Updated = 0
 
-		if v[0] < 1000 {
+		if v[0] < 10 {
 			plan_t1.ResComputes = append(plan_t1.ResComputes, &inapi.PodSpecPlanResComputeBound{
 				RefId:    res.Meta.ID,
 				CpuLimit: res.CpuLimit,
@@ -279,7 +266,7 @@ func InitZoneMasterData() map[string]interface{} {
 			})
 		}
 
-		if v[0] >= 1000 {
+		if v[0] >= 10 {
 			plan_g1.ResComputes = append(plan_g1.ResComputes, &inapi.PodSpecPlanResComputeBound{
 				RefId:    res.Meta.ID,
 				CpuLimit: res.CpuLimit,
@@ -302,20 +289,20 @@ func InitZoneMasterData() map[string]interface{} {
 			Updated: types.MetaTimeNow(),
 		},
 		Status:  inapi.SpecStatusActive,
-		Limit:   5 * inapi.ByteGB,
-		Request: 200 * inapi.ByteMB,
-		Step:    200 * inapi.ByteMB,
-		Default: 200 * inapi.ByteMB,
+		Limit:   10,
+		Request: 1,
+		Step:    1,
+		Default: 1,
 	}
 	vol_t1.Labels.Set("pod/spec/res/volume/type", "system")
 
 	vol_g1 := vol_t1
 	vol_g1.Meta.ID = "lg1"
 	vol_g1.Meta.Name = "lg1"
-	vol_g1.Limit = 100 * inapi.ByteGB
-	vol_g1.Request = 10 * inapi.ByteGB
-	vol_g1.Step = 10 * inapi.ByteGB
-	vol_g1.Default = 10 * inapi.ByteGB
+	vol_g1.Limit = 200
+	vol_g1.Request = 10
+	vol_g1.Step = 10
+	vol_g1.Default = 10
 
 	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID)] = vol_t1
 	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID)] = vol_g1

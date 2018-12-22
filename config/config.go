@@ -22,7 +22,7 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/connect"
 
-	incfg "github.com/sysinner/incore/config"
+	in_cfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
 )
 
@@ -33,41 +33,53 @@ var (
 	init_cache_akacc iamapi.AccessKey
 )
 
-func Init(ver, rel, seed string) error {
+func Init(ver, rel, seed string, is_zone_master bool) error {
 
 	version = ver
 	release = rel
 
-	incfg.Config.Masters = []inapi.HostNodeAddress{
-		incfg.Config.Host.LanAddr,
+	if len(in_cfg.Config.Masters) < 1 &&
+		(in_cfg.Config.ZoneMaster == nil ||
+			!in_cfg.Config.ZoneMaster.MultiHostEnable) {
+		in_cfg.Config.Masters = []inapi.HostNodeAddress{
+			in_cfg.Config.Host.LanAddr,
+		}
 	}
 
-	incfg.Config.Host.ZoneId = "local"
-
-	if err := init_data(); err != nil {
-		return err
+	if in_cfg.Config.Host.ZoneId == "" {
+		if in_cfg.Config.ZoneMaster == nil ||
+			!in_cfg.Config.ZoneMaster.MultiHostEnable {
+			in_cfg.Config.Host.ZoneId = "local"
+		}
 	}
 
-	init_cache_akacc = iamapi.AccessKey{
-		User: init_sys_user,
-		AccessKey: "00" + idhash.HashToHexString(
-			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 14),
-		SecretKey: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
-		Bounds: []iamapi.AccessKeyBound{{
-			Name: "sys/zm/" + init_zone_id,
-		}},
-		Description: "ZoneMaster AccCharge",
+	if is_zone_master {
+
+		if err := dataInit(); err != nil {
+			return err
+		}
+
+		init_cache_akacc = iamapi.AccessKey{
+			User: init_sys_user,
+			AccessKey: "00" + idhash.HashToHexString(
+				[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 14),
+			SecretKey: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
+			Bounds: []iamapi.AccessKeyBound{{
+				Name: "sys/zm/" + init_zone_id,
+			}},
+			Description: "ZoneMaster AccCharge",
+		}
 	}
 
 	return nil
 }
 
 //
-func init_data() error {
+func dataInit() error {
 
+	//
 	io_name := types.NewNameIdentifier("in_zone_master")
-	opts := incfg.Config.IoConnectors.Options(io_name)
-
+	opts := in_cfg.Config.IoConnectors.Options(io_name)
 	if opts == nil {
 
 		opts = &connect.ConnOptions{
@@ -76,12 +88,26 @@ func init_data() error {
 			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
 		}
 	}
-
 	if opts.Value("data_dir") == "" {
-		opts.SetValue("data_dir", incfg.Prefix+"/var/"+string(io_name))
+		opts.SetValue("data_dir", in_cfg.Prefix+"/var/"+string(io_name))
 	}
+	in_cfg.Config.IoConnectors.SetOptions(*opts)
 
-	incfg.Config.IoConnectors.SetOptions(*opts)
+	//
+	io_name = types.NewNameIdentifier("in_global_master")
+	opts = in_cfg.Config.IoConnectors.Options(io_name)
+	if opts == nil {
+
+		opts = &connect.ConnOptions{
+			Name:      io_name,
+			Connector: "iomix/skv/connector",
+			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
+		}
+	}
+	if opts.Value("data_dir") == "" {
+		opts.SetValue("data_dir", in_cfg.Prefix+"/var/"+string(io_name))
+	}
+	in_cfg.Config.IoConnectors.SetOptions(*opts)
 
 	return nil
 }

@@ -58,12 +58,14 @@ bin/
 webui/in/cp/
 webui/in/ops/
 webui/in/hl/
+webui/in/cm/
 webui/in/lessui/js
 webui/in/lessui/css
 webui/in/lessui/img
 webui/in/purecss/
 webui/in/twbs/
 webui/in/open-iconic/
+webui/in/fa/
 webui/about.tpl
 webui/ips/ips/
 webui/hchart/webui/chartjs/
@@ -76,6 +78,7 @@ webui/in/cp/js/
 webui/in/ops/js/
 webui/in/twbs/4.0/js/
 webui/in/jquery/
+webui/in/cm/
 webui/ips/ips/js/
 webui/hchart/webui/chartjs/
 webui/hchart/webui/hchart.js
@@ -85,6 +88,8 @@ vendor/github.com/hooto/iam_static/webui/
 webui/in/cp/css/
 webui/in/ops/css/
 webui/in/twbs/4.0/css/
+webui/in/cm/
+webui/in/fa/
 webui/ips/ips/css/
 vendor/github.com/hooto/iam_static/webui/
 
