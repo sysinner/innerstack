@@ -20,7 +20,6 @@ import (
 	"sort"
 
 	"github.com/hooto/iam/iamapi"
-	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
@@ -215,15 +214,19 @@ func InitZoneMasterData() map[string]interface{} {
 		{4, 512},
 		{6, 512},
 		{6, 1024},
+		{10, 512},
 		{10, 1024},
 		{10, 2048},
 		{10, 4096},
+		{20, 1024},
 		{20, 2048},
 		{20, 4096},
 		{20, 8192},
+		{40, 2048},
 		{40, 4096},
 		{40, 8192},
 		{40, 16384},
+		{80, 4096},
 		{80, 8192},
 		{80, 16384},
 		{80, 32768},
@@ -362,34 +365,6 @@ func UpgradeZoneMasterData(data skv.Connector) error {
 		return errors.New("UpgradeZoneMasterData skv.Connector Not Found")
 	}
 
-	if version == "0.3.2.alpha.1" {
-
-		//
-		var set inapi.ResZone
-		if rs := data.PvGet(inapi.NsGlobalSysZone(init_zone_id)); !rs.OK() {
-			return errors.New("skv.Command Error 0: " + rs.Bytex().String())
-		} else if err := rs.Decode(&set); err != nil {
-			return err
-		}
-
-		set.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
-		set.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
-
-		if rs := data.PvPut(inapi.NsGlobalSysZone(init_zone_id), set, nil); !rs.OK() {
-			return errors.New("skv.Command Error 1: " + rs.Bytex().String())
-		}
-
-		if rs := data.PvPut(inapi.NsZoneSysInfo(init_zone_id), set, nil); !rs.OK() {
-			return errors.New("skv.Command Error 2: " + rs.Bytex().String())
-		}
-	}
-
-	if version == "0.4.0.alpha.2" {
-		for _, v := range []string{"a1el7v1", "a2p1el7"} {
-			data.PvDel(inapi.NsGlobalPodSpec("box/image", v), nil)
-		}
-	}
-
 	return nil
 }
 
@@ -397,11 +372,6 @@ func UpgradeIamData(data skv.Connector) error {
 
 	if data == nil {
 		return errors.New("UpgradeIamData skv.Connector Not Found")
-	}
-
-	if version == "0.3.2.alpha.1" {
-		instanceId := idhash.HashToHexString([]byte("insoho"), 16)
-		data.KvProgDel(iamapi.DataAppInstanceKey(instanceId), nil)
 	}
 
 	return nil

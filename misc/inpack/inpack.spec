@@ -1,6 +1,6 @@
 [project]
 name = insoho
-version = 0.4.0.alpha.5
+version = 0.4.0.alpha.6
 vendor = hooto.com
 homepage = https://github.com/sysinner/insoho
 groups = dev/sys-srv
@@ -21,6 +21,8 @@ mkdir -p {{.buildroot}}/webui/in
 go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/insoho cmd/server/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
 go build -o {{.buildroot}}/bin/docker2oci github.com/coolljt0725/docker2oci
+# upx {{.buildroot}}/bin/inagent
+upx {{.buildroot}}/bin/docker2oci
 
 install bin/ininit {{.buildroot}}/bin/ininit
 install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.tpl.json
