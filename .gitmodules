@@ -13,3 +13,6 @@
 [submodule "vendor/github.com/sysinner/inpack"]
 	path = vendor/github.com/sysinner/inpack
 	url = git@github.com:sysinner/inpack.git
+[submodule "vendor/github.com/hooto/iam"]
+	path = vendor/github.com/hooto/iam
+	url = git@github.com:hooto/iam.git
