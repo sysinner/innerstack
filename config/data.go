@@ -28,8 +28,6 @@ import (
 )
 
 var (
-	init_zone_id  = "local"
-	init_cell_id  = "general"
 	init_sys_user = "sysadmin"
 )
 
@@ -63,7 +61,7 @@ func InitZoneMasterData() map[string]interface{} {
 	// sys zone
 	sys_zone := inapi.ResZone{
 		Meta: &inapi.ObjectMeta{
-			Id:      init_zone_id,
+			Id:      incfg.Config.Host.ZoneId,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
 		},
@@ -82,24 +80,24 @@ func InitZoneMasterData() map[string]interface{} {
 	sys_zone.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
 	sys_zone.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
 
-	init_zmd_items[inapi.NsGlobalSysZone(init_zone_id)] = sys_zone
-	init_zmd_items[inapi.NsZoneSysInfo(init_zone_id)] = sys_zone
+	init_zmd_items[inapi.NsGlobalSysZone(incfg.Config.Host.ZoneId)] = sys_zone
+	init_zmd_items[inapi.NsZoneSysInfo(incfg.Config.Host.ZoneId)] = sys_zone
 
 	// inapi.ObjPrint("sys_zone", sys_zone)
 
 	// sys cell
 	sys_cell := inapi.ResCell{
 		Meta: &inapi.ObjectMeta{
-			Id:      init_cell_id,
+			Id:      incfg.Config.Host.CellId,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
 		},
-		ZoneId:      init_zone_id,
+		ZoneId:      incfg.Config.Host.ZoneId,
 		Phase:       1,
 		Description: "",
 	}
-	init_zmd_items[inapi.NsGlobalSysCell(init_zone_id, init_cell_id)] = sys_cell
-	init_zmd_items[inapi.NsZoneSysCell(init_zone_id, init_cell_id)] = sys_cell
+	init_zmd_items[inapi.NsGlobalSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId)] = sys_cell
+	init_zmd_items[inapi.NsZoneSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId)] = sys_cell
 
 	// sys host
 	sys_host := inapi.ResHost{
@@ -110,25 +108,25 @@ func InitZoneMasterData() map[string]interface{} {
 		},
 		Operate: &inapi.ResHostOperate{
 			Action: 1,
-			ZoneId: init_zone_id,
-			CellId: init_cell_id,
+			ZoneId: incfg.Config.Host.ZoneId,
+			CellId: incfg.Config.Host.CellId,
 		},
 		Spec: &inapi.ResHostSpec{
 			PeerLanAddr: host_lan_addr,
 		},
 	}
-	init_zmd_items[inapi.NsZoneSysHost(init_zone_id, host_id)] = sys_host
-	init_zmd_items[inapi.NsZoneSysHostSecretKey(init_zone_id, host_id)] = incfg.Config.Host.SecretKey
+	init_zmd_items[inapi.NsZoneSysHost(incfg.Config.Host.ZoneId, host_id)] = sys_host
+	init_zmd_items[inapi.NsZoneSysHostSecretKey(incfg.Config.Host.ZoneId, host_id)] = incfg.Config.Host.SecretKey
 
 	//
 
 	// zone-master node(s)/leader
-	init_zmd_items[inapi.NsZoneSysMasterNode(init_zone_id, host_id)] = inapi.ResZoneMasterNode{
+	init_zmd_items[inapi.NsZoneSysMasterNode(incfg.Config.Host.ZoneId, host_id)] = inapi.ResZoneMasterNode{
 		Id:     host_id,
 		Addr:   host_lan_addr,
 		Action: 1,
 	}
-	init_zmd_items[inapi.NsZoneSysMasterLeader(init_zone_id)] = host_id
+	init_zmd_items[inapi.NsZoneSysMasterLeader(incfg.Config.Host.ZoneId)] = host_id
 
 	//
 	name = "g1"
@@ -144,8 +142,8 @@ func InitZoneMasterData() map[string]interface{} {
 		Status: inapi.SpecStatusActive,
 		Zones: []*inapi.PodSpecPlanZoneBound{
 			{
-				Name:  init_zone_id,
-				Cells: types.ArrayString([]string{init_cell_id}),
+				Name:  incfg.Config.Host.ZoneId,
+				Cells: types.ArrayString([]string{incfg.Config.Host.CellId}),
 			},
 		},
 	}
@@ -206,26 +204,34 @@ func InitZoneMasterData() map[string]interface{} {
 	plan_t1.ImageDefault = plan_g1.ImageDefault
 
 	for _, v := range [][]int32{
+		//
 		{1, 64},
 		{1, 128},
+		//
 		{2, 128},
 		{2, 256},
+		//
 		{4, 256},
 		{4, 512},
+		//
 		{6, 512},
 		{6, 1024},
+		//
 		{10, 512},
 		{10, 1024},
 		{10, 2048},
 		{10, 4096},
+		//
 		{20, 1024},
 		{20, 2048},
 		{20, 4096},
 		{20, 8192},
+		//
 		{40, 2048},
 		{40, 4096},
 		{40, 8192},
 		{40, 16384},
+		//
 		{80, 4096},
 		{80, 8192},
 		{80, 16384},

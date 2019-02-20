@@ -9,8 +9,6 @@ bin/*
 *.txz
 *.repo
 var/*
-vendor/*
-webui/*
 .build*
 build-*
 *.oci.tar

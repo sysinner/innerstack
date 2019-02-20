@@ -54,12 +54,12 @@ import (
 	in_ver "github.com/sysinner/incore/version"
 	in_zm "github.com/sysinner/incore/zonemaster"
 
-	insoho_cf "github.com/sysinner/insoho/config"
+	innerstack_cf "github.com/sysinner/innerstack/config"
 )
 
 var (
-	version  = "0.3.0.alpha"
-	release  = ""
+	version  = "git"
+	release  = "1"
 	released = ""
 	err      error
 )
@@ -74,7 +74,7 @@ func main() {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 
-		if err = insoho_cf.Init(version, release, in_cfg.Config.Host.SecretKey, in_cfg.IsZoneMaster()); err != nil {
+		if err = innerstack_cf.Init(version, release, in_cfg.Config.Host.SecretKey, in_cfg.IsZoneMaster()); err != nil {
 			log.Fatalf("conf.Initialize error: %s", err.Error())
 		}
 	}
@@ -87,13 +87,13 @@ func main() {
 	}
 
 	{
-		hlog.Printf("info", "inCore  version %s", in_ver.Version)
-		hlog.Printf("info", "inSoho  version %s-%s", version, release)
+		hlog.Printf("info", "InnerStack %s-%s", version, release)
+		hlog.Printf("info", "inCore %s", in_ver.Version)
 
 		if in_cfg.IsZoneMaster() {
 
-			hlog.Printf("info", "inPanel version %s", in_ws_ui.Version)
-			hlog.Printf("info", "inPack  version %s", ips_cf.Version)
+			hlog.Printf("info", "inPack %s", ips_cf.Version)
+			hlog.Printf("info", "inPanel %s", in_ws_ui.Version)
 
 			in_ws_ui.VersionHash = idhash.HashToHexString([]byte(
 				(version + release + released)), 16)
@@ -148,8 +148,8 @@ func main() {
 	// module/IAM
 	if in_cfg.IsZoneMaster() {
 		//
-		iam_cfg.Prefix = in_cfg.Prefix + "/vendor/github.com/hooto/iam_static"
-		iam_cfg.Config.InstanceID = "00" + idhash.HashToHexString([]byte("insoho/iam"), 14)
+		iam_cfg.Prefix = in_cfg.Prefix + "/vendor/github.com/hooto/iam"
+		iam_cfg.Config.InstanceID = "00" + idhash.HashToHexString([]byte("innerstack/iam"), 14)
 		iam_cfg.VersionHash = idhash.HashToHexString([]byte(
 			(iam_cfg.Config.InstanceID + iam_cfg.Version + released)), 16)
 
@@ -173,7 +173,7 @@ func main() {
 		hs.ModuleRegister("/iam", iam_web.NewModule())
 
 		//
-		if aks := insoho_cf.InitIamAccessKeyData(); len(aks) > 0 {
+		if aks := innerstack_cf.InitIamAccessKeyData(); len(aks) > 0 {
 			for _, v := range aks {
 				iam_db.AccessKeyInitData(v)
 			}
@@ -276,7 +276,7 @@ func main() {
 	// incore
 	if in_cfg.IsZoneMaster() {
 
-		in_inst := insoho_cf.IamAppInstance()
+		in_inst := innerstack_cf.IamAppInstance()
 		if err := iam_db.AppInstanceRegister(in_inst); err != nil {
 			log.Fatalf("in.Data.Init error: %s", err.Error())
 		}
@@ -304,7 +304,7 @@ func main() {
 	// init zonemaster
 	if in_cfg.IsZoneMaster() {
 
-		if err := in_zm.InitData(insoho_cf.InitZoneMasterData()); err != nil {
+		if err := in_zm.InitData(innerstack_cf.InitZoneMasterData()); err != nil {
 			log.Fatal(err.Error())
 		}
 

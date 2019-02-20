@@ -13,10 +13,10 @@ gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
 
 cat <<< '[pouch-stable]
 name=Pouch Stable - $basearch
-baseurl=http://mirrors.aliyun.com/opsx/pouch/linux/centos/7/$basearch/stable
+baseurl=https://mirrors.aliyun.com/opsx/pouch/linux/centos/7/$basearch/stable
 enabled=1
 gpgcheck=1
-gpgkey=http://mirrors.aliyun.com/opsx/pouch/linux/centos/gpg
+gpgkey=https://mirrors.aliyun.com/opsx/pouch/linux/centos/gpg
 
 ' > /etc/yum.repos.d/pouch.repo
 
@@ -39,11 +39,11 @@ yum install -y docker-ce pouch psmisc rsync net-tools device-mapper-persistent-d
 if [ ! -d "/etc/docker" ]; then
   mkdir /etc/docker
 fi
-if [ ! -f "/etc/docker/config.json" ]; then
+if [ ! -f "/etc/docker/daemon.json" ]; then
   cat <<< '{
   "bip": "172.18.0.1/16",
   "registry-mirrors": ["https://registry.docker-cn.com"]
-}' > /etc/docker/config.json
+}' > /etc/docker/daemon.json
 fi
 
 if [ ! -d "/etc/pouch" ]; then
@@ -55,9 +55,10 @@ if [ ! -f "/etc/pouch/config.json" ]; then
   "lxcfs": "/usr/local/bin/pouch-lxcfs",
   "network-config": {
     "bridge-config": {
-      "bridge-name": "bridge",
+      "bridge-name": "p0",
+      "default-gateway": "172.20.0.1",
       "bip": "172.20.0.1/16",
-      "default-gateway": "172.20.0.1"
+      "iptables": true
     }
   },
   "enable-lxcfs": true

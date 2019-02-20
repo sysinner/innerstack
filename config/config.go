@@ -27,9 +27,9 @@ import (
 )
 
 var (
-	version          = "0.4.0"
+	version          = "0.9.0"
 	release          = "1"
-	InstanceId       = "00" + idhash.HashToHexString([]byte("insoho"), 14)
+	InstanceId       = "00" + idhash.HashToHexString([]byte("innerstack"), 14)
 	init_cache_akacc iamapi.AccessKey
 )
 
@@ -47,9 +47,14 @@ func Init(ver, rel, seed string, is_zone_master bool) error {
 	}
 
 	if in_cfg.Config.Host.ZoneId == "" {
-		if in_cfg.Config.ZoneMaster == nil ||
-			!in_cfg.Config.ZoneMaster.MultiHostEnable {
-			in_cfg.Config.Host.ZoneId = "local"
+		if in_cfg.Config.ZoneMaster == nil {
+			in_cfg.Config.Host.ZoneId = in_cfg.InitZoneId
+		}
+	}
+
+	if in_cfg.Config.Host.CellId == "" {
+		if in_cfg.Config.ZoneMaster == nil {
+			in_cfg.Config.Host.CellId = in_cfg.InitCellId
 		}
 	}
 
@@ -62,10 +67,10 @@ func Init(ver, rel, seed string, is_zone_master bool) error {
 		init_cache_akacc = iamapi.AccessKey{
 			User: init_sys_user,
 			AccessKey: "00" + idhash.HashToHexString(
-				[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", init_zone_id)), 14),
+				[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", in_cfg.Config.Host.ZoneId)), 14),
 			SecretKey: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
 			Bounds: []iamapi.AccessKeyBound{{
-				Name: "sys/zm/" + init_zone_id,
+				Name: "sys/zm/" + in_cfg.Config.Host.ZoneId,
 			}},
 			Description: "ZoneMaster AccCharge",
 		}
@@ -120,15 +125,15 @@ func IamAppInstance() iamapi.AppInstance {
 			User: "sysadmin",
 		},
 		Version:  version,
-		AppID:    "insoho",
-		AppTitle: "SysInner for SOHO",
+		AppID:    "innerstack",
+		AppTitle: "InnerStack Enterprise Paas",
 		Status:   1,
 		Url:      "",
 		Privileges: []iamapi.AppPrivilege{
 			{
 				Privilege: "sysinner.admin",
 				Roles:     []uint32{1},
-				Desc:      "SysInner Management",
+				Desc:      "System Management",
 			},
 		},
 	}

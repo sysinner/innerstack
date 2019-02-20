@@ -29,7 +29,8 @@ import (
 	"github.com/lynkdb/iomix/connect"
 	"github.com/lynkdb/iomix/skv"
 	"github.com/lynkdb/kvgo"
-	"github.com/sysinner/insoho/internal/cliflags"
+
+	"github.com/sysinner/innerstack/internal/cliflags"
 )
 
 var (
