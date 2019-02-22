@@ -20,7 +20,6 @@ import (
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/connect"
 
 	in_cfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
@@ -33,36 +32,27 @@ var (
 	init_cache_akacc iamapi.AccessKey
 )
 
-func Init(ver, rel, seed string, is_zone_master bool) error {
+func Setup(ver, rel, seed string, isZoneMaster bool) error {
 
 	version = ver
 	release = rel
 
 	if len(in_cfg.Config.Masters) < 1 &&
-		(in_cfg.Config.ZoneMaster == nil ||
-			!in_cfg.Config.ZoneMaster.MultiHostEnable) {
+		!in_cfg.Config.ZoneMaster.MultiHostEnable {
 		in_cfg.Config.Masters = []inapi.HostNodeAddress{
 			in_cfg.Config.Host.LanAddr,
 		}
 	}
 
 	if in_cfg.Config.Host.ZoneId == "" {
-		if in_cfg.Config.ZoneMaster == nil {
-			in_cfg.Config.Host.ZoneId = in_cfg.InitZoneId
-		}
+		in_cfg.Config.Host.ZoneId = in_cfg.InitZoneId
 	}
 
 	if in_cfg.Config.Host.CellId == "" {
-		if in_cfg.Config.ZoneMaster == nil {
-			in_cfg.Config.Host.CellId = in_cfg.InitCellId
-		}
+		in_cfg.Config.Host.CellId = in_cfg.InitCellId
 	}
 
-	if is_zone_master {
-
-		if err := dataInit(); err != nil {
-			return err
-		}
+	if isZoneMaster {
 
 		init_cache_akacc = iamapi.AccessKey{
 			User: init_sys_user,
@@ -75,44 +65,6 @@ func Init(ver, rel, seed string, is_zone_master bool) error {
 			Description: "ZoneMaster AccCharge",
 		}
 	}
-
-	return nil
-}
-
-//
-func dataInit() error {
-
-	//
-	io_name := types.NewNameIdentifier("in_zone_master")
-	opts := in_cfg.Config.IoConnectors.Options(io_name)
-	if opts == nil {
-
-		opts = &connect.ConnOptions{
-			Name:      io_name,
-			Connector: "iomix/skv/connector",
-			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
-		}
-	}
-	if opts.Value("data_dir") == "" {
-		opts.SetValue("data_dir", in_cfg.Prefix+"/var/"+string(io_name))
-	}
-	in_cfg.Config.IoConnectors.SetOptions(*opts)
-
-	//
-	io_name = types.NewNameIdentifier("in_global_master")
-	opts = in_cfg.Config.IoConnectors.Options(io_name)
-	if opts == nil {
-
-		opts = &connect.ConnOptions{
-			Name:      io_name,
-			Connector: "iomix/skv/connector",
-			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
-		}
-	}
-	if opts.Value("data_dir") == "" {
-		opts.SetValue("data_dir", in_cfg.Prefix+"/var/"+string(io_name))
-	}
-	in_cfg.Config.IoConnectors.SetOptions(*opts)
 
 	return nil
 }

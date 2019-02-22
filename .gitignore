@@ -12,4 +12,4 @@ var/*
 .build*
 build-*
 *.oci.tar
-
+*.so

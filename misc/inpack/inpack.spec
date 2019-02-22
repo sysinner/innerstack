@@ -1,6 +1,6 @@
 [project]
 name = innerstack
-version = 0.9.0
+version = 0.9.1
 vendor = hooto.com
 homepage = https://github.com/sysinner/innerstack
 groups = dev/sys-srv
@@ -22,7 +22,11 @@ go build -ldflags "-X main.version={{.project__version}} -X main.release={{.proj
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
 go build -o {{.buildroot}}/bin/docker2oci github.com/coolljt0725/docker2oci
 # upx {{.buildroot}}/bin/inagent
-upx {{.buildroot}}/bin/docker2oci
+# upx {{.buildroot}}/bin/docker2oci
+
+go build -buildmode=plugin -o {{.buildroot}}/plugins/lynkdb-kvgo.so github.com/lynkdb/kvgo/plugin
+go build -buildmode=plugin -o {{.buildroot}}/plugins/lynkdb-localfs.so github.com/lynkdb/localfs/plugin
+go build -buildmode=plugin -o plugins/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/plugin/scheduler/plugin
 
 install bin/ininit {{.buildroot}}/bin/ininit
 install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.tpl.json

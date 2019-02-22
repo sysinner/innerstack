@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	version = "0.3.0.alpha"
+	version = "0.9.0"
 	release = ""
 )
 

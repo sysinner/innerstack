@@ -24,8 +24,6 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
-	"github.com/lynkdb/kvgo"
-	"github.com/lynkdb/localfs"
 
 	iam_cfg "github.com/hooto/iam/config"
 	iam_cli "github.com/hooto/iam/iamclient"
@@ -49,12 +47,11 @@ import (
 	in_host "github.com/sysinner/incore/hostlet"
 	in_api "github.com/sysinner/incore/inapi"
 	in_rpc "github.com/sysinner/incore/rpcsrv"
-	in_sched "github.com/sysinner/incore/scheduler"
 	in_sts "github.com/sysinner/incore/status"
 	in_ver "github.com/sysinner/incore/version"
 	in_zm "github.com/sysinner/incore/zonemaster"
 
-	innerstack_cf "github.com/sysinner/innerstack/config"
+	is_cfg "github.com/sysinner/innerstack/config"
 )
 
 var (
@@ -70,12 +67,12 @@ func main() {
 
 	// initialize configuration
 	{
-		if err = in_cfg.Init(); err != nil {
-			log.Fatalf("conf.Initialize error: %s", err.Error())
+		if err = in_cfg.Setup(); err != nil {
+			log.Fatalf("incore/config/Setup error: %s", err.Error())
 		}
 
-		if err = innerstack_cf.Init(version, release, in_cfg.Config.Host.SecretKey, in_cfg.IsZoneMaster()); err != nil {
-			log.Fatalf("conf.Initialize error: %s", err.Error())
+		if err = is_cfg.Setup(version, release, in_cfg.Config.Host.SecretKey, in_cfg.IsZoneMaster()); err != nil {
+			log.Fatalf("innerstack/config/Setup error: %s", err.Error())
 		}
 	}
 
@@ -99,11 +96,12 @@ func main() {
 				(version + release + released)), 16)
 			in_ws_ui.ZoneId = in_cfg.Config.Host.ZoneId
 
-			if in_cfg.Config.ZoneMaster != nil {
-				if in_cfg.Config.ZoneMaster.MultiHostEnable {
-					in_ws_ui.OpsClusterHost = true
-					if in_cfg.Config.ZoneMaster.MultiCellEnable {
-						in_ws_ui.OpsClusterCell = true
+			if in_cfg.Config.ZoneMaster.MultiHostEnable {
+				in_ws_ui.OpsClusterHost = true
+				if in_cfg.Config.ZoneMaster.MultiCellEnable {
+					in_ws_ui.OpsClusterCell = true
+					if in_cfg.Config.ZoneMaster.MultiZoneEnable {
+						in_ws_ui.OpsClusterZone = true
 					}
 				}
 			}
@@ -112,36 +110,8 @@ func main() {
 
 	// initialize data/io connection
 	{
-		// init local cache database
-		opts := in_cfg.Config.IoConnectors.Options("in_local_cache")
-		if opts == nil {
-			log.Fatalf("conf.Data No IoConnector (%s) Found", "in_local_cache")
-		}
-		if in_db.LocalDB, err = kvgo.Open(*opts); err != nil {
-			log.Fatalf("Can Not Connect To %s, Error: %s", opts.Name, err.Error())
-		}
-	}
-
-	// init global/zone master database
-	if in_cfg.IsZoneMaster() {
-
-		opts := in_cfg.Config.IoConnectors.Options("in_global_master")
-		if opts == nil {
-			log.Fatalf("conf.Data No IoConnector (%s) Found", "in_global_master")
-		}
-		hlog.Printf("info", "in_global_master enable")
-		if in_db.GlobalMaster, err = kvgo.Open(*opts); err != nil {
-			log.Fatalf("Can Not Connect To %s, Error: %s", opts.Name, err.Error())
-		}
-
-		//
-		opts = in_cfg.Config.IoConnectors.Options("in_zone_master")
-		if opts == nil {
-			log.Fatalf("conf.Data No IoConnector (%s) Found", "in_zone_master")
-		}
-		hlog.Printf("info", "in_zone_master enable")
-		if in_db.ZoneMaster, err = kvgo.Open(*opts); err != nil {
-			log.Fatalf("Can Not Connect To %s, Error: %s", opts.Name, err.Error())
+		if err := in_db.Setup(); err != nil {
+			log.Fatal(err)
 		}
 	}
 
@@ -173,7 +143,7 @@ func main() {
 		hs.ModuleRegister("/iam", iam_web.NewModule())
 
 		//
-		if aks := innerstack_cf.InitIamAccessKeyData(); len(aks) > 0 {
+		if aks := is_cfg.InitIamAccessKeyData(); len(aks) > 0 {
 			for _, v := range aks {
 				iam_db.AccessKeyInitData(v)
 			}
@@ -213,36 +183,18 @@ func main() {
 		}
 	}
 
-	// module/LPS: init ips database and webserver
+	// module/IPS: init ips database and webserver
 	if in_cfg.IsZoneMaster() {
 
-		if err = ips_cf.Init(in_cfg.Prefix); err != nil {
+		if err = ips_cf.Setup(in_cfg.Prefix); err != nil {
 			log.Fatalf("ips.Config.Init error: %s", err.Error())
 		}
 
 		// init database
-		opts := ips_cf.Config.IoConnectors.Options("inpack_database")
-		if opts == nil {
-			log.Fatalf("ips.conf.Data No IoConnector (%s) Found", "inpack_database")
-		}
-		if ips_db.Data, err = kvgo.Open(*opts); err != nil {
-			log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
+		if err = ips_db.Setup(); err != nil {
+			log.Fatal(err)
 		}
 		in_db.InpackData = ips_db.Data
-
-		// init storage
-		opts = ips_cf.Config.IoConnectors.Options("inpack_storage")
-		if opts == nil {
-			log.Fatalf("ips.conf.Data No IoConnector (%s) Found", "inpack_storage")
-		}
-		if ips_db.Storage, err = localfs.FileObjectConnect(*opts); err != nil {
-			log.Fatalf("ips Can Not Connect To %s, Error: %s", opts.Name, err.Error())
-		}
-
-		//
-		if err = ips_db.InitData(); err != nil {
-			log.Fatalf("ips.Data.InitData error: %s", err.Error())
-		}
 
 		if err := iam_db.AppInstanceRegister(ips_cf.IamAppInstance()); err != nil {
 			log.Fatalf("ips.Data.Init error: %s", err.Error())
@@ -276,7 +228,7 @@ func main() {
 	// incore
 	if in_cfg.IsZoneMaster() {
 
-		in_inst := innerstack_cf.IamAppInstance()
+		in_inst := is_cfg.IamAppInstance()
 		if err := iam_db.AppInstanceRegister(in_inst); err != nil {
 			log.Fatalf("in.Data.Init error: %s", err.Error())
 		}
@@ -304,11 +256,14 @@ func main() {
 	// init zonemaster
 	if in_cfg.IsZoneMaster() {
 
-		if err := in_zm.InitData(innerstack_cf.InitZoneMasterData()); err != nil {
+		if err := in_zm.InitData(is_cfg.InitZoneMasterData()); err != nil {
 			log.Fatal(err.Error())
 		}
 
-		in_zm.Scheduler = in_sched.NewScheduler()
+		if err := in_zm.SetupScheduler(); err != nil {
+			log.Fatal(err.Error())
+		}
+
 		in_api.RegisterApiZoneMasterServer(in_rpc.Server, new(in_zm.ApiZoneMaster))
 
 		if err := in_zm.Start(); err != nil {
