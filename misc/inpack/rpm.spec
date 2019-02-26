@@ -2,7 +2,7 @@
 %define app_user    action
 %define app_user_id 2048
 
-Name:    innerstack
+Name:    sysinner-innerstack
 Version: __version__
 Release: __release__%{?dist}
 Vendor:  sysinner.com
@@ -35,7 +35,7 @@ cp -rp * %{buildroot}%{app_home}/
 # install -m 755 bin/docker2oci               %{buildroot}%{app_home}/bin/docker2oci
 install -m 644 etc/empty.tpl.json           %{buildroot}%{app_home}/etc/config.json
 install -m 644 etc/empty.tpl.json           %{buildroot}%{app_home}/etc/inpack_config.json
-install -m 600 misc/systemd/systemd.service %{buildroot}/lib/systemd/system/innerstack.service
+install -m 600 misc/systemd/systemd.service %{buildroot}/lib/systemd/system/sysinner-innerstack.service
 
 %clean
 rm -rf %{buildroot}
@@ -57,7 +57,7 @@ systemctl daemon-reload
 %dir %{app_home}
 %config(noreplace) %{app_home}/etc/config.json
 %config(noreplace) %{app_home}/etc/inpack_config.json
-/lib/systemd/system/innerstack.service
+/lib/systemd/system/sysinner-innerstack.service
 
 %{app_home}/
 

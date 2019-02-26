@@ -1,7 +1,7 @@
 [project]
-name = innerstack
-version = 0.9.1
-vendor = hooto.com
+name = sysinner-innerstack
+version = 0.9.2
+vendor = sysinner.com
 homepage = https://github.com/sysinner/innerstack
 groups = dev/sys-srv
 
@@ -17,16 +17,18 @@ mkdir -p {{.buildroot}}/var/tmp
 mkdir -p {{.buildroot}}/var/inpack_database
 mkdir -p {{.buildroot}}/var/inpack_storage
 mkdir -p {{.buildroot}}/webui/in
+mkdir -p {{.buildroot}}/plugin
 
 go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
 go build -o {{.buildroot}}/bin/docker2oci github.com/coolljt0725/docker2oci
+
 # upx {{.buildroot}}/bin/inagent
 # upx {{.buildroot}}/bin/docker2oci
 
-go build -buildmode=plugin -o {{.buildroot}}/plugins/lynkdb-kvgo.so github.com/lynkdb/kvgo/plugin
-go build -buildmode=plugin -o {{.buildroot}}/plugins/lynkdb-localfs.so github.com/lynkdb/localfs/plugin
-go build -buildmode=plugin -o plugins/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/plugin/scheduler/plugin
+# go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-kvgo.so github.com/lynkdb/kvgo/plugin
+# go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-localfs.so github.com/lynkdb/localfs/plugin
+# go build -buildmode=plugin -o {{.buildroot}}/plugin/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/plugin/scheduler/plugin
 
 install bin/ininit {{.buildroot}}/bin/ininit
 install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.tpl.json
@@ -43,16 +45,16 @@ sed -i 's/debug:true/debug:false/g' {{.buildroot}}/vendor/github.com/hooto/iam/w
 rm -rf /tmp/rpmbuild/*
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
 
-mkdir -p /tmp/rpmbuild/SOURCES/innerstack-{{.project__version}}/
-rsync -av {{.buildroot}}/* /tmp/rpmbuild/SOURCES/innerstack-{{.project__version}}/
+mkdir -p /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/
+rsync -av {{.buildroot}}/* /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/
 
-sed -i 's/__version__/{{.project__version}}/g' /tmp/rpmbuild/SOURCES/innerstack-{{.project__version}}/misc/inpack/rpm.spec
-sed -i 's/__release__/{{.project__release}}/g' /tmp/rpmbuild/SOURCES/innerstack-{{.project__version}}/misc/inpack/rpm.spec
+sed -i 's/__version__/{{.project__version}}/g' /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec
+sed -i 's/__release__/{{.project__release}}/g' /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec
 
 cd /tmp/rpmbuild/SOURCES/
-tar zcf innerstack-{{.project__version}}.tar.gz innerstack-{{.project__version}}
+tar zcf sysinner-innerstack-{{.project__version}}.tar.gz sysinner-innerstack-{{.project__version}}
 
-rpmbuild --define "debug_package %{nil}" -ba /tmp/rpmbuild/SOURCES/innerstack-{{.project__version}}/misc/inpack/rpm.spec \
+rpmbuild --define "debug_package %{nil}" -ba /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec \
   --define='_tmppath /tmp/rpmbuild' \
   --define='_builddir /tmp/rpmbuild/BUILD' \
   --define='_topdir /tmp/rpmbuild' \

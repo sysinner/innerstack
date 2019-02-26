@@ -7,7 +7,6 @@ bin/*
 *.draft
 *.aci
 *.txz
-*.repo
 var/*
 .build*
 build-*

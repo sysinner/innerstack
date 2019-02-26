@@ -15,11 +15,8 @@
 package main
 
 import (
-	_ "expvar"
 	"fmt"
 	"log"
-	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
@@ -111,7 +108,7 @@ func main() {
 	// initialize data/io connection
 	{
 		if err := in_db.Setup(); err != nil {
-			log.Fatal(err)
+			log.Fatalf("in_db setup err %s", err.Error())
 		}
 	}
 
@@ -192,7 +189,7 @@ func main() {
 
 		// init database
 		if err = ips_db.Setup(); err != nil {
-			log.Fatal(err)
+			log.Fatalf("ips_db setup err %s", err.Error())
 		}
 		in_db.InpackData = ips_db.Data
 
@@ -257,24 +254,24 @@ func main() {
 	if in_cfg.IsZoneMaster() {
 
 		if err := in_zm.InitData(is_cfg.InitZoneMasterData()); err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf("in_zm.InitData err %s", err.Error())
 		}
 
 		if err := in_zm.SetupScheduler(); err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf("in_zm.SetupScheduler err %s", err.Error())
 		}
 
 		in_api.RegisterApiZoneMasterServer(in_rpc.Server, new(in_zm.ApiZoneMaster))
 
 		if err := in_zm.Start(); err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf("in_zm.Start err %s", err.Error())
 		}
 	}
 
 	//
 	{
 		if err := in_host.Start(); err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf("in_host.Start err %s", err.Error())
 		}
 	}
 
@@ -296,10 +293,12 @@ func main() {
 		go hs.Start()
 	}
 
+	/**
 	if in_cfg.Config.PprofHttpPort > 0 {
 		go http.ListenAndServe(fmt.Sprintf(":%d", in_cfg.Config.PprofHttpPort), nil)
 		fmt.Println("PprofHttpPort", in_cfg.Config.PprofHttpPort)
 	}
+	*/
 
 	in_cfg.Config.Sync()
 

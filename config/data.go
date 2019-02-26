@@ -126,7 +126,7 @@ func InitZoneMasterData() map[string]interface{} {
 		Addr:   host_lan_addr,
 		Action: 1,
 	}
-	init_zmd_items[inapi.NsZoneSysMasterLeader(incfg.Config.Host.ZoneId)] = host_id
+	// init_zmd_items[inapi.NsKvZoneSysMasterLeader(incfg.Config.Host.ZoneId)] = host_id
 
 	//
 	name = "g1"
