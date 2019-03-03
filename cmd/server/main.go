@@ -17,6 +17,12 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
@@ -293,14 +299,28 @@ func main() {
 		go hs.Start()
 	}
 
-	/**
 	if in_cfg.Config.PprofHttpPort > 0 {
 		go http.ListenAndServe(fmt.Sprintf(":%d", in_cfg.Config.PprofHttpPort), nil)
-		fmt.Println("PprofHttpPort", in_cfg.Config.PprofHttpPort)
+		hlog.Printf("info", "pprof/server bind :%d", in_cfg.Config.PprofHttpPort)
 	}
-	*/
 
 	in_cfg.Config.Sync()
 
-	select {}
+	go func() {
+		time.Sleep(180e9)
+	}()
+
+	quit := make(chan os.Signal, 2)
+
+	//
+	signal.Notify(quit,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+		syscall.SIGKILL)
+	sg := <-quit
+
+	hlog.Printf("warn", "Signal Quit: %s", sg.String())
+	hlog.Flush()
 }
