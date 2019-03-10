@@ -1,0 +1,53 @@
+{
+  "locale": "zh-CN",
+  "items": [
+    {
+      "key": "applications",
+      "val": "应用列表"
+    },
+   {
+      "key": "container",
+      "val": "容器"
+    },
+  {
+      "key": "containers",
+      "val": "容器"
+    },
+   {
+      "key": "%s instance",
+      "val": "%s实例"
+    },
+    {
+      "key": "%s instances",
+      "val": "%s实例"
+    },
+    {
+      "key": "%s center",
+      "val": "%s中心"
+    },
+     {
+      "key": "packages",
+      "val": "包"
+    },
+      {
+      "key": "create new %s",
+      "val": "创建新的"
+    },
+    {
+      "key": "new %s",
+      "val": "新建的"
+    },
+  
+
+
+    {
+      "key": "resources",
+      "val": "资源"
+    },
+   
+    {
+      "key": "apps",
+      "val": "应用列表"
+    }
+  ]
+}

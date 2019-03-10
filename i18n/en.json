@@ -1,0 +1,9 @@
+{
+  "locale": "en",
+  "items": [
+    {
+      "key": "msg-no-auth-apps",
+      "val": "No authorized application to access your account yet ..."
+    }
+  ]
+}

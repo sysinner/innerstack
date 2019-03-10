@@ -28,7 +28,43 @@ import (
 )
 
 var (
-	init_sys_user = "sysadmin"
+	init_sys_user    = "sysadmin"
+	SysConfigurators = []*inapi.SysConfigurator{
+		{
+			Name:  "innerstack/sys/webui",
+			Title: "WebUI",
+			Fields: []*inapi.AppConfigField{
+				{
+					Name:  "html_head_title",
+					Title: "Web Html Head Title",
+					Type:  inapi.AppConfigFieldTypeString,
+				},
+				{
+					Name:  "cp_navbar_logo",
+					Title: "Logo of Panel",
+					Type:  inapi.AppConfigFieldTypeString,
+				},
+				{
+					Name:  "cp_navbar_title",
+					Title: "Navbar Title of Panel",
+					Type:  inapi.AppConfigFieldTypeString,
+				},
+				{
+					Name:  "ops_navbar_title",
+					Title: "Navbar Title of Ops Panel",
+					Type:  inapi.AppConfigFieldTypeString,
+				},
+				/**
+				{
+					Name:  "page_footer_copyright",
+					Title: "Page Footer Copyright Information",
+					Type:  inapi.AppConfigFieldTypeString,
+				},
+				*/
+			},
+			ReadRoles: []uint32{100},
+		},
+	}
 )
 
 func InitHostletData() map[string]interface{} {
@@ -361,6 +397,10 @@ func InitZoneMasterData() map[string]interface{} {
 	// 	spec.Meta.User = "sysadmin"
 	// 	init_zmd_items[inapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
 	// }
+
+	for _, v := range SysConfigurators {
+		incfg.SysConfigurators = append(incfg.SysConfigurators, v)
+	}
 
 	return init_zmd_items
 }

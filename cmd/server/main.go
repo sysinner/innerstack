@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hooto/hlang4g/hlang"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
@@ -67,6 +68,7 @@ var (
 func main() {
 
 	hs := httpsrv.NewService()
+	hs.Config.TemplateFuncRegister("T", hlang.StdLangFeed.Translate)
 
 	// initialize configuration
 	{
