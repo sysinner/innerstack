@@ -200,7 +200,7 @@ func InitZoneMasterData() map[string]interface{} {
 	for _, vi := range [][]string{
 		// {name, tag, driver}
 		{inapi.BoxImageRepoDefault, "a1el7v1", inapi.PodSpecBoxImageDocker},
-		{inapi.BoxImageRepoDefault, "a2p1el7", inapi.PodSpecBoxImagePouch},
+		// {inapi.BoxImageRepoDefault, "a2p1el7", inapi.PodSpecBoxImagePouch},
 	} {
 
 		imageRef := vi[0] + ":" + vi[1]
@@ -344,7 +344,7 @@ func InitZoneMasterData() map[string]interface{} {
 	vol_g1 := vol_t1
 	vol_g1.Meta.ID = "lg1"
 	vol_g1.Meta.Name = "lg1"
-	vol_g1.Limit = 200
+	vol_g1.Limit = 500
 	vol_g1.Request = 10
 	vol_g1.Step = 10
 	vol_g1.Default = 10

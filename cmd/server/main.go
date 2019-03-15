@@ -35,25 +35,25 @@ import (
 	iam_web "github.com/hooto/iam/websrv/ctrl"
 	iam_v1 "github.com/hooto/iam/websrv/v1"
 
-	ips_cf "github.com/sysinner/inpack/server/config"
-	ips_db "github.com/sysinner/inpack/server/data"
-	ips_p1 "github.com/sysinner/inpack/websrv/p1"
-	ips_v1 "github.com/sysinner/inpack/websrv/v1"
+	ip_cfg "github.com/sysinner/inpack/server/config"
+	ip_db "github.com/sysinner/inpack/server/data"
+	ip_p1 "github.com/sysinner/inpack/websrv/p1"
+	ip_v1 "github.com/sysinner/inpack/websrv/v1"
 
-	in_ws_cp "github.com/sysinner/incore/websrv/cp"
-	in_ws_op "github.com/sysinner/incore/websrv/ops"
-	in_ws_p1 "github.com/sysinner/incore/websrv/p1"
-	in_ws_v1 "github.com/sysinner/incore/websrv/v1"
-	in_ws_ui "github.com/sysinner/inpanel"
+	ic_ws_cp "github.com/sysinner/incore/websrv/cp"
+	ic_ws_op "github.com/sysinner/incore/websrv/ops"
+	ic_ws_p1 "github.com/sysinner/incore/websrv/p1"
+	ic_ws_v1 "github.com/sysinner/incore/websrv/v1"
+	ic_ws_ui "github.com/sysinner/inpanel"
 
-	in_cfg "github.com/sysinner/incore/config"
-	in_db "github.com/sysinner/incore/data"
-	in_host "github.com/sysinner/incore/hostlet"
-	in_api "github.com/sysinner/incore/inapi"
-	in_rpc "github.com/sysinner/incore/rpcsrv"
-	in_sts "github.com/sysinner/incore/status"
-	in_ver "github.com/sysinner/incore/version"
-	in_zm "github.com/sysinner/incore/zonemaster"
+	ic_cfg "github.com/sysinner/incore/config"
+	ic_db "github.com/sysinner/incore/data"
+	ic_host "github.com/sysinner/incore/hostlet"
+	ic_api "github.com/sysinner/incore/inapi"
+	ic_rpc "github.com/sysinner/incore/rpcsrv"
+	ic_sts "github.com/sysinner/incore/status"
+	ic_ver "github.com/sysinner/incore/version"
+	ic_zm "github.com/sysinner/incore/zonemaster"
 
 	is_cfg "github.com/sysinner/innerstack/config"
 )
@@ -72,41 +72,41 @@ func main() {
 
 	// initialize configuration
 	{
-		if err = in_cfg.Setup(); err != nil {
+		if err = ic_cfg.Setup(); err != nil {
 			log.Fatalf("incore/config/Setup error: %s", err.Error())
 		}
 
-		if err = is_cfg.Setup(version, release, in_cfg.Config.Host.SecretKey, in_cfg.IsZoneMaster()); err != nil {
+		if err = is_cfg.Setup(version, release, ic_cfg.Config.Host.SecretKey, ic_cfg.IsZoneMaster()); err != nil {
 			log.Fatalf("innerstack/config/Setup error: %s", err.Error())
 		}
 	}
 
 	// initialize status
 	{
-		if err = in_sts.Init(); err != nil {
+		if err = ic_sts.Init(); err != nil {
 			log.Fatalf("status.Init error: %s", err.Error())
 		}
 	}
 
 	{
 		hlog.Printf("info", "InnerStack %s-%s", version, release)
-		hlog.Printf("info", "inCore %s", in_ver.Version)
+		hlog.Printf("info", "inCore %s", ic_ver.Version)
 
-		if in_cfg.IsZoneMaster() {
+		if ic_cfg.IsZoneMaster() {
 
-			hlog.Printf("info", "inPack %s", ips_cf.Version)
-			hlog.Printf("info", "inPanel %s", in_ws_ui.Version)
+			hlog.Printf("info", "inPack %s", ip_cfg.Version)
+			hlog.Printf("info", "inPanel %s", ic_ws_ui.Version)
 
-			in_ws_ui.VersionHash = idhash.HashToHexString([]byte(
+			ic_ws_ui.VersionHash = idhash.HashToHexString([]byte(
 				(version + release + released)), 16)
-			in_ws_ui.ZoneId = in_cfg.Config.Host.ZoneId
+			ic_ws_ui.ZoneId = ic_cfg.Config.Host.ZoneId
 
-			if in_cfg.Config.ZoneMaster.MultiHostEnable {
-				in_ws_ui.OpsClusterHost = true
-				if in_cfg.Config.ZoneMaster.MultiCellEnable {
-					in_ws_ui.OpsClusterCell = true
-					if in_cfg.Config.ZoneMaster.MultiZoneEnable {
-						in_ws_ui.OpsClusterZone = true
+			if ic_cfg.Config.ZoneMaster.MultiHostEnable {
+				ic_ws_ui.OpsClusterHost = true
+				if ic_cfg.Config.ZoneMaster.MultiCellEnable {
+					ic_ws_ui.OpsClusterCell = true
+					if ic_cfg.Config.ZoneMaster.MultiZoneEnable {
+						ic_ws_ui.OpsClusterZone = true
 					}
 				}
 			}
@@ -115,21 +115,21 @@ func main() {
 
 	// initialize data/io connection
 	{
-		if err := in_db.Setup(); err != nil {
-			log.Fatalf("in_db setup err %s", err.Error())
+		if err := ic_db.Setup(); err != nil {
+			log.Fatalf("ic_db setup err %s", err.Error())
 		}
 	}
 
 	// module/IAM
-	if in_cfg.IsZoneMaster() {
+	if ic_cfg.IsZoneMaster() {
 		//
-		iam_cfg.Prefix = in_cfg.Prefix + "/vendor/github.com/hooto/iam"
+		iam_cfg.Prefix = ic_cfg.Prefix + "/vendor/github.com/hooto/iam"
 		iam_cfg.Config.InstanceID = "00" + idhash.HashToHexString([]byte("innerstack/iam"), 14)
 		iam_cfg.VersionHash = idhash.HashToHexString([]byte(
 			(iam_cfg.Config.InstanceID + iam_cfg.Version + released)), 16)
 
 		// init database
-		iam_db.Data = in_db.GlobalMaster
+		iam_db.Data = ic_db.GlobalMaster
 		if err := iam_db.Init(); err != nil {
 			log.Fatalf("iam.Store.Init error: %s", err.Error())
 		}
@@ -158,66 +158,66 @@ func main() {
 		//
 		iam_cli.ServiceUrl = fmt.Sprintf(
 			"http://%s:%d/iam",
-			in_cfg.Config.Host.LanAddr.IP(),
-			in_cfg.Config.Host.HttpPort,
+			ic_cfg.Config.Host.LanAddr.IP(),
+			ic_cfg.Config.Host.HttpPort,
 		)
-		if in_cfg.Config.IamServiceUrlFrontend == "" {
-			if in_cfg.Config.Host.WanAddr.IP() != "" {
+		if ic_cfg.Config.IamServiceUrlFrontend == "" {
+			if ic_cfg.Config.Host.WanAddr.IP() != "" {
 				iam_cli.ServiceUrlFrontend = fmt.Sprintf(
 					"http://%s:%d/iam",
-					in_cfg.Config.Host.WanAddr.IP(),
-					in_cfg.Config.Host.HttpPort,
+					ic_cfg.Config.Host.WanAddr.IP(),
+					ic_cfg.Config.Host.HttpPort,
 				)
 			} else {
 				iam_cli.ServiceUrlFrontend = iam_cli.ServiceUrl
 			}
 		} else {
-			iam_cli.ServiceUrlFrontend = in_cfg.Config.IamServiceUrlFrontend
+			iam_cli.ServiceUrlFrontend = ic_cfg.Config.IamServiceUrlFrontend
 		}
 
-		if in_cfg.Config.IamServiceUrlGlobal != "" {
-			iam_cli.ServiceUrlGlobal = in_cfg.Config.IamServiceUrlGlobal
+		if ic_cfg.Config.IamServiceUrlGlobal != "" {
+			iam_cli.ServiceUrlGlobal = ic_cfg.Config.IamServiceUrlGlobal
 		}
 
 		hlog.Printf("info", "IAM ServiceUrl %s", iam_cli.ServiceUrl)
 		hlog.Printf("info", "IAM ServiceUrlFrontend %s", iam_cli.ServiceUrlFrontend)
 
-		if in_cfg.Config.IamServiceUrlGlobal != "" {
-			iam_cli.ServiceUrlGlobal = in_cfg.Config.IamServiceUrlGlobal
+		if ic_cfg.Config.IamServiceUrlGlobal != "" {
+			iam_cli.ServiceUrlGlobal = ic_cfg.Config.IamServiceUrlGlobal
 			hlog.Printf("info", "IAM ServiceUrlGlobal %s", iam_cli.ServiceUrlGlobal)
 		}
 	}
 
 	// module/IPS: init ips database and webserver
-	if in_cfg.IsZoneMaster() {
+	if ic_cfg.IsZoneMaster() {
 
-		if err = ips_cf.Setup(in_cfg.Prefix); err != nil {
+		if err = ip_cfg.Setup(ic_cfg.Prefix); err != nil {
 			log.Fatalf("ips.Config.Init error: %s", err.Error())
 		}
 
 		// init database
-		if err = ips_db.Setup(); err != nil {
-			log.Fatalf("ips_db setup err %s", err.Error())
+		if err = ip_db.Setup(); err != nil {
+			log.Fatalf("ip_db setup err %s", err.Error())
 		}
-		in_db.InpackData = ips_db.Data
+		ic_db.InpackData = ip_db.Data
 
-		if err := iam_db.AppInstanceRegister(ips_cf.IamAppInstance()); err != nil {
+		if err := iam_db.AppInstanceRegister(ip_cfg.IamAppInstance()); err != nil {
 			log.Fatalf("ips.Data.Init error: %s", err.Error())
 		}
 
-		hs.ModuleRegister("/ips/v1", ips_v1.NewModule())
-		hs.ModuleRegister("/ips/p1", ips_p1.NewModule())
-		hs.ModuleRegister("/in/cp/ips/~", httpsrv.NewStaticModule("ips_ui", in_cfg.Prefix+"/webui/ips"))
+		hs.ModuleRegister("/ips/v1", ip_v1.NewModule())
+		hs.ModuleRegister("/ips/p1", ip_p1.NewModule())
+		hs.ModuleRegister("/in/cp/ips/~", httpsrv.NewStaticModule("ip_ui", ic_cfg.Prefix+"/webui/ips"))
 
 		// TODO
-		in_cfg.Config.InpackServiceUrl = fmt.Sprintf(
+		ic_cfg.Config.InpackServiceUrl = fmt.Sprintf(
 			"http://%s:%d/",
-			in_cfg.Config.Host.LanAddr.IP(),
-			in_cfg.Config.Host.HttpPort,
+			ic_cfg.Config.Host.LanAddr.IP(),
+			ic_cfg.Config.Host.HttpPort,
 		)
 
 		//
-		if aks := ips_cf.InitIamAccessKeyData(); len(aks) > 0 {
+		if aks := ip_cfg.InitIamAccessKeyData(); len(aks) > 0 {
 			for _, v := range aks {
 				iam_db.AccessKeyInitData(v)
 			}
@@ -225,88 +225,88 @@ func main() {
 	}
 
 	// module/hchart
-	if in_cfg.IsZoneMaster() {
-		hs.ModuleRegister("/in/cp/hchart/~", httpsrv.NewStaticModule("hchart_ui", in_cfg.Prefix+"/webui/hchart/webui"))
-		hs.ModuleRegister("/in/ops/hchart/~", httpsrv.NewStaticModule("hchart_ui_ops", in_cfg.Prefix+"/webui/hchart/webui"))
+	if ic_cfg.IsZoneMaster() {
+		hs.ModuleRegister("/in/cp/hchart/~", httpsrv.NewStaticModule("hchart_ui", ic_cfg.Prefix+"/webui/hchart/webui"))
+		hs.ModuleRegister("/in/ops/hchart/~", httpsrv.NewStaticModule("hchart_ui_ops", ic_cfg.Prefix+"/webui/hchart/webui"))
 	}
 
 	// incore
-	if in_cfg.IsZoneMaster() {
+	if ic_cfg.IsZoneMaster() {
 
-		in_inst := is_cfg.IamAppInstance()
-		if err := iam_db.AppInstanceRegister(in_inst); err != nil {
+		ic_inst := is_cfg.IamAppInstance()
+		if err := iam_db.AppInstanceRegister(ic_inst); err != nil {
 			log.Fatalf("in.Data.Init error: %s", err.Error())
 		}
-		in_cfg.Config.InstanceId = in_inst.Meta.ID
-		in_cfg.Config.Sync()
+		ic_cfg.Config.InstanceId = ic_inst.Meta.ID
+		ic_cfg.Config.Sync()
 
-		hs.HandlerFuncRegister("/in/v1/pb/termws", in_ws_v1.PodBoundTerminalWsHandlerFunc)
+		hs.HandlerFuncRegister("/in/v1/pb/termws", ic_ws_v1.PodBoundTerminalWsHandlerFunc)
 
 		// Frontend APIs/UI for Users
-		hs.ModuleRegister("/in/v1", in_ws_v1.NewModule())
-		hs.ModuleRegister("/in/cp", in_ws_cp.NewModule())
+		hs.ModuleRegister("/in/v1", ic_ws_v1.NewModule())
+		hs.ModuleRegister("/in/cp", ic_ws_cp.NewModule())
 
 		// Backend Operating APIs/UI for System Operators
-		hs.ModuleRegister("/in/ops", in_ws_op.NewModule())
+		hs.ModuleRegister("/in/ops", ic_ws_op.NewModule())
 
 		// Frontend UI Index
-		hs.ModuleRegister("/in/p1", in_ws_p1.NewModule())
-		hs.ModuleRegister("/in", in_ws_cp.NewIndexModule())
+		hs.ModuleRegister("/in/p1", ic_ws_p1.NewModule())
+		hs.ModuleRegister("/in", ic_ws_cp.NewIndexModule())
 
 		// i18n
-		// hs.Config.I18n(in_cfg.Prefix + "/i18n/en.json")
-		// hs.Config.I18n(in_cfg.Prefix + "/i18n/zh_CN.json")
+		// hs.Config.I18n(ic_cfg.Prefix + "/i18n/en.json")
+		// hs.Config.I18n(ic_cfg.Prefix + "/i18n/zh_CN.json")
 	}
 
 	// init zonemaster
-	if in_cfg.IsZoneMaster() {
+	if ic_cfg.IsZoneMaster() {
 
-		if err := in_zm.InitData(is_cfg.InitZoneMasterData()); err != nil {
-			log.Fatalf("in_zm.InitData err %s", err.Error())
+		if err := ic_zm.InitData(is_cfg.InitZoneMasterData()); err != nil {
+			log.Fatalf("ic_zm.InitData err %s", err.Error())
 		}
 
-		if err := in_zm.SetupScheduler(); err != nil {
-			log.Fatalf("in_zm.SetupScheduler err %s", err.Error())
+		if err := ic_zm.SetupScheduler(); err != nil {
+			log.Fatalf("ic_zm.SetupScheduler err %s", err.Error())
 		}
 
-		in_api.RegisterApiZoneMasterServer(in_rpc.Server, new(in_zm.ApiZoneMaster))
+		ic_api.RegisterApiZoneMasterServer(ic_rpc.Server, new(ic_zm.ApiZoneMaster))
 
-		if err := in_zm.Start(); err != nil {
-			log.Fatalf("in_zm.Start err %s", err.Error())
+		if err := ic_zm.Start(); err != nil {
+			log.Fatalf("ic_zm.Start err %s", err.Error())
 		}
 	}
 
 	//
 	{
-		if err := in_host.Start(); err != nil {
-			log.Fatalf("in_host.Start err %s", err.Error())
+		if err := ic_host.Start(); err != nil {
+			log.Fatalf("ic_host.Start err %s", err.Error())
 		}
 	}
 
 	// hostlet
 	{
-		in_api.RegisterApiHostMemberServer(in_rpc.Server, new(in_host.ApiHostMember))
+		ic_api.RegisterApiHostMemberServer(ic_rpc.Server, new(ic_host.ApiHostMember))
 	}
 
 	//
-	if err := in_rpc.Start(in_cfg.Config.Host.LanAddr.Port()); err != nil {
+	if err := ic_rpc.Start(ic_cfg.Config.Host.LanAddr.Port()); err != nil {
 		log.Fatalf("rpc.server.Start error: %v", err)
 	} else {
-		hlog.Printf("info", "rpc/server bind :%d", in_cfg.Config.Host.LanAddr.Port())
+		hlog.Printf("info", "rpc/server bind :%d", ic_cfg.Config.Host.LanAddr.Port())
 	}
 
 	// http service
-	if in_cfg.IsZoneMaster() {
-		hs.Config.HttpPort = in_cfg.Config.Host.HttpPort
+	if ic_cfg.IsZoneMaster() {
+		hs.Config.HttpPort = ic_cfg.Config.Host.HttpPort
 		go hs.Start()
 	}
 
-	if in_cfg.Config.PprofHttpPort > 0 {
-		go http.ListenAndServe(fmt.Sprintf(":%d", in_cfg.Config.PprofHttpPort), nil)
-		hlog.Printf("info", "pprof/server bind :%d", in_cfg.Config.PprofHttpPort)
+	if ic_cfg.Config.PprofHttpPort > 0 {
+		go http.ListenAndServe(fmt.Sprintf(":%d", ic_cfg.Config.PprofHttpPort), nil)
+		hlog.Printf("info", "pprof/server bind :%d", ic_cfg.Config.PprofHttpPort)
 	}
 
-	in_cfg.Config.Sync()
+	ic_cfg.Config.Sync()
 
 	go func() {
 		time.Sleep(180e9)

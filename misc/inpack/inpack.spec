@@ -62,7 +62,7 @@ rpmbuild --define "debug_package %{nil}" -ba /tmp/rpmbuild/SOURCES/sysinner-inne
 
 %files
 misc/
-bin/
+i18n/
 webui/in/cp/
 webui/in/ops/
 webui/in/hl/
@@ -80,6 +80,7 @@ webui/hchart/webui/chartjs/
 websrv/mgr/views/
 vendor/github.com/hooto/iam/websrv/views/
 vendor/github.com/hooto/iam/webui/
+vendor/github.com/hooto/iam/i18n/
 
 %js_compress
 webui/in/cp/js/
