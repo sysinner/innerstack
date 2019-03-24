@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+
+docker build -t sysinner/innerstack-g2m1:el7 .
+

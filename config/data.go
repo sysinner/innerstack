@@ -98,6 +98,7 @@ func InitZoneMasterData() map[string]interface{} {
 	sys_zone := inapi.ResZone{
 		Meta: &inapi.ObjectMeta{
 			Id:      incfg.Config.Host.ZoneId,
+			Name:    incfg.Config.Host.ZoneId,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
 		},
@@ -125,6 +126,7 @@ func InitZoneMasterData() map[string]interface{} {
 	sys_cell := inapi.ResCell{
 		Meta: &inapi.ObjectMeta{
 			Id:      incfg.Config.Host.CellId,
+			Name:    incfg.Config.Host.CellId,
 			Created: uint64(types.MetaTimeNow()),
 			Updated: uint64(types.MetaTimeNow()),
 		},
@@ -196,43 +198,45 @@ func InitZoneMasterData() map[string]interface{} {
 	plan_t1.SortOrder = 1
 
 	// Spec/Image
-	plan_g1.ImageDefault = inapi.BoxImageRepoDefault + ":a1el7v1"
+	plan_g1.ImageDefault = inapi.BoxImageRepoDefault
 	for _, vi := range [][]string{
-		// {name, tag, driver}
-		{inapi.BoxImageRepoDefault, "a1el7v1", inapi.PodSpecBoxImageDocker},
+		// {name, tag, driver, display-name}
+		{inapi.BoxImageRepoDefault, "a1el7v1", inapi.PodSpecBoxImageDocker, "General v1"},
+		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
 		// {inapi.BoxImageRepoDefault, "a2p1el7", inapi.PodSpecBoxImagePouch},
 	} {
 
-		imageRef := vi[0] + ":" + vi[1]
-
 		image := inapi.PodSpecBoxImage{
 			Meta: types.InnerObjectMeta{
-				ID:      imageRef,
-				Name:    vi[1],
+				ID:      vi[0] + ":" + vi[1],
+				Name:    vi[3],
 				User:    "sysadmin",
 				Version: "1",
 				Created: types.MetaTimeNow(),
 				Updated: types.MetaTimeNow(),
 			},
-			Status:    inapi.SpecStatusActive,
+			Name:      vi[0],
+			Tag:       vi[1],
+			Action:    inapi.PodSpecBoxImageActionEnable,
 			Driver:    vi[2],
-			OsType:    "linux",
+			SortOrder: 1,
 			OsDist:    "el7",
-			OsVersion: "7",
-			OsName:    "CentOS 7",
-			Arch:      "x64",
+			Arch:      inapi.SpecCpuArchAmd64,
 		}
-		init_zmd_items[inapi.NsGlobalBoxImage(vi[0], vi[1])] = image
+		init_zmd_items[string(inapi.NsGlobalBoxImage(vi[0], vi[1]))] = image
 
 		image.Meta.User = ""
 		image.Meta.Created = 0
 		image.Meta.Updated = 0
 
 		plan_g1.Images = append(plan_g1.Images, &inapi.PodSpecPlanBoxImageBound{
-			RefId:  image.Meta.ID,
-			Driver: image.Driver,
-			OsDist: image.OsDist,
-			Arch:   image.Arch,
+			RefId:    image.Meta.ID,
+			RefName:  image.Name,
+			RefTitle: image.Meta.Name,
+			RefTag:   image.Tag,
+			Driver:   image.Driver,
+			OsDist:   image.OsDist,
+			Arch:     image.Arch,
 		})
 	}
 

@@ -1,0 +1,6 @@
+[rpmfusion-free-updates]
+name=RPM Fusion for EL 7 - Free - Updates
+mirrorlist=http://mirrors.rpmfusion.org/mirrorlist?repo=free-el-updates-released-7&arch=$basearch
+enabled=1
+gpgcheck=0
+

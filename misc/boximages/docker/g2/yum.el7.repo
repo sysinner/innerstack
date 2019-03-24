@@ -1,0 +1,19 @@
+[epel]
+name=Extra Packages for Enterprise Linux 7 - $basearch
+metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-7&arch=$basearch
+enabled=1
+gpgcheck=0
+
+[ius]
+name=IUS
+baseurl=https://dl.iuscommunity.org/pub/ius/stable/CentOS/7/x86_64/
+mirrorlist=https://mirrors.iuscommunity.org/mirrorlist?repo=ius-centos7&arch=$basearch&protocol=http
+enabled=1
+gpgcheck=0
+
+[pgdg10]
+name=PostgreSQL 10 $releasever - $basearch
+baseurl=https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-$releasever-$basearch
+enabled=1
+gpgcheck=0
+

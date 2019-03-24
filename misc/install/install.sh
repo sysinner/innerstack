@@ -68,7 +68,7 @@ fi
 sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
 setenforce 0
 
-systemctl enable docker pouch-lxcfs pouch
-systemctl start docker pouch-lxcfs pouch
+systemctl enable docker pouch-lxcfs
+systemctl start docker pouch-lxcfs
 
 exit 0
