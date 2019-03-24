@@ -241,7 +241,7 @@ func InitZoneMasterData() map[string]interface{} {
 
 	for _, v := range [][]int32{
 		//
-		{1, 64},
+		{1, 64}, // CPU 0.1 cores, RAM MB
 		{1, 128},
 		//
 		{2, 128},
@@ -323,11 +323,10 @@ func InitZoneMasterData() map[string]interface{} {
 	sort.Sort(plan_t1.ResComputes)
 
 	//
-	name = "lt1"
 	vol_t1 := inapi.PodSpecResVolume{
 		Meta: types.InnerObjectMeta{
-			ID:      name,
-			Name:    name,
+			ID:      "lt1",
+			Name:    "Tiny t1",
 			User:    "sysadmin",
 			Version: "1",
 			Created: types.MetaTimeNow(),
@@ -343,14 +342,24 @@ func InitZoneMasterData() map[string]interface{} {
 
 	vol_g1 := vol_t1
 	vol_g1.Meta.ID = "lg1"
-	vol_g1.Meta.Name = "lg1"
-	vol_g1.Limit = 500
+	vol_g1.Meta.Name = "General g1"
+	vol_g1.Limit = 1024
 	vol_g1.Request = 10
 	vol_g1.Step = 10
 	vol_g1.Default = 10
 
+	vol_s1 := vol_t1
+	vol_s1.Meta.ID = "ls1"
+	vol_s1.Meta.Name = "SSD s1"
+	vol_s1.Limit = 200
+	vol_s1.Request = 10
+	vol_s1.Step = 1
+	vol_s1.Default = 10
+	vol_s1.Attrs = inapi.ResVolValueAttrSSD
+
 	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID)] = vol_t1
 	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID)] = vol_g1
+	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_s1.Meta.ID)] = vol_s1
 
 	vol_t1.Meta.User = ""
 	vol_t1.Meta.Created = 0
@@ -362,6 +371,7 @@ func InitZoneMasterData() map[string]interface{} {
 	//
 	plan_t1.ResVolumes = append(plan_t1.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
 		RefId:   vol_t1.Meta.ID,
+		RefName: vol_t1.Meta.Name,
 		Limit:   vol_t1.Limit,
 		Request: vol_t1.Request,
 		Step:    vol_t1.Step,
@@ -372,11 +382,23 @@ func InitZoneMasterData() map[string]interface{} {
 	//
 	plan_g1.ResVolumes = append(plan_g1.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
 		RefId:   vol_g1.Meta.ID,
+		RefName: vol_g1.Meta.Name,
 		Limit:   vol_g1.Limit,
 		Request: vol_g1.Request,
 		Step:    vol_g1.Step,
 		Default: vol_g1.Default,
 	})
+	plan_g1.ResVolumes = append(plan_g1.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
+		RefId:       vol_s1.Meta.ID,
+		RefName:     vol_s1.Meta.Name,
+		Limit:       vol_s1.Limit,
+		Request:     vol_s1.Request,
+		Step:        vol_s1.Step,
+		Default:     vol_s1.Default,
+		Attrs:       vol_s1.Attrs,
+		ChargeValue: 0.0015,
+	})
+
 	plan_g1.ResVolumeDefault = vol_g1.Meta.ID
 
 	//

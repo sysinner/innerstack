@@ -39,7 +39,7 @@ func main() {
 
 	switch action {
 
-	case "confrender":
+	case "config", "confrender":
 		if err := confrender.ActionConfig(); err != nil {
 			fmt.Println("cmd error :", err)
 			os.Exit(1)
