@@ -20,6 +20,7 @@ import (
 	"runtime"
 
 	"github.com/sysinner/incore/inagent/cmd/confrender"
+	"github.com/sysinner/incore/inagent/cmd/health"
 	"github.com/sysinner/incore/inagent/daemon"
 )
 
@@ -48,6 +49,18 @@ func main() {
 	case "agent":
 		if err := daemon.Start(); err != nil {
 			fmt.Println("inagent/daemon failed", err)
+			os.Exit(1)
+		}
+
+	case "health-sync":
+		if err := health.HealthSync(); err != nil {
+			fmt.Println("inagent/health-sync error", err)
+			os.Exit(1)
+		}
+
+	case "health-status":
+		if err := health.HealthStatus(); err != nil {
+			fmt.Println("inagent/health-status error", err)
 			os.Exit(1)
 		}
 

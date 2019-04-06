@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/hooto/hlang4g/hlang"
 	"github.com/hooto/hlog4g/hlog"
@@ -307,10 +306,6 @@ func main() {
 	}
 
 	ic_cfg.Config.Sync()
-
-	go func() {
-		time.Sleep(180e9)
-	}()
 
 	quit := make(chan os.Signal, 2)
 
