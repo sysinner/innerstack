@@ -33,7 +33,6 @@ cp -rp * %{buildroot}%{app_home}/
 # install -m 755 bin/inagent                  %{buildroot}%{app_home}/bin/inagent
 # install -m 755 bin/ininit                   %{buildroot}%{app_home}/bin/ininit
 # install -m 755 bin/docker2oci               %{buildroot}%{app_home}/bin/docker2oci
-install -m 644 etc/empty.tpl.json           %{buildroot}%{app_home}/etc/config.json
 install -m 644 etc/empty.tpl.json           %{buildroot}%{app_home}/etc/inpack_config.json
 install -m 600 misc/systemd/systemd.service %{buildroot}/lib/systemd/system/sysinner-innerstack.service
 
@@ -55,7 +54,6 @@ systemctl daemon-reload
 %files
 %defattr(-,root,root,-)
 %dir %{app_home}
-%config(noreplace) %{app_home}/etc/config.json
 %config(noreplace) %{app_home}/etc/inpack_config.json
 /lib/systemd/system/sysinner-innerstack.service
 

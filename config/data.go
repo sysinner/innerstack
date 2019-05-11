@@ -201,7 +201,7 @@ func InitZoneMasterData() map[string]interface{} {
 	plan_g1.ImageDefault = inapi.BoxImageRepoDefault
 	for _, vi := range [][]string{
 		// {name, tag, driver, display-name}
-		{inapi.BoxImageRepoDefault, "a1el7v1", inapi.PodSpecBoxImageDocker, "General v1"},
+		// {inapi.BoxImageRepoDefault, "a1el7v1", inapi.PodSpecBoxImageDocker, "General v1"},
 		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
 		// {inapi.BoxImageRepoDefault, "a2p1el7", inapi.PodSpecBoxImagePouch},
 	} {
@@ -347,7 +347,7 @@ func InitZoneMasterData() map[string]interface{} {
 	vol_g1 := vol_t1
 	vol_g1.Meta.ID = "lg1"
 	vol_g1.Meta.Name = "General g1"
-	vol_g1.Limit = 1024
+	vol_g1.Limit = 1000
 	vol_g1.Request = 10
 	vol_g1.Step = 10
 	vol_g1.Default = 10
@@ -359,7 +359,7 @@ func InitZoneMasterData() map[string]interface{} {
 	vol_s1.Request = 10
 	vol_s1.Step = 1
 	vol_s1.Default = 10
-	vol_s1.Attrs = inapi.ResVolValueAttrSSD
+	vol_s1.Attrs = inapi.ResVolValueAttrTypeSSD
 
 	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID)] = vol_t1
 	init_zmd_items[inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID)] = vol_g1

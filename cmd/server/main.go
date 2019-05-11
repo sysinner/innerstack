@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/hooto/hlang4g/hlang"
 	"github.com/hooto/hlog4g/hlog"
@@ -70,14 +71,22 @@ func main() {
 	hs.Config.TemplateFuncRegister("T", hlang.StdLangFeed.Translate)
 
 	// initialize configuration
-	{
+	for {
+
 		if err = ic_cfg.Setup(); err != nil {
-			log.Fatalf("incore/config/Setup error: %s", err.Error())
+			hlog.Printf("warn", "incore/config/Setup error: %s", err.Error())
+			time.Sleep(3e9)
+			continue
 		}
 
 		if err = is_cfg.Setup(version, release, ic_cfg.Config.Host.SecretKey, ic_cfg.IsZoneMaster()); err != nil {
-			log.Fatalf("innerstack/config/Setup error: %s", err.Error())
+			hlog.Printf("warn", "innerstask/config/Setup error: %s", err.Error())
+			time.Sleep(3e9)
+			continue
 		}
+
+		hlog.Printf("info", "Config Setup OK")
+		break
 	}
 
 	// initialize status
@@ -100,7 +109,8 @@ func main() {
 				(version + release + released)), 16)
 			ic_ws_ui.ZoneId = ic_cfg.Config.Host.ZoneId
 
-			if ic_cfg.Config.ZoneMaster.MultiHostEnable {
+			if ic_cfg.Config.ZoneMaster != nil &&
+				ic_cfg.Config.ZoneMaster.MultiHostEnable {
 				ic_ws_ui.OpsClusterHost = true
 				if ic_cfg.Config.ZoneMaster.MultiCellEnable {
 					ic_ws_ui.OpsClusterCell = true
@@ -121,8 +131,12 @@ func main() {
 
 	// module/IAM
 	if ic_cfg.IsZoneMaster() {
+
 		//
-		iam_cfg.Prefix = ic_cfg.Prefix + "/vendor/github.com/hooto/iam"
+		if err := iam_cfg.Setup(ic_cfg.Prefix + "/vendor/github.com/hooto/iam"); err != nil {
+			log.Fatalf("iam_cfg.InitConfig error: %s", err.Error())
+		}
+
 		iam_cfg.Config.InstanceID = "00" + idhash.HashToHexString([]byte("innerstack/iam"), 14)
 		iam_cfg.VersionHash = idhash.HashToHexString([]byte(
 			(iam_cfg.Config.InstanceID + iam_cfg.Version + released)), 16)
@@ -134,11 +148,6 @@ func main() {
 		}
 		if err := iam_db.InitData(); err != nil {
 			log.Fatalf("iam.Store.InitData error: %s", err.Error())
-		}
-
-		//
-		if err := iam_cfg.InitConfig(); err != nil {
-			log.Fatalf("iam_cfg.InitConfig error: %s", err.Error())
 		}
 		iam_db.SysConfigRefresh()
 

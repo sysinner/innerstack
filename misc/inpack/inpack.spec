@@ -21,9 +21,11 @@ mkdir -p {{.buildroot}}/plugin
 
 go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
+go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack-cli  cmd/cli/main.go
 go build -o {{.buildroot}}/bin/docker2oci github.com/coolljt0725/docker2oci
 
 # upx {{.buildroot}}/bin/inagent
+upx {{.buildroot}}/bin/innerstack-cli
 # upx {{.buildroot}}/bin/docker2oci
 
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-kvgo.so github.com/lynkdb/kvgo/plugin

@@ -38,18 +38,19 @@ func Setup(ver, rel, seed string, isZoneMaster bool) error {
 	release = rel
 
 	if len(in_cfg.Config.Masters) < 1 &&
-		!in_cfg.Config.ZoneMaster.MultiHostEnable {
+		in_cfg.Config.ZoneMaster != nil {
+
 		in_cfg.Config.Masters = []inapi.HostNodeAddress{
 			in_cfg.Config.Host.LanAddr,
 		}
-	}
 
-	if in_cfg.Config.Host.ZoneId == "" {
-		in_cfg.Config.Host.ZoneId = in_cfg.InitZoneId
-	}
+		if in_cfg.Config.Host.ZoneId == "" {
+			in_cfg.Config.Host.ZoneId = in_cfg.InitZoneId
+		}
 
-	if in_cfg.Config.Host.CellId == "" {
-		in_cfg.Config.Host.CellId = in_cfg.InitCellId
+		if in_cfg.Config.Host.CellId == "" {
+			in_cfg.Config.Host.CellId = in_cfg.InitCellId
+		}
 	}
 
 	if isZoneMaster {
