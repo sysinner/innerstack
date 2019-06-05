@@ -1,6 +1,6 @@
 [project]
 name = sysinner-innerstack
-version = 0.9.4
+version = 0.9.6
 vendor = sysinner.com
 homepage = https://github.com/sysinner/innerstack
 groups = dev/sys-srv
@@ -18,6 +18,7 @@ mkdir -p {{.buildroot}}/var/inpack_database
 mkdir -p {{.buildroot}}/var/inpack_storage
 mkdir -p {{.buildroot}}/webui/in
 mkdir -p {{.buildroot}}/plugin
+mkdir -p {{.buildroot}}/vendor/github.com/hooto/iam/etc
 
 go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
