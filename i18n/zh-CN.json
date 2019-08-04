@@ -1,19 +1,15 @@
 {
-  "locale": "zh-CN",
+  "locale": "zh-cn",
   "items": [
     {
-      "key": "applications",
-      "val": "应用列表"
+      "key": "%s center",
+      "val": "%s中心"
     },
-   {
-      "key": "container",
-      "val": "容器"
+    {
+      "key": "%s information",
+      "val": "%s信息"
     },
-  {
-      "key": "containers",
-      "val": "容器"
-    },
-   {
+    {
       "key": "%s instance",
       "val": "%s实例"
     },
@@ -22,32 +18,648 @@
       "val": "%s实例"
     },
     {
-      "key": "%s center",
-      "val": "%s中心"
+      "key": "%s not found",
+      "val": "没有找到%s"
     },
-     {
-      "key": "packages",
-      "val": "包"
+    {
+      "key": "%s settings",
+      "val": "%s设置"
     },
-      {
+    {
+      "key": "about",
+      "val": "关于"
+    },
+    {
+      "key": "about me",
+      "val": "关于我"
+    },
+    {
+      "key": "access",
+      "val": "访问"
+    },
+    {
+      "key": "account",
+      "val": "帐户"
+    },
+    {
+      "key": "account balance",
+      "val": "帐户余额"
+    },
+    {
+      "key": "account center",
+      "val": "帐户中心"
+    },
+    {
+      "key": "account charge",
+      "val": "帐户付款"
+    },
+    {
+      "key": "account fund",
+      "val": "帐户资金"
+    },
+    {
+      "key": "account panel",
+      "val": "帐户面板"
+    },
+    {
+      "key": "account recharge",
+      "val": "帐户充值"
+    },
+    {
+      "key": "accounts",
+      "val": "帐户列表"
+    },
+    {
+      "key": "active fund",
+      "val": "可用帐户项"
+    },
+    {
+      "key": "amount",
+      "val": "数额"
+    },
+    {
+      "key": "app",
+      "val": "应用"
+    },
+    {
+      "key": "app instance",
+      "val": "应用实例"
+    },
+    {
+      "key": "application",
+      "val": "应用"
+    },
+    {
+      "key": "applications",
+      "val": "应用列表"
+    },
+    {
+      "key": "apps",
+      "val": "应用列表"
+    },
+    {
+      "key": "are you sure to delete this",
+      "val": "你确认要删除当前项"
+    },
+    {
+      "key": "are you sure to remove this project",
+      "val": "你确定移除这个项目"
+    },
+    {
+      "key": "authorized applications",
+      "val": "应用授权"
+    },
+    {
+      "key": "authorized apps",
+      "val": "应用授权"
+    },
+    {
+      "key": "auto refresh in %s seconds",
+      "val": "%s 秒后自动更新"
+    },
+    {
+      "key": "back",
+      "val": "返回"
+    },
+    {
+      "key": "bind new instance to this %s",
+      "val": "绑定新实例到这个%s"
+    },
+    {
+      "key": "birthday",
+      "val": "出生日期"
+    },
+    {
+      "key": "bound instances",
+      "val": "绑定的实例"
+    },
+    {
+      "key": "browser-reject-advice-desc",
+      "val": "请下载如下浏览器之一，安装或升级到最新版本"
+    },
+    {
+      "key": "browser-reject-desc",
+      "val": "当前的应用无法完美支持您的浏览器或版本"
+    },
+    {
+      "key": "cancel",
+      "val": "取消"
+    },
+    {
+      "key": "change",
+      "val": "修改"
+    },
+    {
+      "key": "change %s",
+      "val": "修改%s"
+    },
+    {
+      "key": "change photo",
+      "val": "修改照片"
+    },
+    {
+      "key": "change profile",
+      "val": "修改信息"
+    },
+    {
+      "key": "choose file to upload",
+      "val": "选择上传的文件"
+    },
+    {
+      "key": "close",
+      "val": "关闭"
+    },
+    {
+      "key": "close %s",
+      "val": "关闭%s"
+    },
+    {
+      "key": "closed",
+      "val": "关闭"
+    },
+    {
+      "key": "command",
+      "val": "命令"
+    },
+    {
+      "key": "comment",
+      "val": "注释"
+    },
+    {
+      "key": "commit",
+      "val": "提交"
+    },
+    {
+      "key": "confirm and remove",
+      "val": "确认并移除"
+    },
+    {
+      "key": "confirm new password",
+      "val": "确认新密码"
+    },
+    {
+      "key": "confirm your email",
+      "val": "确认你的电子邮箱"
+    },
+    {
+      "key": "confirm your new password",
+      "val": "确认你的新密码"
+    },
+    {
+      "key": "container",
+      "val": "容器"
+    },
+    {
+      "key": "containers",
+      "val": "容器"
+    },
+    {
+      "key": "content",
+      "val": "内容"
+    },
+    {
+      "key": "create account",
+      "val": "创建帐号"
+    },
+    {
       "key": "create new %s",
       "val": "创建新的"
+    },
+    {
+      "key": "create your account",
+      "val": "创建你的帐号"
+    },
+    {
+      "key": "created",
+      "val": "创建"
+    },
+    {
+      "key": "current password",
+      "val": "当前密码"
+    },
+    {
+      "key": "delete",
+      "val": "删除"
+    },
+    {
+      "key": "description",
+      "val": "描述"
+    },
+    {
+      "key": "display name",
+      "val": "显示名"
+    },
+    {
+      "key": "email",
+      "val": "电子邮箱"
+    },
+    {
+      "key": "enter the username and email address you use to sign in",
+      "val": "输入你登入所用的用户名和电子邮箱"
+    },
+    {
+      "key": "failed to get %s",
+      "val": "获取%s失败"
+    },
+    {
+      "key": "forgot password",
+      "val": "忘记密码"
+    },
+    {
+      "key": "general",
+      "val": "通用"
+    },
+    {
+      "key": "hint",
+      "val": "提示"
+    },
+    {
+      "key": "home",
+      "val": "主页"
+    },
+    {
+      "key": "identity \u0026 access management",
+      "val": "身份与访问管理"
+    },
+    {
+      "key": "instance id",
+      "val": "实例 ID"
+    },
+    {
+      "key": "internal server error",
+      "val": "服务器内部错误"
+    },
+    {
+      "key": "keys",
+      "val": "密钥列表"
+    },
+    {
+      "key": "login",
+      "val": "登入"
+    },
+    {
+      "key": "mailer",
+      "val": "邮箱投递"
+    },
+    {
+      "key": "message",
+      "val": "消息"
+    },
+    {
+      "key": "messages",
+      "val": "消息"
+    },
+    {
+      "key": "more items",
+      "val": "更多条目"
+    },
+    {
+      "key": "msg-no-auth-apps",
+      "val": "当前暂时没有授权的应用访问你的帐户 ..."
+    },
+    {
+      "key": "msg-transter-ownership-confirm",
+      "val": "系统已经收到转移请求, 请等待接收人接收"
+    },
+    {
+      "key": "my authorized applications",
+      "val": "我的授权应用列表"
+    },
+    {
+      "key": "name",
+      "val": "名称"
+    },
+    {
+      "key": "network error",
+      "val": "网络错误"
+    },
+    {
+      "key": "network error, please try again later",
+      "val": "网络错误, 请稍后重试"
     },
     {
       "key": "new %s",
       "val": "新建"
     },
-  
-
-
+    {
+      "key": "new password",
+      "val": "新密码"
+    },
+    {
+      "key": "next",
+      "val": "下一步"
+    },
+    {
+      "key": "no %s found",
+      "val": "没有找到%s"
+    },
+    {
+      "key": "no items yet ...",
+      "val": "当前暂时没有数据项 ..."
+    },
+    {
+      "key": "no payout statement found at this moment",
+      "val": "当前暂时没有交易单"
+    },
+    {
+      "key": "optional",
+      "val": "选填项"
+    },
+    {
+      "key": "overview",
+      "val": "概要"
+    },
+    {
+      "key": "packages",
+      "val": "包"
+    },
+    {
+      "key": "page redirecting ...",
+      "val": "页面跳转中 ..."
+    },
+    {
+      "key": "paid statement",
+      "val": "结算清单"
+    },
+    {
+      "key": "password",
+      "val": "密码"
+    },
+    {
+      "key": "perform transfer",
+      "val": "确认转移"
+    },
+    {
+      "key": "personal info",
+      "val": "个人信息"
+    },
+    {
+      "key": "personal information",
+      "val": "个人信息"
+    },
+    {
+      "key": "photo",
+      "val": "照片"
+    },
+    {
+      "key": "photo overview",
+      "val": "照片预览"
+    },
+    {
+      "key": "please contact the administrator to manually register accounts",
+      "val": "请联系管理员手动注册帐户"
+    },
+    {
+      "key": "please try again later",
+      "val": "请稍后重试"
+    },
+    {
+      "key": "posted",
+      "val": "投递"
+    },
+    {
+      "key": "prepaid statement",
+      "val": "预付清单"
+    },
+    {
+      "key": "privilege",
+      "val": "权限"
+    },
+    {
+      "key": "privileges",
+      "val": "权限清单"
+    },
+    {
+      "key": "product",
+      "val": "产品"
+    },
+    {
+      "key": "product number limit",
+      "val": "产品数量限制"
+    },
+    {
+      "key": "product type limit",
+      "val": "产品类型限制"
+    },
+    {
+      "key": "profile",
+      "val": "个人信息"
+    },
+    {
+      "key": "recharge",
+      "val": "充值"
+    },
+    {
+      "key": "recipient",
+      "val": "接收者"
+    },
+    {
+      "key": "registration",
+      "val": "注册"
+    },
+    {
+      "key": "required",
+      "val": "必填项"
+    },
+    {
+      "key": "reset your password",
+      "val": "重置你的密码"
+    },
     {
       "key": "resources",
       "val": "资源"
     },
-   
     {
-      "key": "apps",
-      "val": "应用列表"
+      "key": "retry",
+      "val": "重试"
+    },
+    {
+      "key": "retype password",
+      "val": "密码二次确认"
+    },
+    {
+      "key": "role",
+      "val": "角色"
+    },
+    {
+      "key": "roles",
+      "val": "角色列表"
+    },
+    {
+      "key": "save",
+      "val": "保存"
+    },
+    {
+      "key": "search",
+      "val": "搜索"
+    },
+    {
+      "key": "security",
+      "val": "安全"
+    },
+    {
+      "key": "security settings",
+      "val": "安全设置"
+    },
+    {
+      "key": "service",
+      "val": "服务"
+    },
+    {
+      "key": "setting",
+      "val": "设置"
+    },
+    {
+      "key": "settings",
+      "val": "设置"
+    },
+    {
+      "key": "sign in",
+      "val": "登入"
+    },
+    {
+      "key": "sign in with your account",
+      "val": "登入你的帐号"
+    },
+    {
+      "key": "sign out",
+      "val": "注销"
+    },
+    {
+      "key": "smtp server",
+      "val": "SMTP 服务器"
+    },
+    {
+      "key": "status",
+      "val": "状态"
+    },
+    {
+      "key": "stay signed in",
+      "val": "保持登录状态"
+    },
+    {
+      "key": "subject",
+      "val": "主题"
+    },
+    {
+      "key": "successful deleted",
+      "val": "删除成功"
+    },
+    {
+      "key": "successful operation",
+      "val": "操作成功"
+    },
+    {
+      "key": "successful updated",
+      "val": "更新成功"
+    },
+    {
+      "key": "successfully %s",
+      "val": "%s成功"
+    },
+    {
+      "key": "successfully sign-on. page redirecting ...",
+      "val": "成功登入, 页面跳转中 ..."
+    },
+    {
+      "key": "successfully sign-out. page redirecting ...",
+      "val": "成功登出, 页面跳转中 ..."
+    },
+    {
+      "key": "successfully updated",
+      "val": "更新成功"
+    },
+    {
+      "key": "system",
+      "val": "系统"
+    },
+    {
+      "key": "system messages",
+      "val": "系统消息"
+    },
+    {
+      "key": "system settings",
+      "val": "系统设置"
+    },
+    {
+      "key": "the reset url has been sent to your mailbox, please check your email",
+      "val": "重置 URL 已经发送到你的电子邮箱, 请注意查收"
+    },
+    {
+      "key": "the system will sent a url to your email to reset the password",
+      "val": "系统将发送一个重置密码的URL链接到你的电子邮箱"
+    },
+    {
+      "key": "the token is not valid or expired",
+      "val": "令牌无效或已过期"
+    },
+    {
+      "key": "transfer ownership",
+      "val": "转移所有权"
+    },
+    {
+      "key": "type",
+      "val": "类型"
+    },
+    {
+      "key": "unique username",
+      "val": "唯一用户名"
+    },
+    {
+      "key": "unknown error",
+      "val": "未知错误"
+    },
+    {
+      "key": "updated",
+      "val": "更新"
+    },
+    {
+      "key": "upload %s",
+      "val": "上传%s"
+    },
+    {
+      "key": "user",
+      "val": "用户"
+    },
+    {
+      "key": "user center",
+      "val": "用户中心"
+    },
+    {
+      "key": "user registration",
+      "val": "用户注册"
+    },
+    {
+      "key": "user registration was closed",
+      "val": "用户注册已经关闭"
+    },
+    {
+      "key": "user-login-msg",
+      "val": "你当前没有登入或者你登入的时间已经过期, 请重新登入"
+    },
+    {
+      "key": "username",
+      "val": "用户名"
+    },
+    {
+      "key": "users",
+      "val": "用户列表"
+    },
+    {
+      "key": "waiting",
+      "val": "等待中"
+    },
+    {
+      "key": "you are not logged in, or your login session has expired. please sign in again",
+      "val": "你没有登入,或者登入信息已经过期. 请重新登入"
+    },
+    {
+      "key": "you must upload a %s file",
+      "val": "你只能上传 %s 格式的文件"
+    },
+    {
+      "key": "your new password",
+      "val": "你的新密码"
     }
   ]
 }

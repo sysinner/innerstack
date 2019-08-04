@@ -250,9 +250,19 @@ func main() {
 
 		hs.HandlerFuncRegister("/in/v1/pb/termws", ic_ws_v1.PodBoundTerminalWsHandlerFunc)
 
-		// Frontend APIs/UI for Users
+		// Frontend APIs for Users
 		hs.ModuleRegister("/in/v1", ic_ws_v1.NewModule())
-		hs.ModuleRegister("/in/cp", ic_ws_cp.NewModule())
+
+		// Frontend UI for Users
+		hlang.StdLangFeed.LoadMessages(ic_cfg.Prefix+"/i18n/en.json", true)
+		hlang.StdLangFeed.LoadMessages(ic_cfg.Prefix+"/i18n/zh-CN.json", true)
+
+		hs.Config.TemplateFuncRegister("T", hlang.StdLangFeed.Translate)
+
+		ic_ws_m := ic_ws_cp.NewModule()
+		ic_ws_m.ControllerRegister(new(hlang.Langsrv))
+
+		hs.ModuleRegister("/in/cp", ic_ws_m)
 
 		// Backend Operating APIs/UI for System Operators
 		hs.ModuleRegister("/in/ops", ic_ws_op.NewModule())
@@ -260,10 +270,6 @@ func main() {
 		// Frontend UI Index
 		hs.ModuleRegister("/in/p1", ic_ws_p1.NewModule())
 		hs.ModuleRegister("/in", ic_ws_cp.NewIndexModule())
-
-		// i18n
-		// hs.Config.I18n(ic_cfg.Prefix + "/i18n/en.json")
-		// hs.Config.I18n(ic_cfg.Prefix + "/i18n/zh_CN.json")
 	}
 
 	// init zonemaster

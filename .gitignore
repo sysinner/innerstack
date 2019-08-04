@@ -1,6 +1,6 @@
 _*/
 *~
-etc/*.json
+etc/*
 bin/*
 *.deb
 *.rpm

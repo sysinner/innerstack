@@ -4,6 +4,10 @@
     {
       "key": "msg-no-auth-apps",
       "val": "No authorized application to access your account yet ..."
+    },
+    {
+      "key": "msg-transter-ownership-confirm",
+      "val": "The system has received the transfer request, please wait for the recipient to accept"
     }
   ]
 }
