@@ -270,6 +270,10 @@
       "val": "通用"
     },
     {
+      "key": "group",
+      "val": "群组"
+    },
+    {
       "key": "hint",
       "val": "提示"
     },
@@ -300,6 +304,10 @@
     {
       "key": "mailer",
       "val": "邮箱投递"
+    },
+    {
+      "key": "member",
+      "val": "成员"
     },
     {
       "key": "message",
@@ -339,7 +347,7 @@
     },
     {
       "key": "new %s",
-      "val": "新建"
+      "val": "新建%s"
     },
     {
       "key": "new password",
@@ -368,6 +376,10 @@
     {
       "key": "overview",
       "val": "概要"
+    },
+    {
+      "key": "owner",
+      "val": "所有者"
     },
     {
       "key": "packages",

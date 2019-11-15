@@ -1,0 +1,9 @@
+#!/bin/bash
+
+docker stop 5cb6fcce87279738-0000
+docker rm 5cb6fcce87279738-0000
+
+set -e
+
+docker build -t sysinner/innerstack-tf1:1.12.0 .
+
