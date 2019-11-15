@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+docker pull ubuntu:18.04
+
+docker build -t hooto/dev:ubuntu1804 .
+
