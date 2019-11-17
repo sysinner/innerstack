@@ -125,6 +125,7 @@ func main() {
 	// initialize data/io connection
 	{
 		if err := ic_db.Setup(); err != nil {
+			time.Sleep(1e9)
 			log.Fatalf("ic_db setup err %s", err.Error())
 		}
 	}
@@ -142,7 +143,8 @@ func main() {
 			(iam_cfg.Config.InstanceID + iam_cfg.Version + released)), 16)
 
 		// init database
-		iam_db.Data = ic_db.GlobalMaster
+		iam_db.DataPrev = ic_db.GlobalMaster
+		iam_db.Data = ic_db.DataGlobal
 		if err := iam_db.Init(); err != nil {
 			log.Fatalf("iam.Store.Init error: %s", err.Error())
 		}
