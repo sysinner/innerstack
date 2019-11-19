@@ -143,7 +143,6 @@ func main() {
 			(iam_cfg.Config.InstanceID + iam_cfg.Version + released)), 16)
 
 		// init database
-		iam_db.DataPrev = ic_db.GlobalMaster
 		iam_db.Data = ic_db.DataGlobal
 		if err := iam_db.Init(); err != nil {
 			log.Fatalf("iam.Store.Init error: %s", err.Error())
@@ -205,11 +204,11 @@ func main() {
 			log.Fatalf("ips.Config.Init error: %s", err.Error())
 		}
 
-		// init database
+		// init inpack database
 		if err = ip_db.Setup(); err != nil {
-			log.Fatalf("ip_db setup err %s", err.Error())
+			log.Fatalf("ip_db setup failed")
 		}
-		ic_db.InpackData = ip_db.Data
+		ic_db.DataInpack = ip_db.Data
 
 		if err := iam_db.AppInstanceRegister(ip_cfg.IamAppInstance()); err != nil {
 			log.Fatalf("ips.Data.Init error: %s", err.Error())

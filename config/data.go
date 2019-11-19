@@ -122,7 +122,7 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 		Value: sys_zone,
 	})
 	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
-		Key:   inapi.NsZoneSysInfo(incfg.Config.Host.ZoneId),
+		Key:   inapi.NsZoneSysZone(incfg.Config.Host.ZoneId),
 		Value: sys_zone,
 	})
 
