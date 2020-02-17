@@ -34,9 +34,6 @@ upx {{.buildroot}}/bin/innerstack-cli
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/plugin/scheduler/plugin
 
 install bin/ininit {{.buildroot}}/bin/ininit
-install -m 644 etc/config.tpl.json {{.buildroot}}/etc/config.tpl.json
-install -m 644 etc/empty.tpl.json  {{.buildroot}}/etc/inpack_config.tpl.json
-install -m 644 etc/empty.tpl.json  {{.buildroot}}/etc/empty.tpl.json
 
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:\!0/debug:\!1/g' {{.buildroot}}/webui/in/ops/js/main.js
