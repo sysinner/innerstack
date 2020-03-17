@@ -10,5 +10,6 @@ bin/*
 var/*
 .build*
 build-*
+batch-*
 *.oci.tar
 *.so
