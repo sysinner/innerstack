@@ -53,7 +53,6 @@ systemctl daemon-reload
 %files
 %defattr(-,root,root,-)
 %dir %{app_home}
-%config(noreplace) %{app_home}/etc/inpack.conf
 /lib/systemd/system/sysinner-innerstack.service
 
 %{app_home}/

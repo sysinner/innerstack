@@ -1,5 +1,5 @@
 [project]
-name = "sysinner-innerstack"
+  name = "sysinner-innerstack"
 version = "0.9.11"
 vendor = "sysinner.com"
 homepage = "https://github.com/sysinner/innerstack"
@@ -60,9 +60,9 @@ mkdir -p {{.buildroot}}/var/inpack_storage
 mkdir -p {{.buildroot}}/webui/in
 mkdir -p {{.buildroot}}/plugin
 mkdir -p {{.buildroot}}/vendor/github.com/hooto/iam/etc
-go build -ldflags \"-X main.version={{.project__version}} -X main.release={{.project__release}}\" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
-go build -ldflags \"-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}\" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
-go build -ldflags \"-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}\" -o {{.buildroot}}/bin/innerstack-cli  cmd/cli/main.go
+go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
+go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
+go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack-cli  cmd/cli/main.go
 go build -o {{.buildroot}}/bin/docker2oci github.com/coolljt0725/docker2oci
 # upx {{.buildroot}}/bin/inagent
 upx {{.buildroot}}/bin/innerstack-cli
@@ -71,9 +71,9 @@ upx {{.buildroot}}/bin/innerstack-cli
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-localfs.so github.com/lynkdb/localfs/plugin
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/plugin/scheduler/plugin
 install bin/ininit {{.buildroot}}/bin/ininit
-sed -i 's/debug:\\!0/debug:\\!1/g' {{.buildroot}}/webui/in/cp/js/main.js
-sed -i 's/debug:\\!0/debug:\\!1/g' {{.buildroot}}/webui/in/ops/js/main.js
-sed -i 's/debug:\\!0/debug:\\!1/g' {{.buildroot}}/vendor/github.com/hooto/iam/webui/iam/js/main.js
+sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/cp/js/main.js
+sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/ops/js/main.js
+sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/vendor/github.com/hooto/iam/webui/iam/js/main.js
 sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/ops/js/main.js
 sed -i 's/debug:true/debug:false/g' {{.buildroot}}/vendor/github.com/hooto/iam/webui/iam/js/main.js
@@ -85,9 +85,11 @@ sed -i 's/__version__/{{.project__version}}/g' /tmp/rpmbuild/SOURCES/sysinner-in
 sed -i 's/__release__/{{.project__release}}/g' /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec
 cd /tmp/rpmbuild/SOURCES/
 tar zcf sysinner-innerstack-{{.project__version}}.tar.gz sysinner-innerstack-{{.project__version}}
-rpmbuild --define \"debug_package %{nil}\" -ba /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec \\
-  --define='_tmppath /tmp/rpmbuild' \\
-  --define='_builddir /tmp/rpmbuild/BUILD' \\
-  --define='_topdir /tmp/rpmbuild' \\
+rpmbuild --define "debug_package %{nil}" -ba /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec \
+  --define='_tmppath /tmp/rpmbuild' \
+  --define='_builddir /tmp/rpmbuild/BUILD' \
+  --define='_topdir /tmp/rpmbuild' \
   --define='dist .{{.project__dist}}'
 """
+
+test = "test"
