@@ -11,9 +11,9 @@ mirrorlist=https://mirrors.iuscommunity.org/mirrorlist?repo=ius-centos7&arch=$ba
 enabled=1
 gpgcheck=0
 
-[pgdg10]
-name=PostgreSQL 10 $releasever - $basearch
-baseurl=https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-$releasever-$basearch
+[pgdg12]
+name=PostgreSQL 12 $releasever - $basearch
+baseurl=https://download.postgresql.org/pub/repos/yum/12/redhat/rhel-$releasever-$basearch
 enabled=1
 gpgcheck=0
 
