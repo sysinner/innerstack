@@ -6,8 +6,7 @@ gpgcheck=0
 
 [ius]
 name=IUS
-baseurl=https://dl.iuscommunity.org/pub/ius/stable/CentOS/7/x86_64/
-mirrorlist=https://mirrors.iuscommunity.org/mirrorlist?repo=ius-centos7&arch=$basearch&protocol=http
+baseurl=https://repo.ius.io/7/x86_64/
 enabled=1
 gpgcheck=0
 

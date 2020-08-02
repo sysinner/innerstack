@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/hooto/hflag4g/hflag"
-	"github.com/lessos/lessgo/encoding/json"
+	"github.com/hooto/htoml4g/htoml"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
@@ -106,7 +106,7 @@ func cmdConfigInit() error {
 		return fmt.Errorf("Access Denied : must be run as root")
 	}
 
-	cfgFile := Prefix + "/etc/config.json"
+	cfgFile := Prefix + "/etc/main.conf"
 
 	if _, err := os.Stat(cfgFile); err == nil {
 		return fmt.Errorf("Command Denied : the config file (%s) already exists", cfgFile)
@@ -171,7 +171,7 @@ func cmdConfigInit() error {
 
 	config.Config.LxcFsEnable = true
 
-	err := json.EncodeToFile(config.Config, cfgFile, "  ")
+	err := htoml.EncodeToFile(config.Config, cfgFile, nil)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ Options:
 func cmdInfo(showSecretKey bool) error {
 
 	//
-	if err := json.DecodeFile(Prefix+"/etc/config.json", &config.Config); err != nil {
+	if err := htoml.DecodeFromFile(&config.Config, Prefix+"/etc/main.conf"); err != nil {
 		return err
 	}
 

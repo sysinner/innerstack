@@ -21,7 +21,7 @@ import (
 
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/sko"
+	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
@@ -81,11 +81,11 @@ func InitIamAccessKeyData() []iamapi.AccessKey {
 }
 
 var (
-	init_zmd_items         = []*sko.ClientObjectItem{}
-	init_zmd_items_upgrade = []*sko.ClientObjectItem{}
+	init_zmd_items         = []*kv2.ClientObjectItem{}
+	init_zmd_items_upgrade = []*kv2.ClientObjectItem{}
 )
 
-func InitZoneMasterData() []*sko.ClientObjectItem {
+func InitZoneMasterData() []*kv2.ClientObjectItem {
 
 	var (
 		name          string
@@ -117,11 +117,11 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 	sys_zone.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
 	sys_zone.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
 
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalSysZone(incfg.Config.Host.ZoneId),
 		Value: sys_zone,
 	})
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsZoneSysZone(incfg.Config.Host.ZoneId),
 		Value: sys_zone,
 	})
@@ -140,11 +140,11 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 		Phase:       1,
 		Description: "",
 	}
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId),
 		Value: sys_cell,
 	})
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsZoneSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId),
 		Value: sys_cell,
 	})
@@ -165,11 +165,11 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 			PeerLanAddr: host_lan_addr,
 		},
 	}
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsZoneSysHost(incfg.Config.Host.ZoneId, host_id),
 		Value: sys_host,
 	})
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsZoneSysHostSecretKey(incfg.Config.Host.ZoneId, host_id),
 		Value: incfg.Config.Host.SecretKey,
 	})
@@ -177,7 +177,7 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 	//
 
 	// zone-master node(s)/leader
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key: inapi.NsZoneSysMasterNode(incfg.Config.Host.ZoneId, host_id),
 		Value: inapi.ResZoneMasterNode{
 			Id:     host_id,
@@ -245,7 +245,7 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 			OsDist:    "el7",
 			Arch:      inapi.SpecCpuArchAmd64,
 		}
-		init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+		init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 			Key:   inapi.NsGlobalBoxImage(vi[0], vi[1]),
 			Value: image,
 		})
@@ -326,7 +326,7 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 			plan_g1.ResComputeDefault = res.Meta.ID
 		}
 
-		init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+		init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 			Key:   inapi.NsGlobalPodSpec("res/compute", res.Meta.ID),
 			Value: res,
 		})
@@ -389,15 +389,15 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 	vol_s1.Default = 10
 	vol_s1.Attrs = inapi.ResVolValueAttrTypeSSD
 
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID),
 		Value: vol_t1,
 	})
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID),
 		Value: vol_g1,
 	})
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalPodSpec("res/volume", vol_s1.Meta.ID),
 		Value: vol_s1,
 	})
@@ -443,11 +443,11 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 	plan_g1.ResVolumeDefault = vol_g1.Meta.ID
 
 	//
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalPodSpec("plan", plan_t1.Meta.ID),
 		Value: plan_t1,
 	})
-	init_zmd_items = append(init_zmd_items, &sko.ClientObjectItem{
+	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID),
 		Value: plan_g1,
 	})
@@ -474,19 +474,19 @@ func InitZoneMasterData() []*sko.ClientObjectItem {
 	return init_zmd_items
 }
 
-func UpgradeZoneMasterData(data sko.ClientConnector) error {
+func UpgradeZoneMasterData(data kv2.ClientConnector) error {
 
 	if data == nil {
-		return errors.New("UpgradeZoneMasterData sko.ClientConnector Not Found")
+		return errors.New("UpgradeZoneMasterData kv2.ClientConnector Not Found")
 	}
 
 	return nil
 }
 
-func UpgradeIamData(data sko.ClientConnector) error {
+func UpgradeIamData(data kv2.ClientConnector) error {
 
 	if data == nil {
-		return errors.New("UpgradeIamData sko.ClientConnector Not Found")
+		return errors.New("UpgradeIamData kv2.ClientConnector Not Found")
 	}
 
 	return nil

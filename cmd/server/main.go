@@ -206,9 +206,12 @@ func main() {
 
 		// init inpack database
 		if err = ip_db.Setup(); err != nil {
-			log.Fatalf("ip_db setup failed")
+			log.Fatalf("ip_db setup failed:%s", err.Error())
 		}
 		ic_db.DataInpack = ip_db.Data
+
+		// TODEL
+		ip_cfg.Config.Sync()
 
 		if err := iam_db.AppInstanceRegister(ip_cfg.IamAppInstance()); err != nil {
 			log.Fatalf("ips.Data.Init error: %s", err.Error())

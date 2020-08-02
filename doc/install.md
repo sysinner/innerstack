@@ -40,7 +40,7 @@ cd /opt/sysinner/innerstack/misc/install
 ./install.sh
 
 
-cd /opt/sysinner/innerstack/misc/box/docker/g2
+cd /opt/sysinner/innerstack/misc/boximages/docker/g2
 ./build
 ```
 

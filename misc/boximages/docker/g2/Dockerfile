@@ -2,7 +2,7 @@ FROM centos:centos7
 
 ADD yum.el7.repo /etc/yum.repos.d/g2.repo
 
-RUN yum install -y vim git222 \
+RUN yum install -y vim git224 \
     gcc gcc-c++ clang ctags upx pref \
     yum-utils rpm-build createrepo \
     psmisc sysvinit-tools redhat-lsb-core net-tools iproute telnet shadow-utils \
