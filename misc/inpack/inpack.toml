@@ -23,9 +23,7 @@ webui/about.tpl
 webui/ips/ips/
 webui/hchart/webui/chartjs/
 websrv/mgr/views/
-vendor/github.com/hooto/iam/websrv/views/
-vendor/github.com/hooto/iam/webui/
-vendor/github.com/hooto/iam/i18n/"""
+"""
 js_compress = """webui/in/cp/js/
 webui/in/ops/js/
 webui/in/twbs/4.0/js/
@@ -34,18 +32,17 @@ webui/in/cm/
 webui/ips/ips/js/
 webui/hchart/webui/chartjs/
 webui/hchart/webui/hchart.js
-vendor/github.com/hooto/iam/webui/"""
+"""
 css_compress = """webui/in/cp/css/
 webui/in/ops/css/
 webui/in/twbs/4.0/css/
 webui/in/cm/
 webui/in/fa/
 webui/ips/ips/css/
-vendor/github.com/hooto/iam/webui/"""
+"""
 html_compress = """websrv/mgr/views/
 webui/ips/ips/tpl/
-vendor/github.com/hooto/iam/websrv/views/
-vendor/github.com/hooto/iam/webui/tpl/"""
+"""
 
 [scripts]
 build = """export PATH=$PATH:/usr/local/go/bin:/opt/gopath/bin
@@ -59,7 +56,6 @@ mkdir -p {{.buildroot}}/var/inpack_database
 mkdir -p {{.buildroot}}/var/inpack_storage
 mkdir -p {{.buildroot}}/webui/in
 mkdir -p {{.buildroot}}/plugin
-mkdir -p {{.buildroot}}/vendor/github.com/hooto/iam/etc
 go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack-cli  cmd/cli/main.go
@@ -73,10 +69,8 @@ upx {{.buildroot}}/bin/innerstack-cli
 install bin/ininit {{.buildroot}}/bin/ininit
 sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/ops/js/main.js
-sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/vendor/github.com/hooto/iam/webui/iam/js/main.js
 sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/ops/js/main.js
-sed -i 's/debug:true/debug:false/g' {{.buildroot}}/vendor/github.com/hooto/iam/webui/iam/js/main.js
 rm -rf /tmp/rpmbuild/*
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
 mkdir -p /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/

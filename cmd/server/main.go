@@ -133,8 +133,15 @@ func main() {
 	// module/IAM
 	if ic_cfg.IsZoneMaster() {
 
+		if ic_cfg.Config.IamService == nil {
+			ic_cfg.Config.IamService = &iam_cfg.ConfigCommon{}
+		}
+
 		//
-		if err := iam_cfg.Setup(ic_cfg.Prefix + "/vendor/github.com/hooto/iam"); err != nil {
+		if err := iam_cfg.SetupConfig(
+			ic_cfg.Prefix+"/vendor/github.com/hooto/iam",
+			ic_cfg.Config.IamService,
+		); err != nil {
 			log.Fatalf("iam_cfg.InitConfig error: %s", err.Error())
 		}
 
