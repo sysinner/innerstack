@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/lessos/lessgo/types"
 	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 
@@ -74,10 +74,8 @@ func InitHostletData() map[string]interface{} {
 	return items
 }
 
-func InitIamAccessKeyData() []iamapi.AccessKey {
-	return []iamapi.AccessKey{
-		init_cache_akacc,
-	}
+func InitIamAccessKeyData() []hauth.AccessKey {
+	return []hauth.AccessKey{}
 }
 
 var (
@@ -114,9 +112,6 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	}
 
 	//
-	sys_zone.OptionSet("iam/acc_charge/access_key", init_cache_akacc.AccessKey)
-	sys_zone.OptionSet("iam/acc_charge/secret_key", init_cache_akacc.SecretKey)
-
 	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
 		Key:   inapi.NsGlobalSysZone(incfg.Config.Host.ZoneId),
 		Value: sys_zone,

@@ -151,7 +151,7 @@ func main() {
 
 		// init database
 		iam_db.Data = ic_db.DataGlobal
-		if err := iam_db.Init(); err != nil {
+		if err := iam_db.Setup(); err != nil {
 			log.Fatalf("iam.Store.Init error: %s", err.Error())
 		}
 		if err := iam_db.InitData(); err != nil {
@@ -166,7 +166,7 @@ func main() {
 		//
 		if aks := is_cfg.InitIamAccessKeyData(); len(aks) > 0 {
 			for _, v := range aks {
-				iam_db.AccessKeyInitData(v)
+				iam_db.AccessKeyInitData(&v)
 			}
 		}
 	}
@@ -238,7 +238,7 @@ func main() {
 		//
 		if aks := ip_cfg.InitIamAccessKeyData(); len(aks) > 0 {
 			for _, v := range aks {
-				iam_db.AccessKeyInitData(v)
+				iam_db.AccessKeyInitData(&v)
 			}
 		}
 	}

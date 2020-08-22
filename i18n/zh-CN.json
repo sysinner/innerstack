@@ -354,6 +354,10 @@
       "val": "新密码"
     },
     {
+      "key": "new scope",
+      "val": "新增作用域"
+    },
+    {
       "key": "next",
       "val": "下一步"
     },
@@ -500,6 +504,10 @@
     {
       "key": "save",
       "val": "保存"
+    },
+    {
+      "key": "scopes",
+      "val": "作用域"
     },
     {
       "key": "search",

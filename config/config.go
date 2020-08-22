@@ -17,6 +17,7 @@ package config
 import (
 	"fmt"
 
+	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
@@ -26,10 +27,10 @@ import (
 )
 
 var (
-	version          = "0.9.13"
-	release          = "1"
-	InstanceId       = "00" + idhash.HashToHexString([]byte("innerstack"), 14)
-	init_cache_akacc iamapi.AccessKey
+	version    = "0.9.13"
+	release    = "1"
+	InstanceId = "00" + idhash.HashToHexString([]byte("innerstack"), 14)
+	akAccInit  *hauth.AccessKey
 )
 
 func Setup(ver, rel, seed string, isZoneMaster bool) error {
@@ -55,22 +56,20 @@ func Setup(ver, rel, seed string, isZoneMaster bool) error {
 
 	if isZoneMaster {
 
-		if in_cfg.Config.ZoneIamAccessKey != nil {
-			init_cache_akacc = *in_cfg.Config.ZoneIamAccessKey
-		} else {
+		if in_cfg.Config.ZoneIamAccessKey == nil {
 
-			init_cache_akacc = iamapi.AccessKey{
+			in_cfg.Config.ZoneIamAccessKey = &hauth.AccessKey{
 				User: init_sys_user,
-				AccessKey: "00" + idhash.HashToHexString(
+				Id: "00" + idhash.HashToHexString(
 					[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", in_cfg.Config.Host.ZoneId)), 14),
-				SecretKey: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
-				Bounds: []iamapi.AccessKeyBound{{
-					Name: "sys/zm/" + in_cfg.Config.Host.ZoneId,
+				Secret: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
+				Scopes: []*hauth.ScopeFilter{{
+					Name:  "sys/zm",
+					Value: in_cfg.Config.Host.ZoneId,
 				}},
 				Description: "ZoneMaster AccCharge",
 			}
 
-			in_cfg.Config.ZoneIamAccessKey = &init_cache_akacc
 			in_cfg.Config.Sync()
 		}
 	}
