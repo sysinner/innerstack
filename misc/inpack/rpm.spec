@@ -6,7 +6,7 @@ Name:    sysinner-innerstack
 Version: __version__
 Release: __release__%{?dist}
 Vendor:  sysinner.com
-Summary: Productivity Tools for Small Office or Home Office
+Summary: Enterprise PaaS Engine
 License: Apache 2
 Group:   Applications
 

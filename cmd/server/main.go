@@ -30,8 +30,8 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 
 	iam_cfg "github.com/hooto/iam/config"
+	iam_db "github.com/hooto/iam/data"
 	iam_cli "github.com/hooto/iam/iamclient"
-	iam_db "github.com/hooto/iam/store"
 	iam_web "github.com/hooto/iam/websrv/ctrl"
 	iam_v1 "github.com/hooto/iam/websrv/v1"
 
@@ -215,7 +215,8 @@ func main() {
 		if err = ip_db.Setup(); err != nil {
 			log.Fatalf("ip_db setup failed:%s", err.Error())
 		}
-		ic_db.DataInpack = ip_db.Data
+		ip_db.Data = ic_db.DataInpack
+		// ic_db.DataInpack = ip_db.Data
 
 		// TODEL
 		ip_cfg.Config.Sync()
@@ -257,7 +258,7 @@ func main() {
 			log.Fatalf("in.Data.Init error: %s", err.Error())
 		}
 		ic_cfg.Config.InstanceId = ic_inst.Meta.ID
-		ic_cfg.Config.Sync()
+		ic_cfg.Config.Flush()
 
 		hs.HandlerFuncRegister("/in/v1/pb/termws", ic_ws_v1.PodBoundTerminalWsHandlerFunc)
 
@@ -299,6 +300,10 @@ func main() {
 		if err := ic_zm.Start(); err != nil {
 			log.Fatalf("ic_zm.Start err %s", err.Error())
 		}
+
+		if err := ic_sts.ZoneMailManager.TemplateLoad(ic_cfg.Prefix + "/etc"); err != nil {
+			hlog.Printf("warn", "zm/mail-manager template load err %e", err.Error())
+		}
 	}
 
 	//
@@ -331,7 +336,7 @@ func main() {
 		hlog.Printf("info", "pprof/server bind :%d", ic_cfg.Config.PprofHttpPort)
 	}
 
-	ic_cfg.Config.Sync()
+	ic_cfg.Config.Flush()
 
 	quit := make(chan os.Signal, 2)
 
@@ -343,6 +348,12 @@ func main() {
 		syscall.SIGQUIT,
 		syscall.SIGKILL)
 	sg := <-quit
+
+	if err := ic_sts.ZoneMailManager.TemplateFlush(ic_cfg.Prefix + "/etc"); err != nil {
+		hlog.Printf("warn", "zm/mail-manager template load err %e", err.Error())
+	}
+
+	ic_db.Close()
 
 	hlog.Printf("warn", "Signal Quit: %s", sg.String())
 	hlog.Flush()

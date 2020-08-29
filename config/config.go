@@ -70,8 +70,9 @@ func Setup(ver, rel, seed string, isZoneMaster bool) error {
 				Description: "ZoneMaster AccCharge",
 			}
 
-			in_cfg.Config.Sync()
+			in_cfg.Config.Flush()
 		}
+
 	}
 
 	return nil

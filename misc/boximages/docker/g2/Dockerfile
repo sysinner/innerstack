@@ -6,7 +6,7 @@ RUN yum install -y vim git224 \
     gcc gcc-c++ clang ctags upx pref \
     yum-utils rpm-build createrepo \
     psmisc sysvinit-tools redhat-lsb-core net-tools iproute telnet shadow-utils \
-    rsync curl wget optipng \
+    rsync curl wget optipng pngquant \
     python-pip \
     libaio numactl-libs \
     openssl-libs openssh openssh-server \

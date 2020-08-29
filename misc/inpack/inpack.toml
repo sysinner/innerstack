@@ -1,6 +1,6 @@
 [project]
 name = "sysinner-innerstack"
-version = "0.9.13"
+version = "0.9.14"
 vendor = "sysinner.com"
 homepage = "https://github.com/sysinner/innerstack"
 groups = ["dev/sys-srv"]
@@ -55,7 +55,7 @@ mkdir -p {{.buildroot}}/var/tmp
 mkdir -p {{.buildroot}}/var/inpack_database
 mkdir -p {{.buildroot}}/var/inpack_storage
 mkdir -p {{.buildroot}}/webui/in
-mkdir -p {{.buildroot}}/plugin
+mkdir -p {{.buildroot}}/module
 go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack-cli  cmd/cli/main.go
@@ -65,7 +65,7 @@ upx {{.buildroot}}/bin/innerstack-cli
 # upx {{.buildroot}}/bin/docker2oci
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-kvgo.so github.com/lynkdb/kvgo/plugin
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-localfs.so github.com/lynkdb/localfs/plugin
-# go build -buildmode=plugin -o {{.buildroot}}/plugin/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/plugin/scheduler/plugin
+# go build -buildmode=plugin -o {{.buildroot}}/module/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/module/scheduler/plugin
 install bin/ininit {{.buildroot}}/bin/ininit
 sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/ops/js/main.js
@@ -85,5 +85,3 @@ rpmbuild --define "debug_package %{nil}" -ba /tmp/rpmbuild/SOURCES/sysinner-inne
   --define='_topdir /tmp/rpmbuild' \
   --define='dist .{{.project__dist}}'
 """
-
-test = "test"
