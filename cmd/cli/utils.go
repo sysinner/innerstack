@@ -16,38 +16,37 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"os/user"
+	"strings"
 
-	"github.com/spf13/cobra"
+	"github.com/lessos/lessgo/encoding/json"
+	"github.com/lessos/lessgo/net/httpclient"
 )
 
-type baseCommand = cobra.Command
-
-var (
-	version = "0.9.0"
-	release = ""
-	Prefix  = "/opt/sysinner/innerstack"
-)
-
-var rootCmd = &baseCommand{
-	Use:   "innerstack",
-	Short: "An Efficient Enterprise PaaS Engine",
+func rootAllow() error {
+	if u, err := user.Current(); err != nil || u.Uid != "0" {
+		return fmt.Errorf("Access Denied : must be run as root")
+	}
+	return nil
 }
 
-func main() {
+func localApiCommand(path string, req, rep interface{}) error {
 
-	rootCmd.PersistentFlags().StringVar(&Prefix, "prefix",
-		"/opt/sysinner/innerstack",
-		"specify the home directory of project")
+	path = strings.TrimLeft(path, "/")
 
-	rootCmd.AddCommand(NewInfoCommand())
-	rootCmd.AddCommand(NewZoneInitCommand())
-	rootCmd.AddCommand(NewHostJoinCommand())
+	hc := httpclient.Post(fmt.Sprintf("http://unix.sock/in/o1/%s", path))
+	defer hc.Close()
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	hc.SetUnixDomainSocket(fmt.Sprintf("%s/var/server.sock", Prefix))
+
+	if req != nil {
+		js, _ := json.Encode(req, "")
+		hc.Body(js)
 	}
 
-	os.Exit(0)
+	if err := hc.ReplyJson(rep); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 LimitNOFILE=1024
-ExecStart=/opt/sysinner/innerstack/bin/innerstack -log_dir=/opt/sysinner/innerstack/var/log -minloglevel=1 -logtolevel=true
+ExecStart=/opt/sysinner/innerstack/bin/innerstackd -log_dir=/opt/sysinner/innerstack/var/log -minloglevel=1 -logtolevel=true
 ExecReload=/bin/kill -HUP $MAINPID
 
 TimeoutStartSec=0

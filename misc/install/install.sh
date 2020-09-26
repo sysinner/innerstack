@@ -34,7 +34,7 @@ if [ ! -d "/opt/pouch" ] && [ ! -d "/var/lib/pouch" ]; then
   ln -s /opt/pouch .
 fi
 
-yum install -y docker-ce pouch psmisc rsync net-tools device-mapper-persistent-data lvm2
+yum install -y docker-ce psmisc rsync net-tools device-mapper-persistent-data lvm2
 
 if [ ! -d "/etc/docker" ]; then
   mkdir /etc/docker
@@ -42,6 +42,7 @@ fi
 if [ ! -f "/etc/docker/daemon.json" ]; then
   cat <<< '{
   "bip": "172.18.0.1/16",
+  "graph": "/opt/docker",
   "registry-mirrors": ["https://registry.docker-cn.com"]
 }' > /etc/docker/daemon.json
 fi
@@ -68,7 +69,7 @@ fi
 sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
 setenforce 0
 
-systemctl enable docker pouch-lxcfs
-systemctl start docker pouch-lxcfs
+systemctl enable docker
+systemctl start docker
 
 exit 0

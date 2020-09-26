@@ -16,3 +16,6 @@
 [submodule "vendor/github.com/hooto/iam"]
 	path = vendor/github.com/hooto/iam
 	url = git@github.com:hooto/iam.git
+[submodule "deps/lxcfs"]
+	path = deps/lxcfs
+	url = git@github.com:lxc/lxcfs.git

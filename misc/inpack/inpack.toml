@@ -7,6 +7,7 @@ groups = ["dev/sys-srv"]
 
 [files]
 allow = """misc/
+deps/lxcfs/
 i18n/
 webui/in/cp/
 webui/in/ops/
@@ -45,40 +46,55 @@ webui/ips/ips/tpl/
 """
 
 [scripts]
-build = """export PATH=$PATH:/usr/local/go/bin:/opt/gopath/bin
+build = """
+export PATH=$PATH:/usr/local/go/bin:/opt/gopath/bin
 export GOPATH=/opt/gopath
+
 mkdir -p {{.buildroot}}/etc
 mkdir -p {{.buildroot}}/bin
 mkdir -p {{.buildroot}}/misc/inpack
 mkdir -p {{.buildroot}}/var/log
 mkdir -p {{.buildroot}}/var/tmp
-mkdir -p {{.buildroot}}/var/inpack_database
-mkdir -p {{.buildroot}}/var/inpack_storage
 mkdir -p {{.buildroot}}/webui/in
 mkdir -p {{.buildroot}}/module
-go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack cmd/server/main.go
+
+go build -ldflags "-X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstackd cmd/server/main.go
+
 go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/inagent  cmd/inagent/main.go
-go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack-cli  cmd/cli/main.go
-go build -o {{.buildroot}}/bin/docker2oci github.com/coolljt0725/docker2oci
+
+go build -ldflags "-s -w -X main.version={{.project__version}} -X main.release={{.project__release}}" -o {{.buildroot}}/bin/innerstack  cmd/cli/*.go
+
+# go build -o {{.buildroot}}/bin/docker2oci github.com/coolljt0725/docker2oci
+
 # upx {{.buildroot}}/bin/inagent
-upx {{.buildroot}}/bin/innerstack-cli
+# upx {{.buildroot}}/bin/innerstack
 # upx {{.buildroot}}/bin/docker2oci
+
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-kvgo.so github.com/lynkdb/kvgo/plugin
 # go build -buildmode=plugin -o {{.buildroot}}/plugin/lynkdb-localfs.so github.com/lynkdb/localfs/plugin
 # go build -buildmode=plugin -o {{.buildroot}}/module/sysinner-innterstack-scheduler.so ./vendor/github.com/sysinner/incore/module/scheduler/plugin
+
 install bin/ininit {{.buildroot}}/bin/ininit
+
 sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:!0/debug:!1/g' {{.buildroot}}/webui/in/ops/js/main.js
 sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/cp/js/main.js
 sed -i 's/debug:true/debug:false/g' {{.buildroot}}/webui/in/ops/js/main.js
+
 rm -rf /tmp/rpmbuild/*
+
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
 mkdir -p /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/
+
 rsync -av {{.buildroot}}/* /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/
+
 sed -i 's/__version__/{{.project__version}}/g' /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec
 sed -i 's/__release__/{{.project__release}}/g' /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec
+
 cd /tmp/rpmbuild/SOURCES/
+
 tar zcf sysinner-innerstack-{{.project__version}}.tar.gz sysinner-innerstack-{{.project__version}}
+
 rpmbuild --define "debug_package %{nil}" -ba /tmp/rpmbuild/SOURCES/sysinner-innerstack-{{.project__version}}/misc/inpack/rpm.spec \
   --define='_tmppath /tmp/rpmbuild' \
   --define='_builddir /tmp/rpmbuild/BUILD' \

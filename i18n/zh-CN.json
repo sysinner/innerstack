@@ -126,6 +126,10 @@
       "val": "绑定新实例到这个%s"
     },
     {
+      "key": "bind new scope to this %s",
+      "val": "绑定新作用域到这个%s"
+    },
+    {
       "key": "birthday",
       "val": "出生日期"
     },

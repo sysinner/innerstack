@@ -86,10 +86,8 @@ var (
 func InitZoneMasterData() []*kv2.ClientObjectItem {
 
 	var (
-		name          string
-		host_id       = incfg.Config.Host.Id
-		host_lan_addr = string(incfg.Config.Host.LanAddr)
-		host_wan_addr = string(incfg.Config.Host.WanAddr)
+		name    string
+		host_id = incfg.Config.Host.Id
 	)
 
 	// sys zone
@@ -102,12 +100,12 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 		},
 		Phase: 1,
 		LanAddrs: []string{
-			host_lan_addr,
+			incfg.Config.Host.LanAddr,
 		},
 	}
-	if incfg.Config.Host.WanAddr.Valid() {
+	if inapi.HostNodeAddress(incfg.Config.Host.WanAddr).Valid() {
 		sys_zone.WanAddrs = []string{
-			host_wan_addr,
+			incfg.Config.Host.WanAddr,
 		}
 	}
 
@@ -157,7 +155,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 			CellId: incfg.Config.Host.CellId,
 		},
 		Spec: &inapi.ResHostSpec{
-			PeerLanAddr: host_lan_addr,
+			PeerLanAddr: incfg.Config.Host.LanAddr,
 		},
 	}
 	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
@@ -176,7 +174,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 		Key: inapi.NsZoneSysMasterNode(incfg.Config.Host.ZoneId, host_id),
 		Value: inapi.ResZoneMasterNode{
 			Id:     host_id,
-			Addr:   host_lan_addr,
+			Addr:   incfg.Config.Host.LanAddr,
 			Action: 1,
 		},
 	})
@@ -446,21 +444,6 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 		Key:   inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID),
 		Value: plan_g1,
 	})
-
-	// specs := []string{
-	// 	"app_spec_hooto-press-x1.json",
-	// 	"app_spec_sysinner-httplb.json",
-	// 	"app_spec_sysinner-mysql-x1.json",
-	// }
-	// for _, v := range specs {
-	// 	var spec inapi.AppSpec
-	// 	if err := json.DecodeFile(incfg.Prefix+"/misc/app-spec/"+v, &spec); err != nil || spec.Meta.ID == "" {
-	// 		hlog.Printf("warn", "init app spec %s error", v)
-	// 		continue
-	// 	}
-	// 	spec.Meta.User = "sysadmin"
-	// 	init_zmd_items[inapi.NsGlobalAppSpec(spec.Meta.ID)] = spec
-	// }
 
 	for _, v := range SysConfigurators {
 		incfg.SysConfigurators = append(incfg.SysConfigurators, v)

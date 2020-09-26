@@ -22,57 +22,51 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 
-	in_cfg "github.com/sysinner/incore/config"
-	"github.com/sysinner/incore/inapi"
+	incfg "github.com/sysinner/incore/config"
 )
 
 var (
-	version    = "0.9.13"
-	release    = "1"
+	Version    = "0.9.13"
+	Release    = "1"
 	InstanceId = "00" + idhash.HashToHexString([]byte("innerstack"), 14)
 	akAccInit  *hauth.AccessKey
 )
 
 func Setup(ver, rel, seed string, isZoneMaster bool) error {
 
-	version = ver
-	release = rel
+	Version = ver
+	Release = rel
 
-	if len(in_cfg.Config.Masters) < 1 &&
-		in_cfg.Config.ZoneMaster != nil {
-
-		in_cfg.Config.Masters = []inapi.HostNodeAddress{
-			in_cfg.Config.Host.LanAddr,
-		}
-
-		if in_cfg.Config.Host.ZoneId == "" {
-			in_cfg.Config.Host.ZoneId = in_cfg.InitZoneId
-		}
-
-		if in_cfg.Config.Host.CellId == "" {
-			in_cfg.Config.Host.CellId = in_cfg.InitCellId
-		}
+	if len(incfg.Config.Zone.MainNodes) < 1 {
+		return fmt.Errorf("no zone/main_nodes setup")
 	}
 
-	if isZoneMaster {
+	if incfg.Config.Zone.ZoneId == "" {
+		return fmt.Errorf("no zone_id setup")
+	}
 
-		if in_cfg.Config.ZoneIamAccessKey == nil {
+	/**
+	if incfg.Config.Host.CellId == "" {
+		return fmt.Errorf("no cell_id setup")
+	}
+	*/
 
-			in_cfg.Config.ZoneIamAccessKey = &hauth.AccessKey{
-				User: init_sys_user,
-				Id: "00" + idhash.HashToHexString(
-					[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", in_cfg.Config.Host.ZoneId)), 14),
-				Secret: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
-				Scopes: []*hauth.ScopeFilter{{
-					Name:  "sys/zm",
-					Value: in_cfg.Config.Host.ZoneId,
-				}},
-				Description: "ZoneMaster AccCharge",
-			}
+	if isZoneMaster &&
+		incfg.Config.ZoneMain.IamAccessKey == nil {
 
-			in_cfg.Config.Flush()
+		incfg.Config.ZoneMain.IamAccessKey = &hauth.AccessKey{
+			User: init_sys_user,
+			Id: "00" + idhash.HashToHexString(
+				[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", incfg.Config.Zone.ZoneId)), 14),
+			Secret: idhash.HashToBase64String(idhash.AlgSha256, []byte(seed), 40),
+			Scopes: []*hauth.ScopeFilter{{
+				Name:  "sys/zm",
+				Value: incfg.Config.Zone.ZoneId,
+			}},
+			Description: "ZoneMaster AccCharge",
 		}
 
+		incfg.Config.Flush()
 	}
 
 	return nil
@@ -85,7 +79,7 @@ func IamAppInstance() iamapi.AppInstance {
 			ID:   InstanceId,
 			User: "sysadmin",
 		},
-		Version:  version,
+		Version:  Version,
 		AppID:    "innerstack",
 		AppTitle: "InnerStack Enterprise Paas",
 		Status:   1,

@@ -1,0 +1,17 @@
+[Unit]
+Description=FUSE filesystem for LXC
+ConditionVirtualization=!container
+Before=lxc.service
+Documentation=man:lxcfs(1)
+
+[Service]
+ExecStart=/opt/sysinner/innerstack/bin/innerstack-lxcfs /var/lib/innerstack-lxcfs/
+KillMode=process
+Restart=on-failure
+ExecStopPost=-/usr/bin/fusermount -u /var/lib/innerstack-lxcfs
+Delegate=yes
+ExecStartPost=innerstack remount-lxcfs
+
+[Install]
+WantedBy=multi-user.target
+
