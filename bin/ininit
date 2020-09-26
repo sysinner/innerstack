@@ -1,4 +1,4 @@
 #!/bin/bash
 
-/home/action/.sysinner/inagent
+/home/action/.sysinner/inagent daemon
 

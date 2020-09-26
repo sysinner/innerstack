@@ -19,20 +19,45 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/sysinner/incore/inagent/cmd/confrender"
-	"github.com/sysinner/incore/inagent/cmd/health"
+	"github.com/sysinner/incore/inagent/cmd"
 	"github.com/sysinner/incore/inagent/daemon"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
 	version = "0.9.0"
 	release = ""
+	Prefix  = "/home/action"
 )
+
+var rootCmd = &inapi.BaseCommand{
+	Use:   "inagent",
+	Short: "An Efficient Enterprise PaaS Engine",
+}
 
 func main() {
 
 	runtime.GOMAXPROCS(1)
 
+	rootCmd.PersistentFlags().StringVar(&Prefix, "prefix",
+		"/home/action",
+		"specify the home directory of project")
+
+	rootCmd.AddCommand(daemon.NewAgentDaemonCommand())
+
+	rootCmd.AddCommand(cmd.NewConfigMergeCommand())
+	rootCmd.AddCommand(cmd.NewConfigRenderCommand())
+	rootCmd.AddCommand(cmd.NewHealthSyncCommand())
+	rootCmd.AddCommand(cmd.NewHealthStatusCommand())
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+
+	/**
 	action := "agent"
 	if len(os.Args) > 1 {
 		action = os.Args[1]
@@ -42,6 +67,12 @@ func main() {
 
 	case "config", "confrender":
 		if err := confrender.ActionConfig(); err != nil {
+			fmt.Println("cmd error :", err)
+			os.Exit(1)
+		}
+
+	case "config-merge":
+		if err := confrender.MergeAction(); err != nil {
 			fmt.Println("cmd error :", err)
 			os.Exit(1)
 		}
@@ -68,4 +99,5 @@ func main() {
 		fmt.Println("invalid command")
 		os.Exit(1)
 	}
+	*/
 }

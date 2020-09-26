@@ -71,8 +71,6 @@ func (it *hostJoinCommand) run(cmd *baseCommand, args []string) error {
 		return err
 	}
 
-	fmt.Println(it.argRequest)
-
 	var rep inapi.WebServiceReply
 	if err := localApiCommand("config/host-join", it.argRequest, &rep); err != nil {
 		return err

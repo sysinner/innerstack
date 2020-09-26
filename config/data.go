@@ -216,9 +216,8 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	plan_g1.ImageDefault = inapi.BoxImageRepoDefault
 	for _, vi := range [][]string{
 		// {name, tag, driver, display-name}
-		// {inapi.BoxImageRepoDefault, "a1el7v1", inapi.PodSpecBoxImageDocker, "General v1"},
 		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
-		// {inapi.BoxImageRepoDefault, "a2p1el7", inapi.PodSpecBoxImagePouch},
+		{inapi.BoxImageRepoDefault + "/innerstack-g3", "el8", inapi.PodSpecBoxImageDocker, "General v3"},
 	} {
 
 		image := inapi.PodSpecBoxImage{
@@ -235,7 +234,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 			Action:    inapi.PodSpecBoxImageActionEnable,
 			Driver:    vi[2],
 			SortOrder: 1,
-			OsDist:    "el7",
+			OsDist:    vi[1],
 			Arch:      inapi.SpecCpuArchAmd64,
 		}
 		init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
