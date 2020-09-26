@@ -7,6 +7,12 @@
 			"path": "github.com/coolljt0725/docker2oci",
 			"revision": "29a4859900ce860b71d13d3feb0545bf5efe85c0",
 			"revisionTime": "2018-05-24T11:16:27Z"
+		},
+		{
+			"checksumSHA1": "BBm7Ee7L6cSS3W36090UW9FOR54=",
+			"path": "github.com/spf13/viper",
+			"revision": "29c3027c496c52e295ba3f277fd924526346d93d",
+			"revisionTime": "2020-09-27T20:59:46Z"
 		}
 	],
 	"rootPath": "github.com/sysinner/innerstack"
