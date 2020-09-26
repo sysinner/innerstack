@@ -1,22 +1,25 @@
-FROM centos:centos7
+FROM centos:centos8
 
 RUN rm -f /etc/yum.repos.d/*
-ADD yum.el7.repo /etc/yum.repos.d/g2.repo
+ADD yum.el8.repo /etc/yum.repos.d/g3.repo
 
-RUN yum install -y vim git224 \
-    gcc gcc-c++ clang ctags upx pref \
+RUN yum install -y readline
+
+RUN yum install -y vim git \
+    gcc gcc-c++ clang ctags upx libtool pam-devel fuse fuse-devel \
     yum-utils rpm-build createrepo \
-    psmisc sysvinit-tools redhat-lsb-core net-tools iproute telnet shadow-utils \
+    psmisc redhat-lsb-core net-tools shadow-utils \
     rsync curl wget optipng pngquant \
-    python-pip \
+    python3-pip \
     libaio numactl-libs \
-    openssl openssl-libs openssh openssh-server \
+    openssl-devel openssl-libs openssh openssh-server \
     libjpeg libpng libwebp libicu libmcrypt openssl-devel libtool-ltdl \
-    aspell-devel libxslt expat \
-    postgresql12-libs \
+    libxslt expat readline-devel pcre-devel \
+    postgresql12-libs && \
     yum clean all && \
     rm -fr /var/cache && \
     rm -fr /var/lib/yum
+
 
 # RUN pip install --upgrade pip && pip install --upgrade yapf
 
@@ -31,5 +34,11 @@ RUN useradd -u 2048 -d /home/action action && \
 
 WORKDIR /home/action
 ENV USER action
-ENV LANG en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
+# ENV localedef -c -f UTF-8
+ENV LANG C.UTF-8
+ENV LC_CTYPE C.UTF-8
+ENV LC_MESSAGES C.UTF-8
+ENV LC_ALL C.UTF-8
+# ENV LANG en_US.UTF-8
+# ENV LC_ALL en_US.UTF-8
+
