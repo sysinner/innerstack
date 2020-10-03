@@ -1490,13 +1490,18 @@ func (v *Viper) writeConfig(filename string, force bool) error {
 	} else {
 		configType = v.configType
 	}
-	if configType == "" {
+	if configType == "" && v.configType == "" {
 		return fmt.Errorf("config type could not be determined for %s", filename)
 	}
 
 	if !stringInSlice(configType, SupportedExts) {
-		return UnsupportedConfigError(configType)
+		if v.configType != "" && stringInSlice(v.configType, SupportedExts) {
+			configType = v.configType
+		} else {
+			return UnsupportedConfigError(configType)
+		}
 	}
+
 	if v.config == nil {
 		v.config = make(map[string]interface{})
 	}
