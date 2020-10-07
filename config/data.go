@@ -209,15 +209,15 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	plan_t1.Meta.ID = "t1"
 	plan_t1.Meta.Name = "Tiny t1"
 	plan_t1.Labels.Set("pod/spec/plan/type", "t1")
-	plan_t1.Annotations.Set("meta/homepage", "http://www.sysinner.com")
-	plan_t1.SortOrder = 1
+	// plan_t1.Annotations.Set("meta/homepage", "http://www.sysinner.com")
+	plan_t1.SortOrder = 3
 
 	// Spec/Image
 	plan_g1.ImageDefault = inapi.BoxImageRepoDefault
-	for _, vi := range [][]string{
+	for i, vi := range [][]string{
 		// {name, tag, driver, display-name}
-		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
 		{inapi.BoxImageRepoDefault + "/innerstack-g3", "el8", inapi.PodSpecBoxImageDocker, "General v3"},
+		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
 	} {
 
 		image := inapi.PodSpecBoxImage{
@@ -233,7 +233,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 			Tag:       vi[1],
 			Action:    inapi.PodSpecBoxImageActionEnable,
 			Driver:    vi[2],
-			SortOrder: 1,
+			SortOrder: (i + 4),
 			OsDist:    vi[1],
 			Arch:      inapi.SpecCpuArchAmd64,
 		}

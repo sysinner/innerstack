@@ -38,6 +38,8 @@ func NewInfoCommand() *baseCommand {
 		},
 	}
 
+	c.cmd.FParseErrWhitelist.UnknownFlags = false
+
 	c.cmd.Flags().BoolVarP(&c.argShowSecretKey, "show-secretkey", "s",
 		false,
 		"output the full secret key content")

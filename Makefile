@@ -22,7 +22,7 @@ ifndef V
 endif
 
 
-all: build_daemon build_cli build_agent
+all: build_daemon build_cli build_agent build_lxcfs
 	@echo ""
 	@echo "build complete"
 	@echo ""
@@ -36,6 +36,9 @@ build_cli:
 build_agent:
 	$(QUIET_BUILD)$(CC) $(CARGS) -o ${EXE_AGENT} cmd/inagent/main.go$(CCLINK)
 
+build_lxcfs:
+	cd ./deps/lxcfs/ && ./bootstrap.sh && ./configure --prefix=${APP_HOME} && make -j4
+
 install: install_init install_bin install_post
 	@echo ""
 	@echo "install complete"
@@ -46,6 +49,8 @@ install_init:
 	mkdir -p ${APP_HOME}/bin
 	mkdir -p ${APP_HOME}/etc
 	mkdir -p ${APP_HOME}/var/log
+	mkdir -p ${APP_HOME}/lib/lxcfs
+	mkdir -p /var/lib/innerstack-lxcfs/
 	cp -rp misc ${APP_HOME}/ 
 
 install_bin:
@@ -54,7 +59,10 @@ install_bin:
 	install -m 755 ${EXE_CLI} ${APP_HOME}/${EXE_CLI}
 	install -m 755 ${EXE_AGENT} ${APP_HOME}/${EXE_AGENT}
 	install -m 600 misc/systemd/systemd.service /lib/systemd/system/innerstack.service
+	install -m 600 misc/systemd/lxcfs.service /lib/systemd/system/innerstack-lxcfs.service
 	ln -s -f ${APP_HOME}/${EXE_CLI} /usr/local/bin/innerstack
+	install -m 755 deps/lxcfs/src/lxcfs ${APP_HOME}/bin/innerstack-lxcfs
+	install -m 755 deps/lxcfs/src/.libs/liblxcfs.so ${APP_HOME}/lib/lxcfs/liblxcfs.so
 
 install_post:
 	$(QUIET_INSTALL)

@@ -120,7 +120,7 @@ func main() {
 		jobDaemon.Commit(indb.NewDataJob())
 
 		//
-		jobDaemon.Commit(inhost.NewHostletJob())
+		inhost.JobSetup(jobDaemon)
 
 		//
 		jobDaemon.Commit(inzone.NewZoneMainJob())

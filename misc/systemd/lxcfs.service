@@ -5,12 +5,12 @@ Before=lxc.service
 Documentation=man:lxcfs(1)
 
 [Service]
-ExecStart=/opt/sysinner/innerstack/bin/innerstack-lxcfs /var/lib/innerstack-lxcfs/
+ExecStart=/opt/sysinner/innerstack/bin/innerstack-lxcfs /var/lib/innerstack-lxcfs
 KillMode=process
 Restart=on-failure
 ExecStopPost=-/usr/bin/fusermount -u /var/lib/innerstack-lxcfs
 Delegate=yes
-ExecStartPost=innerstack remount-lxcfs
+ExecReload=/bin/kill -USR1 $MAINPID
 
 [Install]
 WantedBy=multi-user.target

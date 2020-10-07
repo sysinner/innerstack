@@ -16,6 +16,12 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
 Requires:       redhat-lsb-core
 Requires:       rsync
 Requires:       fuse-libs
+Requires:       docker-ce
+Requires:       psmisc
+Requires:       rsync
+Requires:       net-tools
+Requires:       device-mapper-persistent-data
+Requires:       lvm2
 Requires(pre):  shadow-utils
 Requires(post): chkconfig
 
@@ -35,7 +41,7 @@ Requires(post): chkconfig
 
 cd deps/lxcfs
 ./bootstrap.sh
-./configure --prefix=/opt/sysinner/innerstack 
+./configure --prefix=%{app_home}
 make -j4
 
 
@@ -43,9 +49,9 @@ make -j4
 
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{app_home}/lib/lxcfs
-mkdir -p %{buildroot}/lib/systemd/system/
+mkdir -p %{buildroot}/lib/systemd/system
 # mkdir -p %{buildroot}/usr/local/bin/
-mkdir -p %{buildroot}/var/lib/innerstack-lxcfs/
+mkdir -p %{buildroot}/var/lib/innerstack-lxcfs
 
 cp -rp * %{buildroot}%{app_home}/
 # install -m 755 bin/innerstack                   %{buildroot}%{app_home}/bin/innerstack
@@ -79,7 +85,7 @@ rm -f /usr/local/bin/innerstack
 %files
 %defattr(-,root,root,-)
 %dir %{app_home}
-%dir /var/lib/innerstack-lxcfs/
+%dir /var/lib/innerstack-lxcfs
 /lib/systemd/system/innerstack.service
 /lib/systemd/system/innerstack-lxcfs.service
 

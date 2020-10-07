@@ -13,9 +13,10 @@ RUN yum install -y vim git \
     libaio numactl-libs \
     openssl-devel openssl-libs openssh openssh-server \
     libjpeg libpng libwebp libicu libmcrypt openssl-devel libtool-ltdl \
-    libxslt expat readline-devel pcre-devel \
+    expat readline readline-devel pcre-devel \
     npm \
-    readline libxml2 libxml2-devel libxslt libxslt-devel openldap-devel libgsasl platform-python-devel \
+    aspell gd oniguruma \
+    libxml2 libxml2-devel libxslt libxslt-devel openldap-devel libgsasl platform-python-devel \
     postgresql12-libs && \
     yum clean all && \
     rm -fr /var/cache && \
@@ -29,7 +30,8 @@ RUN useradd -u 2048 -d /home/action action && \
     sed -i 's/etc\/ssh\/ssh_host_rsa_key/home\/action\/.ssh\/ssh_host_rsa_key/g' /etc/ssh/sshd_config && \
     sed -i 's/etc\/ssh\/ssh_host_ecdsa_key/home\/action\/.ssh\/ssh_host_ecdsa_key/g' /etc/ssh/sshd_config && \
     sed -i 's/etc\/ssh\/ssh_host_ed25519_key/home\/action\/.ssh\/ssh_host_ed25519_key/g' /etc/ssh/sshd_config && \
-    chmod 644 /etc/ssh/sshd_config
+    chmod 644 /etc/ssh/sshd_config && \
+    sed -i -r 's/^(.*pam_nologin.so)/#\1/' /etc/pam.d/sshd
 
 
 WORKDIR /home/action

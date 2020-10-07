@@ -1,12 +1,13 @@
 [project]
 name = "sysinner-innerstack"
-version = "0.9.15"
+version = "0.9.16"
 vendor = "sysinner.com"
 homepage = "https://github.com/sysinner/innerstack"
 groups = ["dev/sys-srv"]
 
 [files]
-allow = """misc/
+allow = """
+misc/
 deps/lxcfs/
 i18n/
 webui/in/cp/
@@ -25,7 +26,8 @@ webui/ips/ips/
 webui/hchart/webui/chartjs/
 websrv/mgr/views/
 """
-js_compress = """webui/in/cp/js/
+js_compress = """
+webui/in/cp/js/
 webui/in/ops/js/
 webui/in/twbs/4.0/js/
 webui/in/jquery/
@@ -34,14 +36,16 @@ webui/ips/ips/js/
 webui/hchart/webui/chartjs/
 webui/hchart/webui/hchart.js
 """
-css_compress = """webui/in/cp/css/
+css_compress = """
+webui/in/cp/css/
 webui/in/ops/css/
 webui/in/twbs/4.0/css/
 webui/in/cm/
 webui/in/fa/
 webui/ips/ips/css/
 """
-html_compress = """websrv/mgr/views/
+html_compress = """
+websrv/mgr/views/
 webui/ips/ips/tpl/
 """
 

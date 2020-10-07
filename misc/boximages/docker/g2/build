@@ -6,3 +6,4 @@ docker pull centos:centos7
 
 docker build -t sysinner/innerstack-g2:el7 .
 
+exit 0
