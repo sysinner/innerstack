@@ -1,6 +1,6 @@
 [project]
 name = "sysinner-innerstack"
-version = "0.9.16"
+version = "0.9.17"
 vendor = "sysinner.com"
 homepage = "https://github.com/sysinner/innerstack"
 groups = ["dev/sys-srv"]

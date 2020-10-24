@@ -201,7 +201,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 		},
 	}
 	plan_g1.Labels.Set("pod/spec/plan/type", "g1")
-	plan_g1.Annotations.Set("meta/homepage", "http://www.sysinner.com")
+	// plan_g1.Annotations.Set("meta/homepage", "http://www.sysinner.com")
 	plan_g1.SortOrder = 2
 
 	//
@@ -213,16 +213,22 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	plan_t1.SortOrder = 3
 
 	// Spec/Image
-	plan_g1.ImageDefault = inapi.BoxImageRepoDefault
+	plan_g1.ImageDefault = "" // inapi.BoxImageRepoDefault
 	for i, vi := range [][]string{
 		// {name, tag, driver, display-name}
 		{inapi.BoxImageRepoDefault + "/innerstack-g3", "el8", inapi.PodSpecBoxImageDocker, "General v3"},
 		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
 	} {
 
+		imageId := fmt.Sprintf("%s:%s", vi[0], vi[1])
+
+		if plan_g1.ImageDefault == "" {
+			plan_g1.ImageDefault = imageId
+		}
+
 		image := inapi.PodSpecBoxImage{
 			Meta: types.InnerObjectMeta{
-				ID:      vi[0] + ":" + vi[1],
+				ID:      imageId,
 				Name:    vi[3],
 				User:    "sysadmin",
 				Version: "1",
@@ -263,15 +269,19 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	for _, v := range [][]int32{
 		//
 		{1, 64}, // CPU 0.1 cores, RAM MB
+		{1, 96},
 		{1, 128},
 		//
 		{2, 128},
+		{2, 192},
 		{2, 256},
 		//
 		{4, 256},
+		{4, 384},
 		{4, 512},
 		//
 		{6, 512},
+		{6, 768},
 		{6, 1024},
 		//
 		{10, 512},

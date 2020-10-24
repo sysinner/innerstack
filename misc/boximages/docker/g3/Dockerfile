@@ -5,7 +5,10 @@ RUN rm -f /etc/yum.repos.d/*
 ADD yum.el8.repo /etc/yum.repos.d/g3.repo
 
 RUN yum install -y vim git \
-    gcc gcc-c++ clang ctags upx libtool pam-devel fuse fuse-devel \
+    gcc gcc-c++ cmake clang llvm ctags upx libtool pam-devel fuse fuse-devel \
+    perl \
+    ruby \
+    nodejs npm \
     yum-utils rpm-build createrepo \
     psmisc redhat-lsb-core net-tools shadow-utils \
     rsync curl wget optipng pngquant \
@@ -14,10 +17,10 @@ RUN yum install -y vim git \
     openssl-devel openssl-libs openssh openssh-server \
     libjpeg libpng libwebp libicu libmcrypt openssl-devel libtool-ltdl \
     expat readline readline-devel pcre-devel \
-    npm \
     aspell gd oniguruma \
     libxml2 libxml2-devel libxslt libxslt-devel openldap-devel libgsasl platform-python-devel \
-    postgresql12-libs && \
+    postgresql12-libs \
+    glibc-langpack-en && \
     yum clean all && \
     rm -fr /var/cache && \
     rm -fr /var/lib/yum
@@ -36,11 +39,7 @@ RUN useradd -u 2048 -d /home/action action && \
 
 WORKDIR /home/action
 ENV USER action
-# ENV localedef -c -f UTF-8
-ENV LANG C.UTF-8
-ENV LC_CTYPE C.UTF-8
-ENV LC_MESSAGES C.UTF-8
-ENV LC_ALL C.UTF-8
-# ENV LANG en_US.UTF-8
-# ENV LC_ALL en_US.UTF-8
+
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
 

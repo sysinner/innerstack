@@ -1,53 +1,54 @@
 [base]
-name=CentOS-$releasever - Base - mirrors.aliyun.com
-failovermethod=priority
+name=CentOS-$releasever - Base
 baseurl=https://mirrors.aliyun.com/centos/$releasever/BaseOS/$basearch/os/
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-Official
- 
-#additional packages that may be useful
+  https://mirrors.cloud.tencent.com/centos/$releasever/BaseOS/$basearch/os/
+gpgcheck=0
+enabled=1
+
+
 [extras]
-name=CentOS-$releasever - Extras - mirrors.aliyun.com
-failovermethod=priority
+name=CentOS-$releasever - Extras
 baseurl=https://mirrors.aliyun.com/centos/$releasever/extras/$basearch/os/
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-Official
- 
-#additional packages that extend functionality of existing packages
+  https://mirrors.cloud.tencent.com/centos/$releasever/extras/$basearch/os/
+gpgcheck=0
+enabled=1
+
+
 [centosplus]
-name=CentOS-$releasever - Plus - mirrors.aliyun.com
-failovermethod=priority
+name=CentOS-$releasever - Plus
 baseurl=https://mirrors.aliyun.com/centos/$releasever/centosplus/$basearch/os/
-gpgcheck=1
-enabled=0
-gpgkey=https://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-Official
- 
+  https://mirrors.cloud.tencent.com/centos/$releasever/centosplus/$basearch/os/
+gpgcheck=0
+enabled=1
+
+
 [PowerTools]
-name=CentOS-$releasever - PowerTools - mirrors.aliyun.com
-failovermethod=priority
+name=CentOS-$releasever - PowerTools
 baseurl=https://mirrors.aliyun.com/centos/$releasever/PowerTools/$basearch/os/
-gpgcheck=1
-enabled=0
-gpgkey=https://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-Official
+  https://mirrors.cloud.tencent.com/centos/$releasever/PowerTools/$basearch/os/
+gpgcheck=0
+enabled=1
 
 
 [AppStream]
-name=CentOS-$releasever - AppStream - mirrors.aliyun.com
-failovermethod=priority
+name=CentOS-$releasever - AppStream
 baseurl=https://mirrors.aliyun.com/centos/$releasever/AppStream/$basearch/os/
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/centos/RPM-GPG-KEY-CentOS-Official
+  https://mirrors.cloud.tencent.com/centos/$releasever/AppStream/$basearch/os/
+gpgcheck=0
+enabled=1
 
 
 [pgdg12]
 name=PostgreSQL 12 $releasever - $basearch
 baseurl=https://download.postgresql.org/pub/repos/yum/12/redhat/rhel-$releasever-$basearch
-enabled=1
 gpgcheck=0
+enabled=1
+
 
 [epel]
 name=Extra Packages for Enterprise Linux - $basearch
-baseurl=http://mirrors.aliyun.com/epel/$releasever/Everything/$basearch
-enabled=1
+baseurl=https://mirrors.aliyun.com/epel/$releasever/Everything/$basearch
+  https://mirrors.cloud.tencent.com/epel/$releasever/Everything/$basearch
 gpgcheck=0
+enabled=1
 
