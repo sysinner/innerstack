@@ -27,11 +27,12 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 
+	"github.com/sysinner/injob/v1"
+
 	incfg "github.com/sysinner/incore/config"
 	indb "github.com/sysinner/incore/data"
 	inhost "github.com/sysinner/incore/hostlet"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/injob"
 	"github.com/sysinner/incore/inrpc"
 	instatus "github.com/sysinner/incore/status"
 	"github.com/sysinner/incore/websrv/o1"
@@ -114,7 +115,7 @@ func main() {
 	}
 
 	{
-		jobDaemon, _ = injob.NewDaemon(instatus.JobContextRefresh)
+		jobDaemon, _ = injob.NewDaemon()
 
 		jobDaemon.Commit(incfg.NewConfigJob())
 		jobDaemon.Commit(indb.NewDataJob())
