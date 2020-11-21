@@ -34,6 +34,8 @@ import (
 	inhost "github.com/sysinner/incore/hostlet"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inrpc"
+	"github.com/sysinner/incore/module/mail_queue"
+	"github.com/sysinner/incore/module/pod_status_mail"
 	instatus "github.com/sysinner/incore/status"
 	"github.com/sysinner/incore/websrv/o1"
 	inzone "github.com/sysinner/incore/zonemaster"
@@ -122,6 +124,10 @@ func main() {
 
 		//
 		inhost.JobSetup(jobDaemon)
+
+		//
+		jobDaemon.Commit(pod_status_mail.NewPodStatusMailJobEntry())
+		jobDaemon.Commit(mail_queue.NewMailQueueJobEntry())
 
 		//
 		jobDaemon.Commit(inzone.NewZoneMainJob())

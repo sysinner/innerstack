@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+# docker pull busybox:glibc
+
+docker build -t sysinner/innerstack-bg1:linux .
+
+exit 0

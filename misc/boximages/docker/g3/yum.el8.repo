@@ -38,17 +38,17 @@ gpgcheck=0
 enabled=1
 
 
-[pgdg12]
-name=PostgreSQL 12 $releasever - $basearch
-baseurl=https://download.postgresql.org/pub/repos/yum/12/redhat/rhel-$releasever-$basearch
-gpgcheck=0
-enabled=1
-
-
 [epel]
 name=Extra Packages for Enterprise Linux - $basearch
 baseurl=https://mirrors.aliyun.com/epel/$releasever/Everything/$basearch
   https://mirrors.cloud.tencent.com/epel/$releasever/Everything/$basearch
+gpgcheck=0
+enabled=1
+
+
+[pgdg12]
+name=PostgreSQL 12 $releasever - $basearch
+baseurl=https://download.postgresql.org/pub/repos/yum/12/redhat/rhel-$releasever-$basearch
 gpgcheck=0
 enabled=1
 

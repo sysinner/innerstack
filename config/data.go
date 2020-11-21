@@ -218,6 +218,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 		// {name, tag, driver, display-name}
 		{inapi.BoxImageRepoDefault + "/innerstack-g3", "el8", inapi.PodSpecBoxImageDocker, "General v3"},
 		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
+		{inapi.BoxImageRepoDefault + "/innerstack-bg1", "linux", inapi.PodSpecBoxImageDocker, "Basic glibc v1"},
 	} {
 
 		imageId := fmt.Sprintf("%s:%s", vi[0], vi[1])
@@ -239,7 +240,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 			Tag:       vi[1],
 			Action:    inapi.PodSpecBoxImageActionEnable,
 			Driver:    vi[2],
-			SortOrder: (i + 4),
+			SortOrder: (i + 16),
 			OsDist:    vi[1],
 			Arch:      inapi.SpecCpuArchAmd64,
 		}
