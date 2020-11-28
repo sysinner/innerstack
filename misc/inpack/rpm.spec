@@ -22,6 +22,7 @@ Requires:       rsync
 Requires:       net-tools
 Requires:       device-mapper-persistent-data
 Requires:       lvm2
+Requires:       sysinner-innerstack-lxcfs
 Requires(pre):  shadow-utils
 Requires(post): chkconfig
 
@@ -34,34 +35,20 @@ Requires(post): chkconfig
 %build
 
 
-#yes | yum install autotools-dev m4 autoconf2.13 autobook autoconf-archive gnu-standards autoconf-doc libtool
-#yes | yum install "fuse-devel.$(uname -p)"
-#yes | yum install "pam-devel.$(uname -p)"
-#yes | yum install "fuse.$(uname -p)"
-
-cd deps/lxcfs
-./bootstrap.sh
-./configure --prefix=%{app_home}
-make -j4
-
-
 %install
 
 rm -rf %{buildroot}
-mkdir -p %{buildroot}%{app_home}/lib/lxcfs
 mkdir -p %{buildroot}/lib/systemd/system
 # mkdir -p %{buildroot}/usr/local/bin/
-mkdir -p %{buildroot}/var/lib/innerstack-lxcfs
+
+mkdir -p %{buildroot}%{app_home}/
 
 cp -rp * %{buildroot}%{app_home}/
 # install -m 755 bin/innerstack                   %{buildroot}%{app_home}/bin/innerstack
 # install -m 755 bin/inagent                  %{buildroot}%{app_home}/bin/inagent
 # install -m 755 bin/ininit                   %{buildroot}%{app_home}/bin/ininit
 # install -m 755 bin/docker2oci               %{buildroot}%{app_home}/bin/docker2oci
-install deps/lxcfs/src/lxcfs %{buildroot}%{app_home}/bin/innerstack-lxcfs
-install -m 640 deps/lxcfs/src/.libs/liblxcfs.so %{buildroot}%{app_home}/lib/lxcfs/liblxcfs.so
 install -m 600 misc/systemd/systemd.service %{buildroot}/lib/systemd/system/innerstack.service
-install -m 600 misc/systemd/lxcfs.service %{buildroot}/lib/systemd/system/innerstack-lxcfs.service
 
 rm -fr %{buildroot}%{app_home}/deps/
 
@@ -85,9 +72,7 @@ rm -f /usr/local/bin/innerstack
 %files
 %defattr(-,root,root,-)
 %dir %{app_home}
-%dir /var/lib/innerstack-lxcfs
 /lib/systemd/system/innerstack.service
-/lib/systemd/system/innerstack-lxcfs.service
 
 %{app_home}/
 

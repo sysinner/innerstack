@@ -1,0 +1,42 @@
+[project]
+name = "sysinner-innerstack-lxcfs"
+version = "4.0.6"
+vendor = "sysinner.com"
+homepage = "https://github.com/sysinner/innerstack"
+groups = ["dev/sys-srv"]
+
+[files]
+allow = """
+misc/inpack/rpm-lxcfs.spec
+misc/systemd/lxcfs.service
+deps/lxcfs/
+"""
+
+[scripts]
+build = """
+
+mkdir -p {{.buildroot}}/bin
+mkdir -p {{.buildroot}}/misc/inpack
+
+rm -rf /tmp/rpmbuild/*
+
+mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
+mkdir -p /tmp/rpmbuild/SOURCES/sysinner-innerstack-lxcfs-{{.project__version}}/
+
+rsync -av {{.buildroot}}/* /tmp/rpmbuild/SOURCES/sysinner-innerstack-lxcfs-{{.project__version}}/
+
+
+sed -i 's/__version__/{{.project__version}}/g' /tmp/rpmbuild/SOURCES/sysinner-innerstack-lxcfs-{{.project__version}}/misc/inpack/rpm-lxcfs.spec
+sed -i 's/__release__/{{.project__release}}/g' /tmp/rpmbuild/SOURCES/sysinner-innerstack-lxcfs-{{.project__version}}/misc/inpack/rpm-lxcfs.spec
+
+cd /tmp/rpmbuild/SOURCES/
+
+tar zcf sysinner-innerstack-lxcfs-{{.project__version}}.tar.gz sysinner-innerstack-lxcfs-{{.project__version}}
+
+rpmbuild --define "debug_package %{nil}" -ba /tmp/rpmbuild/SOURCES/sysinner-innerstack-lxcfs-{{.project__version}}/misc/inpack/rpm-lxcfs.spec \
+  --define='_tmppath /tmp/rpmbuild' \
+  --define='_builddir /tmp/rpmbuild/BUILD' \
+  --define='_topdir /tmp/rpmbuild' \
+  --define='dist .{{.project__dist}}'
+"""
+

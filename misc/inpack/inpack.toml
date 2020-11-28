@@ -8,7 +8,6 @@ groups = ["dev/sys-srv"]
 [files]
 allow = """
 misc/
-deps/lxcfs/
 i18n/
 webui/in/cp/
 webui/in/ops/

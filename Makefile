@@ -9,6 +9,7 @@ CFLAGS=""
 EXE_DAEMON = bin/innerstackd
 EXE_CLI = bin/innerstack
 EXE_AGENT = bin/inagent
+EXE_LXCFS = bin/innerstack-lxcfs
 
 APP_HOME = /opt/sysinner/innerstack
 
@@ -59,10 +60,10 @@ install_bin:
 	install -m 755 ${EXE_CLI} ${APP_HOME}/${EXE_CLI}
 	install -m 755 ${EXE_AGENT} ${APP_HOME}/${EXE_AGENT}
 	install -m 600 misc/systemd/systemd.service /lib/systemd/system/innerstack.service
-	install -m 600 misc/systemd/lxcfs.service /lib/systemd/system/innerstack-lxcfs.service
 	ln -s -f ${APP_HOME}/${EXE_CLI} /usr/local/bin/innerstack
-	install -m 755 deps/lxcfs/src/lxcfs ${APP_HOME}/bin/innerstack-lxcfs
+	install -m 755 deps/lxcfs/src/lxcfs ${APP_HOME}/${EXE_LXCFS}
 	install -m 755 deps/lxcfs/src/.libs/liblxcfs.so ${APP_HOME}/lib/lxcfs/liblxcfs.so
+	install -m 600 misc/systemd/lxcfs.service /lib/systemd/system/innerstack-lxcfs.service
 
 install_post:
 	$(QUIET_INSTALL)
@@ -72,5 +73,6 @@ clean:
 	rm -f ${EXE_DAEMON}
 	rm -f ${EXE_CLI}
 	rm -f ${EXE_AGENT}
+	rm -f ${EXE_LXCFS}
 	rm -f /usr/local/bin/innerstack
 
