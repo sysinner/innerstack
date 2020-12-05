@@ -1,0 +1,33 @@
+kind = "AppSpec"
+roles = [101, 100]
+type_tags = ["devops", "ai"]
+
+[meta]
+  id = "sysinner-tf2-jupyter"
+  name = "Jupyter Notebook (Tensorflow v2)"
+  version = "2.0"
+  subtitle = "Jupyter Notebook + Tensorflow v2 开发环境"
+
+[[executors]]
+  name = "sysinner-tf2-jupyter-main"
+  exec_start = """
+export JUPYTER_TOKEN='{{.cfg/sysinner-tf2-jupyter/jypyter_token}}'
+jupyter notebook --notebook-dir=/tf --ip 0.0.0.0 --no-browser --allow-root
+"""
+  priority = 2
+
+  [executors.plan]
+    on_boot = true
+
+[exp_res]
+  cpu_min = 10
+  mem_min = 256
+  vol_min = 5
+
+[exp_deploy]
+  rep_min = 1
+  rep_max = 1
+  sys_state = 1
+  network_mode = 1
+
+

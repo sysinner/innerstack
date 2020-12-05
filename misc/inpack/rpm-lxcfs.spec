@@ -1,12 +1,10 @@
-%define app_home    /opt/sysinner/innerstack
-%define app_user    action
-%define app_user_id 2048
+%define app_home /opt/sysinner/innerstack
 
 Name:    sysinner-innerstack-lxcfs
 Version: __version__
 Release: __release__%{?dist}
 Vendor:  sysinner.com
-Summary: Enterprise PaaS Engine
+Summary: Enterprise PaaS Engine LXCFS
 License: Apache 2
 Group:   Applications
 
@@ -56,9 +54,6 @@ rm -fr %{buildroot}%{app_home}/deps/
 rm -rf %{buildroot}
 
 %pre
-getent passwd %{app_user} >/dev/null || \
-    useradd -d /home/%{app_user} -s /sbin/nologin -u %{app_user_id} %{app_user}
-exit 0
 
 %post
 systemctl daemon-reload
@@ -68,7 +63,7 @@ systemctl daemon-reload
 %postun
 
 %files
-%defattr(-,action,action,-)
+%defattr(-,root,root,-)
 %dir /var/lib/innerstack-lxcfs
 %{app_home}/lib/lxcfs/liblxcfs.so
 %{app_home}/bin/innerstack-lxcfs

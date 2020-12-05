@@ -1,0 +1,4 @@
+
+docker stop 5cb6fcce87279738-0000
+docker rm 5cb6fcce87279738-0000
+

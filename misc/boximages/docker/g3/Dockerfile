@@ -38,8 +38,8 @@ RUN useradd -u 2048 -d /home/action action && \
 
 
 WORKDIR /home/action
-ENV USER action
+ENV USER=action
 
-ENV LANG en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 

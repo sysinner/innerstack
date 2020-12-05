@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+
+docker build -t sysinner/innerstack-tf:2-jupyter .
+

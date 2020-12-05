@@ -1,0 +1,21 @@
+kind = "AppSpec"
+roles = [101, 100]
+type_tags = ["ai", "runtime"]
+
+[meta]
+  id = "sysinner-tf2"
+  name = "Tensorflow v2"
+  version = "2.0"
+  subtitle = "Tensorflow v2 运行环境"
+
+[exp_res]
+  cpu_min = 10
+  mem_min = 256
+  vol_min = 5
+
+[exp_deploy]
+  rep_min = 1
+  rep_max = 128
+  sys_state = 1
+  network_mode = 1
+

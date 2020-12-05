@@ -6,5 +6,5 @@ FROM busybox:glibc AS main
 RUN adduser -u 2048 -h /home/action action -D -s /bin/bash
 
 WORKDIR /home/action
-ENV USER action
+ENV USER=action
 
