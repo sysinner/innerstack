@@ -133,6 +133,8 @@ func main() {
 		jobDaemon.Commit(inzone.NewZoneMainJob())
 
 		go jobDaemon.Start()
+
+		o1.JobDaemon = jobDaemon
 	}
 
 	if incfg.Config.Host.PprofHttpPort > 0 {
