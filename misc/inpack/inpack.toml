@@ -16,6 +16,7 @@ webui/in/cm/
 webui/in/lessui/js
 webui/in/lessui/css
 webui/in/lessui/img
+webui/in/valueui
 webui/in/purecss/
 webui/in/twbs/
 webui/in/open-iconic/
@@ -34,6 +35,7 @@ webui/in/cm/
 webui/ips/ips/js/
 webui/hchart/webui/chartjs/
 webui/hchart/webui/hchart.js
+webui/valueui/
 """
 css_compress = """
 webui/in/cp/css/
@@ -42,6 +44,7 @@ webui/in/twbs/4.0/css/
 webui/in/cm/
 webui/in/fa/
 webui/ips/ips/css/
+webui/valueui/
 """
 html_compress = """
 websrv/mgr/views/
