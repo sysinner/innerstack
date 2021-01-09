@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	Version    = "0.9.18"
+	Version    = "0.9"
 	Release    = "1"
 	InstanceId = "00" + idhash.HashToHexString([]byte("innerstack"), 14)
 	akAccInit  *hauth.AccessKey

@@ -19,3 +19,6 @@
 [submodule "deps/lxcfs"]
 	path = deps/lxcfs
 	url = git@github.com:lxc/lxcfs.git
+[submodule "webui/valueui"]
+	path = webui/valueui
+	url = git@github.com:valuedig/valueui.git
