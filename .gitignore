@@ -11,6 +11,7 @@ var/*
 .build*
 build-*
 batch-*
+doc.*
 *.oci.tar
 *.so
 misc/boximages/docker/b3/
