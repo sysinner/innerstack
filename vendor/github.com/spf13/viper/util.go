@@ -35,12 +35,12 @@ func (pe ConfigParseError) Error() string {
 
 // toCaseInsensitiveValue checks if the value is a  map;
 // if so, create a copy and lower-case the keys recursively.
-func toCaseInsensitiveValue(kf keyFilter, value interface{}) interface{} {
+func toCaseInsensitiveValue(value interface{}) interface{} {
 	switch v := value.(type) {
 	case map[interface{}]interface{}:
-		value = copyAndInsensitiviseMap(kf, cast.ToStringMap(v))
+		value = copyAndInsensitiviseMap(cast.ToStringMap(v))
 	case map[string]interface{}:
-		value = copyAndInsensitiviseMap(kf, v)
+		value = copyAndInsensitiviseMap(v)
 	}
 
 	return value
@@ -48,16 +48,16 @@ func toCaseInsensitiveValue(kf keyFilter, value interface{}) interface{} {
 
 // copyAndInsensitiviseMap behaves like insensitiviseMap, but creates a copy of
 // any map it makes case insensitive.
-func copyAndInsensitiviseMap(kf keyFilter, m map[string]interface{}) map[string]interface{} {
+func copyAndInsensitiviseMap(m map[string]interface{}) map[string]interface{} {
 	nm := make(map[string]interface{})
 
 	for key, val := range m {
-		lkey := kf(key)
+		lkey := strings.ToLower(key)
 		switch v := val.(type) {
 		case map[interface{}]interface{}:
-			nm[lkey] = copyAndInsensitiviseMap(kf, cast.ToStringMap(v))
+			nm[lkey] = copyAndInsensitiviseMap(cast.ToStringMap(v))
 		case map[string]interface{}:
-			nm[lkey] = copyAndInsensitiviseMap(kf, v)
+			nm[lkey] = copyAndInsensitiviseMap(v)
 		default:
 			nm[lkey] = v
 		}
@@ -66,19 +66,19 @@ func copyAndInsensitiviseMap(kf keyFilter, m map[string]interface{}) map[string]
 	return nm
 }
 
-func insensitiviseMap(kf keyFilter, m map[string]interface{}) {
+func insensitiviseMap(m map[string]interface{}) {
 	for key, val := range m {
 		switch val.(type) {
 		case map[interface{}]interface{}:
 			// nested map: cast and recursively insensitivise
 			val = cast.ToStringMap(val)
-			insensitiviseMap(kf, val.(map[string]interface{}))
+			insensitiviseMap(val.(map[string]interface{}))
 		case map[string]interface{}:
 			// nested map: recursively insensitivise
-			insensitiviseMap(kf, val.(map[string]interface{}))
+			insensitiviseMap(val.(map[string]interface{}))
 		}
 
-		lower := kf(key)
+		lower := strings.ToLower(key)
 		if key != lower {
 			// remove old key (not lower-cased)
 			delete(m, key)
@@ -91,22 +91,13 @@ func insensitiviseMap(kf keyFilter, m map[string]interface{}) {
 func absPathify(inPath string) string {
 	jww.INFO.Println("Trying to resolve absolute path to", inPath)
 
-	if inPath == "$HOME" || strings.HasPrefix(inPath, "$HOME"+string(os.PathSeparator)) {
+	if strings.HasPrefix(inPath, "$HOME") {
 		inPath = userHomeDir() + inPath[5:]
 	}
 
 	if strings.HasPrefix(inPath, "$") {
 		end := strings.Index(inPath, string(os.PathSeparator))
-
-		var value, suffix string
-		if end == -1 {
-			value = os.Getenv(inPath[1:])
-		} else {
-			value = os.Getenv(inPath[1:end])
-			suffix = inPath[end:]
-		}
-
-		inPath = value + suffix
+		inPath = os.Getenv(inPath[1:end]) + inPath[end:]
 	}
 
 	if filepath.IsAbs(inPath) {

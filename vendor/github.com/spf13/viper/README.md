@@ -1,8 +1,3 @@
-> ## Viper v2 feedback
-> Viper is heading towards v2 and we would love to hear what _**you**_ would like to see in it. Share your thoughts here: https://forms.gle/R6faU74qPRPAzchZ9
->
-> **Thank you!**
-
 ![Viper](.github/logo.png?raw=true)
 
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go#configuration)
@@ -612,15 +607,14 @@ will be returned instead. E.g.
 GetString("datastore.metric.host") // returns "0.0.0.0"
 ```
 
-### Extracting a sub-tree
+### Extract sub-tree
 
-When developing reusable modules, it's often useful to extract a subset of the configuration
-and pass it to a module. This way the module can be instantiated more than once, with different configurations.
+Extract sub-tree from Viper.
 
-For example, an application might use multiple different cache stores for different purposes:
+For example, `viper` represents:
 
-```yaml
-cache:
+```json
+app:
   cache1:
     max-items: 100
     item-size: 64
@@ -629,36 +623,35 @@ cache:
     item-size: 80
 ```
 
-We could pass the cache name to a module (eg. `NewCache("cache1")`),
-but it would require weird concatenation for accessing config keys and would be less separated from the global config.
-
-So instead of doing that let's pass a Viper instance to the constructor that represents a subset of the configuration:
+After executing:
 
 ```go
-cache1Config := viper.Sub("cache.cache1")
-if cache1Config == nil { // Sub returns nil if the key cannot be found
-    panic("cache configuration not found")
-}
-
-cache1 := NewCache(cache1Config)
+subv := viper.Sub("app.cache1")
 ```
 
-**Note:** Always check the return value of `Sub`. It returns `nil` if a key cannot be found.
+`subv` represents:
 
-Internally, the `NewCache` function can address `max-items` and `item-size` keys directly:
+```json
+max-items: 100
+item-size: 64
+```
+
+Suppose we have:
 
 ```go
-func NewCache(v *Viper) *Cache {
-    return &Cache{
-        MaxItems: c.GetInt("max-items"),
-        ItemSize: c.GetInt("item-size"),
-    }
-}
+func NewCache(cfg *Viper) *Cache {...}
 ```
 
-The resulting code is easy to test, since it's decoupled from the main config structure,
-and easier to reuse (for the same reason).
+which creates a cache based on config information formatted as `subv`.
+Now it’s easy to create these 2 caches separately as:
 
+```go
+cfg1 := viper.Sub("app.cache1")
+cache1 := NewCache(cfg1)
+
+cfg2 := viper.Sub("app.cache2")
+cache2 := NewCache(cfg2)
+```
 
 ### Unmarshaling
 
