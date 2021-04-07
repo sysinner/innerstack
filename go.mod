@@ -1,10 +1,8 @@
 module github.com/sysinner/innerstack
 
-replace code.google.com/p/go.image => golang.org/x/image v0.0.0-20210220032944-ac19c3e999fb
-
-replace github.com/spf13/viper => github.com/sysinner/viper v1.7.2-0.20210407011308-00fddcdabb8a
-
 go 1.16
+
+replace code.google.com/p/go.image => golang.org/x/image v0.0.0-20210220032944-ac19c3e999fb
 
 require (
 	code.google.com/p/go.image v0.0.0-00010101000000-000000000000 // indirect
@@ -26,7 +24,7 @@ require (
 	github.com/hooto/hmsg v0.0.0-20201126070010-9673d3e511a9 // indirect
 	github.com/hooto/htoml4g v0.0.0-20200928123528-226e1ac698c9
 	github.com/hooto/httpsrv v0.0.0-20201207100146-6fa4cdcbc9c9
-	github.com/hooto/iam v0.0.0-20201214100412-89caa159ca4b
+	github.com/hooto/iam v0.0.0-20210407130527-2d92c83dad54
 	github.com/lessos/lessgo v0.0.0-20201010103753-2e2039a4eb3c
 	github.com/lynkdb/iomix v0.0.0-20200925121149-73537bb5a112 // indirect
 	github.com/lynkdb/kvgo v0.0.0-20210327075407-094a966e5695 // indirect
@@ -35,7 +33,7 @@ require (
 	github.com/shirou/gopsutil v3.21.2+incompatible // indirect
 	github.com/spf13/cobra v1.1.3
 	github.com/syndtr/goleveldb v1.0.0 // indirect
-	github.com/sysinner/incore v0.0.0-20210331072822-b10ffc36b795
+	github.com/sysinner/incore v0.0.0-20210331080911-9102d3d25d96
 	github.com/sysinner/injob v0.0.0-20201215100209-76552cdc0b9a
 	github.com/sysinner/inpack v0.0.0-20210324035345-2ec706a00f7a // indirect
 	github.com/sysinner/inpanel v0.0.0-20210329123725-a45bf92f47c9 // indirect
