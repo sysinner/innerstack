@@ -1,6 +1,9 @@
 # Copyright 2019 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
 #
 
+# ubuntu
+# apt install libtool libfuse-dev
+
 PREFIX=/opt/sysinner/innerstack
 CC=go
 CARGS=build
