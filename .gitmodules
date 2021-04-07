@@ -7,15 +7,6 @@
 [submodule "webui/hchart"]
 	path = webui/hchart
 	url = git@github.com:hooto/hchart.git
-[submodule "vendor/github.com/sysinner/incore"]
-	path = vendor/github.com/sysinner/incore
-	url = git@github.com:sysinner/incore.git
-[submodule "vendor/github.com/sysinner/inpack"]
-	path = vendor/github.com/sysinner/inpack
-	url = git@github.com:sysinner/inpack.git
-[submodule "vendor/github.com/hooto/iam"]
-	path = vendor/github.com/hooto/iam
-	url = git@github.com:hooto/iam.git
 [submodule "deps/lxcfs"]
 	path = deps/lxcfs
 	url = git@github.com:lxc/lxcfs.git

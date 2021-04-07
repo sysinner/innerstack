@@ -1,6 +1,0 @@
-doc/*
-tests/*
-*.swp
-batch-*
-bench/*
-storage_*

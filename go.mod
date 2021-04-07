@@ -2,6 +2,8 @@ module github.com/sysinner/innerstack
 
 replace code.google.com/p/go.image => golang.org/x/image v0.0.0-20210220032944-ac19c3e999fb
 
+replace github.com/spf13/viper => github.com/sysinner/viper v1.7.2-0.20210407011308-00fddcdabb8a
+
 go 1.16
 
 require (
@@ -37,6 +39,7 @@ require (
 	github.com/sysinner/injob v0.0.0-20201215100209-76552cdc0b9a
 	github.com/sysinner/inpack v0.0.0-20210324035345-2ec706a00f7a // indirect
 	github.com/sysinner/inpanel v0.0.0-20210329123725-a45bf92f47c9 // indirect
+	github.com/sysinner/viper v1.7.2-0.20210407011308-00fddcdabb8a // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/valuedig/apis v0.0.0-20210208065643-bc2c42de8ec4 // indirect
 	github.com/yhat/wsutil v0.0.0-20170731153501-1d66fa95c997 // indirect
