@@ -33,7 +33,7 @@ require (
 	github.com/shirou/gopsutil v3.21.2+incompatible // indirect
 	github.com/spf13/cobra v1.1.3
 	github.com/syndtr/goleveldb v1.0.0 // indirect
-	github.com/sysinner/incore v0.0.0-20210331080911-9102d3d25d96
+	github.com/sysinner/incore v0.0.0-20210523105908-b7b2cc664164
 	github.com/sysinner/injob v0.0.0-20201215100209-76552cdc0b9a
 	github.com/sysinner/inpack v0.0.0-20210324035345-2ec706a00f7a // indirect
 	github.com/sysinner/inpanel v0.0.0-20210329123725-a45bf92f47c9 // indirect

@@ -23,6 +23,7 @@ Requires:       net-tools
 Requires:       device-mapper-persistent-data
 Requires:       lvm2
 Requires:       sysinner-innerstack-lxcfs
+Requires:       bridge-utils
 Requires(pre):  shadow-utils
 Requires(post): chkconfig
 

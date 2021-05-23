@@ -513,6 +513,8 @@ github.com/sysinner/incore v0.0.0-20210331072822-b10ffc36b795 h1:ZUpsFH9krv5hqpK
 github.com/sysinner/incore v0.0.0-20210331072822-b10ffc36b795/go.mod h1:yYIclL+Zopj5+W/2/V7eAYKUgW3NFR0RdbDilYaeehg=
 github.com/sysinner/incore v0.0.0-20210331080911-9102d3d25d96 h1:p5QmI1/SqmnGz6dUanEz7aFmJNzuqSKqYrYR0DMWwmI=
 github.com/sysinner/incore v0.0.0-20210331080911-9102d3d25d96/go.mod h1:yYIclL+Zopj5+W/2/V7eAYKUgW3NFR0RdbDilYaeehg=
+github.com/sysinner/incore v0.0.0-20210523105908-b7b2cc664164 h1:wXRbXvs/PKf/ToZ14P61Y9/pG92tDXPGvD0aeN59dgM=
+github.com/sysinner/incore v0.0.0-20210523105908-b7b2cc664164/go.mod h1:yYIclL+Zopj5+W/2/V7eAYKUgW3NFR0RdbDilYaeehg=
 github.com/sysinner/injob v0.0.0-20201215100209-76552cdc0b9a h1:ExfHbIFPU5w6cdXxjlwYyyJFSVVPILA94X9hdzSVs3A=
 github.com/sysinner/injob v0.0.0-20201215100209-76552cdc0b9a/go.mod h1:EBUrZHoUrJUgIfd9K+2sh2IrbWOrq7UAkSnhxL2Chd0=
 github.com/sysinner/inpack v0.0.0-20210324035345-2ec706a00f7a h1:s6i7SCMMYwyGBg1OlL4n1N4oRFY2SI98xDQx8iLIbl0=
