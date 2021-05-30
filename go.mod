@@ -33,14 +33,18 @@ require (
 	github.com/shirou/gopsutil v3.21.2+incompatible // indirect
 	github.com/spf13/cobra v1.1.3
 	github.com/syndtr/goleveldb v1.0.0 // indirect
-	github.com/sysinner/incore v0.0.0-20210523105908-b7b2cc664164
+	github.com/sysinner/incore v0.0.0-20210530093936-308a95e880ad // indirect
 	github.com/sysinner/injob v0.0.0-20201215100209-76552cdc0b9a
 	github.com/sysinner/inpack v0.0.0-20210324035345-2ec706a00f7a // indirect
 	github.com/sysinner/inpanel v0.0.0-20210329123725-a45bf92f47c9 // indirect
 	github.com/sysinner/viper v1.7.2-0.20210407011308-00fddcdabb8a // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/valuedig/apis v0.0.0-20210208065643-bc2c42de8ec4 // indirect
+	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/yhat/wsutil v0.0.0-20170731153501-1d66fa95c997 // indirect
-	google.golang.org/grpc v1.36.0 // indirect
+	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
+	golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea // indirect
+	google.golang.org/genproto v0.0.0-20210524171403-669157292da3 // indirect
+	google.golang.org/grpc v1.38.0 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 )
