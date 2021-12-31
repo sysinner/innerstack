@@ -2,8 +2,8 @@
 
 set -e
 
-docker pull centos:8.2.2004
+docker pull rockylinux:8.5
 
-docker build -t sysinner/innerstack-g3:el8 .
+docker build -t sysinner/innerstack-g4:el8 .
 
 exit 0

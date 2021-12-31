@@ -1,8 +1,7 @@
-FROM centos:8.2.2004
-
+FROM rockylinux:8.5
 
 RUN rm -f /etc/yum.repos.d/*
-ADD yum.el8.repo /etc/yum.repos.d/g3.repo
+ADD yum.el8.repo /etc/yum.repos.d/g4.repo
 
 RUN yum install -y vim git \
     gcc gcc-c++ cmake clang llvm ctags upx libtool pam-devel fuse fuse-devel \
