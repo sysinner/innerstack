@@ -1,9 +1,15 @@
-FROM rockylinux:8.5
+FROM rockylinux:8.6
 
-RUN rm -f /etc/yum.repos.d/*
-ADD yum.el8.repo /etc/yum.repos.d/g4.repo
+RUN sed -e 's|^mirrorlist=|#mirrorlist=|g' \
+    -e 's|^#baseurl=http://dl.rockylinux.org/$contentdir|baseurl=https://mirrors.aliyun.com/rockylinux|g' \
+    /etc/yum.repos.d/Rocky-*.repo 
 
-RUN yum install -y vim git \
+RUN yum install -y dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
+    dnf install -y epel-release && \
+	dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
+	dnf -qy module disable postgresql && \
+    dnf install -y vim git \
     gcc gcc-c++ cmake clang llvm ctags upx libtool pam-devel fuse fuse-devel \
     perl \
     ruby \
@@ -20,10 +26,9 @@ RUN yum install -y vim git \
     libxml2 libxml2-devel libxslt libxslt-devel openldap-devel libgsasl platform-python-devel \
     postgresql12-libs \
     glibc-langpack-en && \
-    yum clean all && \
+    dnf clean all && \
     rm -fr /var/cache && \
     rm -fr /var/lib/yum
-
 
 RUN useradd -u 2048 -d /home/action action && \
     rm -f /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ed25519_key && \
@@ -34,7 +39,6 @@ RUN useradd -u 2048 -d /home/action action && \
     sed -i 's/etc\/ssh\/ssh_host_ed25519_key/home\/action\/.ssh\/ssh_host_ed25519_key/g' /etc/ssh/sshd_config && \
     chmod 644 /etc/ssh/sshd_config && \
     sed -i -r 's/^(.*pam_nologin.so)/#\1/' /etc/pam.d/sshd
-
 
 WORKDIR /home/action
 ENV USER=action

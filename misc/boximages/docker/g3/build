@@ -2,8 +2,8 @@
 
 set -e
 
-docker pull rockylinux:8.5
+docker pull --platform linux/amd64 rockylinux:8.6
 
-docker build -t sysinner/innerstack-g4:el8 .
+docker build --platform linux/amd64 -t sysinner/innerstack-g3:el8 .
 
 exit 0

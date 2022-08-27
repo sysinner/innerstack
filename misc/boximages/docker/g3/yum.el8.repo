@@ -1,5 +1,5 @@
 [base]
-name=CentOS-$releasever - Base
+name=RockyLinux-$releasever - Base
 baseurl=https://mirrors.aliyun.com/rockylinux/$releasever/BaseOS/$basearch/os/
   https://mirrors.163.com/rocky/$releasever/BaseOS/$basearch/os/
 gpgcheck=0
@@ -7,7 +7,7 @@ enabled=1
 
 
 [extras]
-name=CentOS-$releasever - Extras
+name=RockyLinux-$releasever - Extras
 baseurl=https://mirrors.aliyun.com/rockylinux/$releasever/extras/$basearch/os/
   https://mirrors.163.com/rocky/$releasever/extras/$basearch/os/
 gpgcheck=0
@@ -15,7 +15,7 @@ enabled=1
 
 
 [plus]
-name=CentOS-$releasever - Plus
+name=RockyLinux-$releasever - Plus
 baseurl=https://mirrors.aliyun.com/rockylinux/$releasever/plus/$basearch/os/
   https://mirrors.163.com/rocky/$releasever/plus/$basearch/os/
 gpgcheck=0
@@ -23,7 +23,7 @@ enabled=1
 
 
 [PowerTools]
-name=CentOS-$releasever - PowerTools
+name=RockyLinux-$releasever - PowerTools
 baseurl=https://mirrors.aliyun.com/rockylinux/$releasever/PowerTools/$basearch/os/
   https://mirrors.163.com/rocky/$releasever/PowerTools/$basearch/os/
 gpgcheck=0
@@ -31,7 +31,7 @@ enabled=1
 
 
 [AppStream]
-name=CentOS-$releasever - AppStream
+name=RockyLinux-$releasever - AppStream
 baseurl=https://mirrors.aliyun.com/rockylinux/$releasever/AppStream/$basearch/os/
   https://mirrors.163.com/rocky/$releasever/AppStream/$basearch/os/
 gpgcheck=0
