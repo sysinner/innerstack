@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/spf13/cobra"
 )
@@ -39,6 +40,13 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&Prefix, "prefix",
 		"/opt/sysinner/innerstack",
 		"specify the home directory of project")
+
+	if _, err := os.Stat(Prefix); err != nil {
+		prefix := path.Clean(os.Getenv("GOPATH") + "/src/github.com/sysinner/innerstack")
+		if _, err = os.Stat(prefix); err == nil {
+			Prefix = prefix
+		}
+	}
 
 	rootCmd.AddCommand(NewInfoCommand())
 	rootCmd.AddCommand(NewZoneInitCommand())

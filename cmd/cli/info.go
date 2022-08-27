@@ -16,8 +16,6 @@ package main
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
 
 	"github.com/hooto/htoml4g/htoml"
 
@@ -61,20 +59,21 @@ func (it *infoCommand) run(cmd *baseCommand, args []string) error {
 	}
 
 	opts := htoml.NewEncodeOptions()
-	if !it.argShowSecretKey {
-		opts.Filters = append(opts.Filters, func(key htoml.Key, val reflect.Value) reflect.Value {
-			if strings.Contains(key.String(), "secret") {
-				switch val.Kind() {
-				case reflect.String:
-					if val.Len() > 10 {
-						str := val.String()
-						return reflect.ValueOf(str[:4] + "********" + str[len(str)-4:])
-					}
-				}
-			}
-			return val
-		})
-	}
+	// TODO
+	// if !it.argShowSecretKey {
+	// 	opts.Filters = append(opts.Filters, func(key htoml.Key, val reflect.Value) reflect.Value {
+	// 		if strings.Contains(key.String(), "secret") {
+	// 			switch val.Kind() {
+	// 			case reflect.String:
+	// 				if val.Len() > 10 {
+	// 					str := val.String()
+	// 					return reflect.ValueOf(str[:4] + "********" + str[len(str)-4:])
+	// 				}
+	// 			}
+	// 		}
+	// 		return val
+	// 	})
+	// }
 
 	bs, _ := htoml.Encode(rep, opts)
 

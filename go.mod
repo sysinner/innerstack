@@ -36,14 +36,14 @@ require (
 	github.com/hooto/hlang4g v0.0.0-20200904124732-464f10e78d54 // indirect
 	github.com/hooto/hlog4g v0.0.0-20210922101938-d927076751c7
 	github.com/hooto/hmsg v0.0.0-20201126070010-9673d3e511a9 // indirect
-	github.com/hooto/htoml4g v0.0.0-20200928123528-226e1ac698c9
+	github.com/hooto/htoml4g v0.9.3
 	github.com/hooto/httpsrv v0.0.0-20210820160451-a548e214d86d
-	github.com/hooto/iam v0.0.0-20210407130527-2d92c83dad54
+	github.com/hooto/iam v0.0.0-20220203105449-5dadc90e2fa1
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/lessos/lessgo v0.0.0-20201010103753-2e2039a4eb3c
 	github.com/lynkdb/iomix v0.0.0-20200925121149-73537bb5a112 // indirect
-	github.com/lynkdb/kvgo v1.1.3 // indirect
+	github.com/lynkdb/kvgo v1.1.4
 	github.com/lynkdb/kvspec v1.0.3
 	github.com/moby/sys/mount v0.3.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
@@ -60,6 +60,8 @@ require (
 	github.com/sysinner/inpack v0.0.0-20210324035345-2ec706a00f7a // indirect
 	github.com/sysinner/inpanel v0.0.0-20210329123725-a45bf92f47c9 // indirect
 	github.com/sysinner/viper v1.7.2-0.20210407011308-00fddcdabb8a // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.340 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.0.340 // indirect
 	github.com/valuedig/apis v0.1.0 // indirect
 	github.com/yhat/wsutil v0.0.0-20170731153501-1d66fa95c997 // indirect
 	go.opencensus.io v0.23.0 // indirect

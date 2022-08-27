@@ -36,6 +36,8 @@ import (
 	"github.com/sysinner/incore/inrpc"
 	"github.com/sysinner/incore/module/mail_queue"
 	"github.com/sysinner/incore/module/pod_status_mail"
+	"github.com/sysinner/incore/module/private_cloud"
+	"github.com/sysinner/incore/module/tencent_cloud"
 	instatus "github.com/sysinner/incore/status"
 	"github.com/sysinner/incore/websrv/o1"
 	inzone "github.com/sysinner/incore/zonemaster"
@@ -72,6 +74,22 @@ func main() {
 		})
 	}
 
+	// zone driver init
+	{
+
+		if dr, err := private_cloud.NewZoneDriver(); err != nil {
+			panic(err)
+		} else {
+			instatus.ZoneDrivers = append(instatus.ZoneDrivers, dr)
+		}
+
+		if dr, err := tencent_cloud.NewZoneDriver(); err != nil {
+			panic(err)
+		} else {
+			instatus.ZoneDrivers = append(instatus.ZoneDrivers, dr)
+		}
+	}
+
 	// configuration
 	for i := 0; ; i++ {
 
@@ -81,7 +99,9 @@ func main() {
 
 		//
 		if len(incfg.Config.Zone.MainNodes) == 0 {
-			hlog.Printf("warn", "waiting initialization")
+			if i == 0 {
+				hlog.Printf("warn", "waiting initialization")
+			}
 			continue
 		}
 

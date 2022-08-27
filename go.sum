@@ -693,10 +693,14 @@ github.com/hooto/hmsg v0.0.0-20201126070010-9673d3e511a9 h1:UUGPkrFMHWXbRmnUuGsW
 github.com/hooto/hmsg v0.0.0-20201126070010-9673d3e511a9/go.mod h1:P1a4USRfpbhf2mQKOlTzCDRTnYtWoZGlWqIiYYp4niM=
 github.com/hooto/htoml4g v0.0.0-20200928123528-226e1ac698c9 h1:GTp8ED9hNbK13sxJSLW5cIHRY5Xl0nnKUxlu8YhJaIA=
 github.com/hooto/htoml4g v0.0.0-20200928123528-226e1ac698c9/go.mod h1:b9ALANnh1cKjSq74i4Lu+qdc9FC40f2+ISBRNl3oQxU=
+github.com/hooto/htoml4g v0.9.3 h1:Nz7jVMjcq6/pnAKfpM8LQN0TTYTe3RvsH2JElbUeWBE=
+github.com/hooto/htoml4g v0.9.3/go.mod h1:b9ALANnh1cKjSq74i4Lu+qdc9FC40f2+ISBRNl3oQxU=
 github.com/hooto/httpsrv v0.0.0-20210820160451-a548e214d86d h1:AWoyYpTyPgUws9cTX75ZX1/xN5Oh1K6obllskzsTfJk=
 github.com/hooto/httpsrv v0.0.0-20210820160451-a548e214d86d/go.mod h1:9qX867Yq72anjTNO1NecxmbZ9S9ILypE98T8pg/YWAA=
 github.com/hooto/iam v0.0.0-20210407130527-2d92c83dad54 h1:8+dUqnS9Kys2LZFXO+ttN8zpwqQhEmTUu7Ow0uUhS+A=
 github.com/hooto/iam v0.0.0-20210407130527-2d92c83dad54/go.mod h1:mYEMSswXx1y2rgkK7dIORHEOtbVw0jldBmYEIWV7ZQA=
+github.com/hooto/iam v0.0.0-20220203105449-5dadc90e2fa1 h1:DfLoam1QwVV+7pXFGoSrFghMt1mIqVh1FaLM6gBRwNE=
+github.com/hooto/iam v0.0.0-20220203105449-5dadc90e2fa1/go.mod h1:mYEMSswXx1y2rgkK7dIORHEOtbVw0jldBmYEIWV7ZQA=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/hudl/fargo v1.3.0/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
 github.com/hydrogen18/memlistener v0.0.0-20141126152155-54553eb933fb/go.mod h1:qEIFzExnS6016fRpRfxrExeVn2gbClQA99gQhnIcdhE=
@@ -1114,6 +1118,10 @@ github.com/sysinner/inpanel v0.0.0-20210329123725-a45bf92f47c9/go.mod h1:IWAaDpA
 github.com/sysinner/viper v1.7.2-0.20210407011308-00fddcdabb8a h1:eWjaOy6oJLEd+DhK7s8jJRSyNzipSUnSlKZ+eME/ne0=
 github.com/sysinner/viper v1.7.2-0.20210407011308-00fddcdabb8a/go.mod h1:4FBnpgcxD2dOhJWvK9cQcu3vHiMSPRMNPpCPCbIDxvA=
 github.com/tchap/go-patricia v2.2.6+incompatible/go.mod h1:bmLyhP68RS6kStMGxByiQ23RP/odRBOTVjwp2cDyi6I=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.340 h1:cZS67D3hvjaY6cwkQYws0q6KsKk96yQEA1K+W1xtfUc=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.340/go.mod h1:7sCQWVkxcsR38nffDW057DRGk8mUjK1Ing/EFOK8s8Y=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.0.340 h1:xnCeFRrfC3ohM6Q6sKfJlR7t+Q93D9tYuSC1uR7eHVU=
+github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.0.340/go.mod h1:AqyM/ZZMD7q5mHBqNY9YImbSpEpoEe7E/vrTbUWX+po=
 github.com/tidwall/pretty v1.0.0 h1:HsD+QiTn7sK6flMKIvNmpqz1qrpP3Ps6jOKIKMooyg4=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/tklauser/go-sysconf v0.3.9 h1:JeUVdAOWhhxVcU6Eqr/ATFHgXk/mmiItdKeJPev3vTo=

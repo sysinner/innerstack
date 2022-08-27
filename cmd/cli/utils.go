@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os/user"
+	"runtime"
 	"strings"
 
 	"github.com/lessos/lessgo/encoding/json"
@@ -24,8 +25,10 @@ import (
 )
 
 func rootAllow() error {
-	if u, err := user.Current(); err != nil || u.Uid != "0" {
-		return fmt.Errorf("Access Denied : must be run as root")
+	if runtime.GOOS == "linux" {
+		if u, err := user.Current(); err != nil || u.Uid != "0" {
+			return fmt.Errorf("Access Denied : must be run as root")
+		}
 	}
 	return nil
 }

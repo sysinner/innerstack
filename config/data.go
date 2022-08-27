@@ -217,7 +217,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	for i, vi := range [][]string{
 		// {name, tag, driver, display-name}
 		{inapi.BoxImageRepoDefault + "/innerstack-g3", "el8", inapi.PodSpecBoxImageDocker, "General v3"},
-		{inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
+		// {inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
 		{inapi.BoxImageRepoDefault + "/innerstack-bg1", "linux", inapi.PodSpecBoxImageDocker, "Basic glibc v1"},
 	} {
 
