@@ -30,7 +30,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/moby/sys/mount v0.3.0 // indirect
 	github.com/onsi/ginkgo v1.13.0 // indirect
-	github.com/opencontainers/runc v1.0.3 // indirect
+	github.com/opencontainers/runc v1.1.2 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/shirou/gopsutil v3.21.5+incompatible // indirect
 	github.com/shirou/gopsutil/v3 v3.21.10 // indirect
