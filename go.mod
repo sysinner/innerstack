@@ -8,7 +8,7 @@ require (
 	code.google.com/p/go.image v0.0.0-00010101000000-000000000000 // indirect
 	github.com/Microsoft/hcsshim v0.9.1 // indirect
 	github.com/containerd/containerd v1.5.18 // indirect
-	github.com/docker/docker v20.10.11+incompatible // indirect
+	github.com/docker/docker v20.10.24+incompatible // indirect
 	github.com/eryx/imaging v0.0.0-20140208004223-9e6af48e9e09 // indirect
 	github.com/fsouza/go-dockerclient v1.7.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
