@@ -12,7 +12,6 @@ require (
 	github.com/eryx/imaging v0.0.0-20140208004223-9e6af48e9e09 // indirect
 	github.com/fsouza/go-dockerclient v1.7.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hooto/hauth v0.1.0
 	github.com/hooto/hchart v0.0.0-20210101081249-93870c972f3c
 	github.com/hooto/hflag4g v0.0.0-20181023133020-1524604e73ef // indirect
@@ -45,5 +44,5 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.0.340 // indirect
 	github.com/valuedig/apis v0.1.0 // indirect
 	github.com/yhat/wsutil v0.0.0-20170731153501-1d66fa95c997 // indirect
-	google.golang.org/grpc v1.53.0 // indirect
+	google.golang.org/grpc v1.56.3 // indirect
 )
