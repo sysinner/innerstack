@@ -6,12 +6,12 @@ replace code.google.com/p/go.image => golang.org/x/image v0.0.0-20210220032944-a
 
 require (
 	code.google.com/p/go.image v0.0.0-00010101000000-000000000000 // indirect
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/Microsoft/hcsshim v0.9.1 // indirect
 	github.com/containerd/containerd v1.5.18 // indirect
-	github.com/docker/docker v20.10.24+incompatible // indirect
+	github.com/docker/docker v24.0.7+incompatible // indirect
 	github.com/eryx/imaging v0.0.0-20140208004223-9e6af48e9e09 // indirect
 	github.com/fsouza/go-dockerclient v1.7.4 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hooto/hauth v0.1.0
 	github.com/hooto/hchart v0.0.0-20210101081249-93870c972f3c
@@ -28,7 +28,8 @@ require (
 	github.com/lynkdb/kvgo v1.1.4 // indirect
 	github.com/lynkdb/kvspec v1.0.3
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
-	github.com/moby/sys/mount v0.3.0 // indirect
+	github.com/moby/patternmatcher v0.6.0 // indirect
+	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/onsi/ginkgo v1.13.0 // indirect
 	github.com/opencontainers/runc v1.1.5 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
