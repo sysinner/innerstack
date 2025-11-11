@@ -15,4 +15,4 @@ doc.*
 *.oci.tar
 *.so
 misc/boximages/docker/b3/
-
+go.sum

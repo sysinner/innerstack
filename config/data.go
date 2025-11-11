@@ -21,7 +21,7 @@ import (
 
 	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/lessos/lessgo/types"
-	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
+	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
 
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
@@ -79,11 +79,11 @@ func InitIamAccessKeyData() []hauth.AccessKey {
 }
 
 var (
-	init_zmd_items         = []*kv2.ClientObjectItem{}
-	init_zmd_items_upgrade = []*kv2.ClientObjectItem{}
+	initZmdItems        = map[string]interface{}{}
+	initZmdItemsUpgrade = map[string]interface{}{}
 )
 
-func InitZoneMasterData() []*kv2.ClientObjectItem {
+func InitZoneMasterData() map[string]interface{} {
 
 	var (
 		name    string
@@ -110,14 +110,8 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	}
 
 	//
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsGlobalSysZone(incfg.Config.Host.ZoneId),
-		Value: sys_zone,
-	})
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsZoneSysZone(incfg.Config.Host.ZoneId),
-		Value: sys_zone,
-	})
+	initZmdItems[string(inapi.NsGlobalSysZone(incfg.Config.Host.ZoneId))] = sys_zone
+	initZmdItems[string(inapi.NsZoneSysZone(incfg.Config.Host.ZoneId))] = sys_zone
 
 	// inapi.ObjPrint("sys_zone", sys_zone)
 
@@ -133,14 +127,8 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 		Phase:       1,
 		Description: "",
 	}
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsGlobalSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId),
-		Value: sys_cell,
-	})
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsZoneSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId),
-		Value: sys_cell,
-	})
+	initZmdItems[string(inapi.NsGlobalSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId))] = sys_cell
+	initZmdItems[string(inapi.NsZoneSysCell(incfg.Config.Host.ZoneId, incfg.Config.Host.CellId))] = sys_cell
 
 	// sys host
 	sys_host := inapi.ResHost{
@@ -158,28 +146,19 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 			PeerLanAddr: incfg.Config.Host.LanAddr,
 		},
 	}
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsZoneSysHost(incfg.Config.Host.ZoneId, host_id),
-		Value: sys_host,
-	})
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsZoneSysHostSecretKey(incfg.Config.Host.ZoneId, host_id),
-		Value: incfg.Config.Host.SecretKey,
-	})
+	initZmdItems[string(inapi.NsZoneSysHost(incfg.Config.Host.ZoneId, host_id))] = sys_host
+	initZmdItems[string(inapi.NsZoneSysHostSecretKey(incfg.Config.Host.ZoneId, host_id))] = incfg.Config.Host.SecretKey
 
 	//
 
 	// zone-master node(s)/leader
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key: inapi.NsZoneSysMasterNode(incfg.Config.Host.ZoneId, host_id),
-		Value: inapi.ResZoneMasterNode{
-			Id:     host_id,
-			Addr:   incfg.Config.Host.LanAddr,
-			Action: 1,
-		},
-	})
+	initZmdItems[string(inapi.NsZoneSysMasterNode(incfg.Config.Host.ZoneId, host_id))] = inapi.ResZoneMasterNode{
+		Id:     host_id,
+		Addr:   incfg.Config.Host.LanAddr,
+		Action: 1,
+	}
 
-	// init_zmd_items[inapi.NsKvZoneSysMasterLeader(incfg.Config.Host.ZoneId)] = host_id
+	// initZmdItems[string(inapi.NsKvZoneSysMasterLeader(incfg.Config.Host.ZoneId))] = host_id
 
 	//
 	name = "g1"
@@ -218,7 +197,8 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 		// {name, tag, driver, display-name}
 		{inapi.BoxImageRepoDefault + "/innerstack-g3", "el8", inapi.PodSpecBoxImageDocker, "General v3"},
 		// {inapi.BoxImageRepoDefault + "/innerstack-g2", "el7", inapi.PodSpecBoxImageDocker, "General v2"},
-		{inapi.BoxImageRepoDefault + "/innerstack-bg1", "linux", inapi.PodSpecBoxImageDocker, "Basic glibc v1"},
+		{inapi.BoxImageRepoDefault + "/innerstack-b1", "v1.0", inapi.PodSpecBoxImageDocker, "Basic v1"},
+		// {inapi.BoxImageRepoDefault + "/innerstack-bg1", "linux", inapi.PodSpecBoxImageDocker, "Basic glibc v1"},
 	} {
 
 		imageId := fmt.Sprintf("%s:%s", vi[0], vi[1])
@@ -244,10 +224,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 			OsDist:    vi[1],
 			Arch:      inapi.SpecCpuArchAmd64,
 		}
-		init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-			Key:   inapi.NsGlobalBoxImage(vi[0], vi[1]),
-			Value: image,
-		})
+		initZmdItems[string(inapi.NsGlobalBoxImage(vi[0], vi[1]))] = image
 
 		image.Meta.User = ""
 		image.Meta.Created = 0
@@ -329,10 +306,7 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 			plan_g1.ResComputeDefault = res.Meta.ID
 		}
 
-		init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-			Key:   inapi.NsGlobalPodSpec("res/compute", res.Meta.ID),
-			Value: res,
-		})
+		initZmdItems[string(inapi.NsGlobalPodSpec("res/compute", res.Meta.ID))] = res
 
 		res.Meta.User = ""
 		res.Meta.Created = 0
@@ -392,18 +366,9 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	vol_s1.Default = 10
 	vol_s1.Attrs = inapi.ResVolValueAttrTypeSSD
 
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID),
-		Value: vol_t1,
-	})
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID),
-		Value: vol_g1,
-	})
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsGlobalPodSpec("res/volume", vol_s1.Meta.ID),
-		Value: vol_s1,
-	})
+	initZmdItems[string(inapi.NsGlobalPodSpec("res/volume", vol_t1.Meta.ID))] = vol_t1
+	initZmdItems[string(inapi.NsGlobalPodSpec("res/volume", vol_g1.Meta.ID))] = vol_g1
+	initZmdItems[string(inapi.NsGlobalPodSpec("res/volume", vol_s1.Meta.ID))] = vol_s1
 
 	vol_t1.Meta.User = ""
 	vol_t1.Meta.Created = 0
@@ -446,20 +411,15 @@ func InitZoneMasterData() []*kv2.ClientObjectItem {
 	plan_g1.ResVolumeDefault = vol_g1.Meta.ID
 
 	//
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsGlobalPodSpec("plan", plan_t1.Meta.ID),
-		Value: plan_t1,
-	})
-	init_zmd_items = append(init_zmd_items, &kv2.ClientObjectItem{
-		Key:   inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID),
-		Value: plan_g1,
-	})
+	initZmdItems[string(inapi.NsGlobalPodSpec("plan", plan_t1.Meta.ID))] = plan_t1
+
+	initZmdItems[string(inapi.NsGlobalPodSpec("plan", plan_g1.Meta.ID))] = plan_g1
 
 	for _, v := range SysConfigurators {
 		incfg.SysConfigurators = append(incfg.SysConfigurators, v)
 	}
 
-	return init_zmd_items
+	return initZmdItems
 }
 
 func UpgradeZoneMasterData(data kv2.ClientConnector) error {

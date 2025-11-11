@@ -26,14 +26,15 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
+	"github.com/lynkdb/lynkapi/go/lynkapi"
 
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 
+	"github.com/hooto/iam/iamclient"
 	incfg "github.com/sysinner/incore/config"
 	indb "github.com/sysinner/incore/data"
 	inhost "github.com/sysinner/incore/hostlet"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/inrpc"
 	"github.com/sysinner/incore/module/mail_queue"
 	"github.com/sysinner/incore/module/pod_status_mail"
 	"github.com/sysinner/incore/module/private_cloud"
@@ -41,6 +42,9 @@ import (
 	instatus "github.com/sysinner/incore/status"
 	"github.com/sysinner/incore/websrv/o1"
 	inzone "github.com/sysinner/incore/zonemaster"
+
+	incore2 "github.com/sysinner/incore/v2"
+	"github.com/sysinner/incore/v2/states"
 
 	is_cfg "github.com/sysinner/innerstack/config"
 )
@@ -51,6 +55,8 @@ var (
 	released  = ""
 	err       error
 	jobDaemon *injob.Daemon
+
+	lynkServer *lynkapi.LynkServer
 )
 
 func main() {
@@ -61,18 +67,19 @@ func main() {
 
 	{
 		ohs := httpsrv.NewService()
-		ohs.ModuleRegister("/in/o1", o1.NewModule())
+		ohs.HandleModule("/in/o1", o1.NewModule())
 		ohs.Config.HttpAddr = fmt.Sprintf("unix:%s/var/%s.sock", incfg.Prefix, "server")
+		ohs.SetLogger(httpsrv.NewRawLogger())
 		go ohs.Start()
 	}
 
-	// rpc init
-	{
-		inrpc.RegisterServer(func(s *inrpc.RpcServer) {
-			inapi.RegisterApiHostMemberServer(s, new(inhost.ApiHostMember))
-			inapi.RegisterApiZoneMasterServer(s, new(inzone.ApiZoneMaster))
-		})
-	}
+	// // rpc init
+	// if false {
+	// 	inrpc.RegisterServer(func(s *inrpc.RpcServer) {
+	// 		inapi.RegisterApiHostMemberServer(s, new(inhost.ApiHostMember))
+	// 		inapi.RegisterApiZoneMasterServer(s, new(inzone.ApiZoneMaster))
+	// 	})
+	// }
 
 	// zone driver init
 	{
@@ -117,15 +124,48 @@ func main() {
 			continue
 		}
 
-		//
-		{
-			rpcPort := inapi.HostNodeAddress(incfg.Config.Host.LanAddr).Port()
-			if err := inrpc.Start(rpcPort); err != nil {
-				hlog.Printf("warn", "inrpc/server bind 0.0.0.0:%d err %s", rpcPort, err.Error())
+		if true {
+			lynkServer, err = lynkapi.NewServer(&lynkapi.ServerConfig{
+				Bind: incfg.Config.Host.LanAddr,
+			})
+			if err != nil {
+				hlog.Printf("warn", "inrpc/server bind %s err %s", incfg.Config.Host.LanAddr, err.Error())
 				continue
 			}
-			hlog.Printf("info", "inrpc/server bind 0.0.0.0:%d ok", rpcPort)
+
+			lynkServer.SetupIdentityAuthService(
+				iamclient.NewIdentityAuthService(
+					states.SessionTokenManager,
+				),
+			)
+
+			inapi.RegisterApiHostMemberServer(lynkServer.GrpcServer, new(inhost.ApiHostMember))
+			inapi.RegisterApiZoneMasterServer(lynkServer.GrpcServer, new(inzone.ApiZoneMaster))
+
+			if err = lynkServer.Service.RegisterService(incore2.NewApiService()); err != nil {
+				hlog.Printf("warn", "lynkapi/register-api-service fail %s", err.Error())
+				continue
+			}
+
+			if err = lynkServer.Service.RegisterService(incore2.NewZoneletService()); err != nil {
+				hlog.Printf("warn", "lynkapi/register-zonelet-service fail %s", err.Error())
+				continue
+			}
+
+			if err := lynkServer.Run(); err != nil {
+				hlog.Printf("warn", "lynkapi/register-service run fail %s", err.Error())
+				continue
+			}
 		}
+
+		// if false {
+		// 	rpcPort := inapi.HostNodeAddress(incfg.Config.Host.LanAddr).Port()
+		// 	if err := inrpc.Start(rpcPort); err != nil {
+		// 		hlog.Printf("warn", "inrpc/server bind 0.0.0.0:%d err %s", rpcPort, err.Error())
+		// 		continue
+		// 	}
+		// 	hlog.Printf("info", "inrpc/server bind 0.0.0.0:%d ok", rpcPort)
+		// }
 
 		if err = is_cfg.Setup(version, release, incfg.Config.Host.SecretKey, incfg.IsZoneMaster()); err != nil {
 			hlog.Printf("warn", "innerstask/config/Setup error: %s", err.Error())
@@ -150,7 +190,7 @@ func main() {
 		jobDaemon.Commit(mail_queue.NewMailQueueJobEntry())
 
 		//
-		jobDaemon.Commit(inzone.NewZoneMainJob())
+		jobDaemon.Commit(inzone.NewZoneMainJob(lynkServer.Service))
 
 		go jobDaemon.Start()
 

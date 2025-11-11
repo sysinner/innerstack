@@ -11,34 +11,35 @@ CFLAGS=""
 
 EXE_DAEMON = bin/innerstackd
 EXE_CLI = bin/innerstack
+EXE_CLI2 = bin/innerstack2
+EXE_INSERVICE = bin/inserviced
 EXE_AGENT = bin/inagent
 EXE_LXCFS = bin/innerstack-lxcfs
 
 APP_HOME = /opt/sysinner/innerstack
 
-BUILDCOLOR="\033[34;1m"
-BINCOLOR="\033[37;1m"
-ENDCOLOR="\033[0m"
 
-ifndef V
-	QUIET_BUILD = @printf '%b %b\n' $(BUILDCOLOR)BUILD$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
-	QUIET_INSTALL = @printf '%b %b\n' $(BUILDCOLOR)INSTALL$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
-endif
-
-
-all: build_daemon build_cli build_agent build_lxcfs
+all: build_daemon build_cli build_agent build_lxcfs cli2_run inservice-run
 	@echo ""
 	@echo "build complete"
 	@echo ""
 
 build_daemon:
-	$(QUIET_BUILD)$(CC) $(CARGS) -o $(EXE_DAEMON) ./cmd/server/main.go$(CCLINK)
+	$(CC) $(CARGS) -o $(EXE_DAEMON) ./cmd/server/main.go
 
 build_cli:
-	$(QUIET_BUILD)$(CC) $(CARGS) -o ${EXE_CLI} cmd/cli/*.go$(CCLINK)
+	$(CC) $(CARGS) -o ${EXE_CLI} cmd/cli/*.go
+
+cli2-run:
+	$(CC) $(CARGS) -o ${EXE_CLI2} cmd/cli2/main.go
+	${EXE_CLI2} etc/bj-sysadmin.toml
+
+inservice-run:
+	$(CC) $(CARGS) -o ${EXE_INSERVICE} cmd/inservice/main.go
+	${EXE_INSERVICE} -logtostderr true
 
 build_agent:
-	$(QUIET_BUILD)$(CC) $(CARGS) -o ${EXE_AGENT} cmd/inagent/main.go$(CCLINK)
+	$(CC) $(CARGS) -o ${EXE_AGENT} cmd/inagent/main.go
 
 build_lxcfs:
 	cd ./deps/lxcfs/ && ./bootstrap.sh && ./configure --prefix=${APP_HOME} && make -j4
@@ -49,7 +50,6 @@ install: install_init install_bin install_post
 	@echo ""
 
 install_init:
-	$(QUIET_INSTALL)
 	mkdir -p ${APP_HOME}/bin
 	mkdir -p ${APP_HOME}/etc
 	mkdir -p ${APP_HOME}/var/log
@@ -58,7 +58,6 @@ install_init:
 	cp -rp misc ${APP_HOME}/ 
 
 install_bin:
-	$(QUIET_INSTALL)
 	install -m 755 ${EXE_DAEMON} ${APP_HOME}/${EXE_DAEMON}
 	install -m 755 ${EXE_CLI} ${APP_HOME}/${EXE_CLI}
 	install -m 755 ${EXE_AGENT} ${APP_HOME}/${EXE_AGENT}
@@ -69,7 +68,6 @@ install_bin:
 	install -m 600 misc/systemd/lxcfs.service /lib/systemd/system/innerstack-lxcfs.service
 
 install_post:
-	$(QUIET_INSTALL)
 	systemctl daemon-reload
 
 clean:

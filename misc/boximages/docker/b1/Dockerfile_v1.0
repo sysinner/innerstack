@@ -1,0 +1,13 @@
+FROM alpine:3.20.8
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+
+RUN apk add --update --no-cache ca-certificates
+
+RUN adduser -h /home/action -s /bin/sh -u 2048 -D action
+
+WORKDIR /home/action
+ENV USER action
+
+ENV HOME /home/action
+
