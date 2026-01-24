@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	_ "embed"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -46,6 +47,7 @@ import (
 
 	"github.com/sysinner/incore/inutils/tplrender"
 	inapi2 "github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inlog"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
 
@@ -59,10 +61,7 @@ var builtin_404_HTML []byte
 var module_DomainSale_HTML string
 
 func init() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
-	slog.Info("server start", "uptime", time.Now())
+	inlog.Setup()
 }
 
 func Run() {
@@ -115,8 +114,7 @@ func Run() {
 			WriteTimeout:   time.Duration(cfg.Server.WriteTimeout) * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		}
-		signals.AddGo(func() {
-			defer signals.DeferDone()
+		signals.Go(func() {
 			slog.Info("http server start " + httpServer.Addr)
 			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				slog.Info("http server quit : " + err.Error())
@@ -137,8 +135,7 @@ func Run() {
 			WriteTimeout:   time.Duration(cfg.Server.WriteTimeout) * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		}
-		signals.AddGo(func() {
-			defer signals.DeferDone()
+		signals.Go(func() {
 			slog.Info("https server start " + httpsServer.Addr)
 			if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 				slog.Error("https server quit : " + err.Error())
@@ -150,8 +147,7 @@ func Run() {
 	}
 
 	if cfg.Zone != nil {
-		signals.AddGo(func() {
-			defer signals.DeferDone()
+		signals.Go(func() {
 
 			ticker := time.NewTicker(time.Second * 10)
 			defer ticker.Stop()
@@ -171,10 +167,7 @@ func Run() {
 	}
 
 	// IP 限流清理
-	signals.AddGo(func() {
-		defer signals.DeferDone()
-		ipLimiterCleaner()
-	}, nil)
+	signals.Go(ipLimiterCleaner, nil)
 
 	signals.Wait()
 }
@@ -479,6 +472,18 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 		defer domainEntry.mu.Unlock()
 
 		prevRoutes := domainEntry.Routes
+
+		for _, route := range prevRoutes {
+			if route.reverseProxy != nil {
+				for _, rp := range route.reverseProxy {
+					if rp.Transport != nil {
+						if closer, ok := rp.Transport.(io.Closer); ok {
+							closer.Close()
+						}
+					}
+				}
+			}
+		}
 
 		flush = true
 		domainEntry.Routes = nil

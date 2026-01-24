@@ -15,12 +15,12 @@
 package signals
 
 import (
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
-
-	"github.com/hooto/hlog4g/hlog"
 )
 
 const maxSignals = 128
@@ -28,31 +28,17 @@ const maxSignals = 128
 var (
 	mu sync.Mutex
 
-	reg int = 0
+	regQueue = make(chan int, maxSignals)
 
-	sigQueue = make(chan struct{}, 1)
+	sigQueue = make(chan int, 1)
 
-	done = false
+	done      = false
+	doneQueue = make(chan int, maxSignals)
 
 	shutdowns = []func(){}
 )
 
-func Add() {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if done {
-		return
-	}
-
-	reg += 1
-	if reg >= maxSignals {
-		panic("too many signals")
-	}
-	hlog.Printf("info", "Signal Reg %d", reg)
-}
-
-func AddGo(start, shutdown func()) {
+func Go(start, shutdown func()) {
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -61,23 +47,26 @@ func AddGo(start, shutdown func()) {
 		return
 	}
 
-	reg += 1
-	if reg >= maxSignals {
-		panic("too many signals")
+	if len(regQueue) >= maxSignals {
+		panic(fmt.Sprintf("too many signals (limits %d)", maxSignals))
 	}
+	regQueue <- 1
 
 	if shutdown != nil {
 		shutdowns = append(shutdowns, shutdown)
 	}
-	go start()
+
+	go func() {
+		start()
+		<-regQueue
+		if done {
+			<-sigQueue
+		}
+	}()
 }
 
-func Done() <-chan struct{} {
-	return sigQueue
-}
-
-func DeferDone() {
-	<-sigQueue
+func Done() <-chan int {
+	return doneQueue
 }
 
 func Wait() {
@@ -91,27 +80,28 @@ func Wait() {
 		syscall.SIGQUIT,
 		syscall.SIGKILL)
 	sg := <-quit
-	hlog.Printf("warn", "Signal %s ...", sg.String())
+	slog.Warn(fmt.Sprintf("Signal %s ...", sg.String()))
 
 	mu.Lock()
 	defer mu.Unlock()
 
 	done = true
 
-	if reg == 0 {
-		return
-	}
-
 	for _, shutdown := range shutdowns {
 		shutdown()
 	}
 
-	for i := 0; i < reg; i++ {
-		sigQueue <- struct{}{}
+	if n := len(regQueue); n > 0 {
+		for i := 0; i < n; i++ {
+			doneQueue <- 1
+		}
+
+		for i := 0; i < n; i++ {
+			sigQueue <- 1
+		}
+
+		sigQueue <- 1
 	}
 
-	sigQueue <- struct{}{}
-
-	hlog.Printf("warn", "Signal %s ... Done", sg.String())
-	hlog.Flush()
+	slog.Warn(fmt.Sprintf("Signal %s ... Done", sg.String()))
 }
