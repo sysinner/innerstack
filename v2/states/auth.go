@@ -15,7 +15,7 @@
 package states
 
 import (
-	hauth2 "github.com/hooto/hauth/v2/hauth"
+	hauth2 "github.com/hooto/hauth/go/v2"
 	"github.com/sysinner/incore/config"
 )
 

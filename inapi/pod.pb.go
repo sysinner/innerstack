@@ -416,7 +416,7 @@ type PbServicePort struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name     string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`                       // struct:object_slice_equal_skip
+	Name     string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`                           // struct:object_slice_equal_skip
 	BoxPort  uint32 `protobuf:"varint,2,opt,name=box_port,json=boxPort,proto3" json:"box_port,omitempty" toml:"box_port,omitempty"` // struct:object_slice_key
 	HostPort uint32 `protobuf:"varint,3,opt,name=host_port,json=hostPort,proto3" json:"host_port,omitempty" toml:"host_port,omitempty"`
 }

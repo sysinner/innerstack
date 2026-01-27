@@ -40,7 +40,7 @@ type ResVolValue struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name  string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`    // struct:object_slice_key
+	Name  string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`     // struct:object_slice_key
 	Value int32  `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty" toml:"value,omitempty"` // GB
 	Attrs uint32 `protobuf:"varint,3,opt,name=attrs,proto3" json:"attrs,omitempty" toml:"attrs,omitempty"`
 }

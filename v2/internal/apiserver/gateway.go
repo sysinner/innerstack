@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	hauth2 "github.com/hooto/hauth/v2/hauth"
+	hauth2 "github.com/hooto/hauth/go/v2"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 	"golang.org/x/net/idna"

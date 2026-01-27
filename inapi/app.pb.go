@@ -285,7 +285,7 @@ type AppServicePortPodBind struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Port      uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty" toml:"port,omitempty"`               // struct:object_slice_key
+	Port      uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty" toml:"port,omitempty"`                 // struct:object_slice_key
 	PodId     string               `protobuf:"bytes,2,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty" toml:"pod_id,omitempty"` // struct:object_slice_key
 	Endpoints []*AppServiceReplica `protobuf:"bytes,3,rep,name=endpoints,proto3" json:"endpoints,omitempty" toml:"endpoints,omitempty"`
 	Updated   int64                `protobuf:"varint,4,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"` // struct:object_slice_equal_skip

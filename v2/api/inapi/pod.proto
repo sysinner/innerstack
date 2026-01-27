@@ -12,22 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inapi
+syntax = "proto3";
 
-import (
-	"fmt"
+package inapi;
 
-	hauth2 "github.com/hooto/hauth/go/v2"
-)
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
 
-var (
-	AuthPermSysAll = hauth2.NewScopeFilter("sys", "*")
-)
+import "common.proto";
 
-func NsGlobalGatewayServiceDomain(name string) []byte {
-	return []byte(fmt.Sprintf("v2/service/gateway/domain/%s", name))
+message PodSpec {
+  string id = 1;
 }
 
-func NsZoneSysAccessKey(zone, kid string) []byte {
-	return []byte(fmt.Sprintf("v2/zone/%s/sys-ak/%s", zone, kid))
+message PodAppSpec {
+  string id = 1;
 }
+
+message PodOperate {}
+
+message Pod {
+  inapi.Common_Meta meta = 2;
+
+  PodSpec spec = 3;
+
+  PodAppSpec app_spec = 4;
+
+  PodOperate operate = 5;
+}
+
+message Pod_CreateRequest {}
+
+message Pod_CreateResponse {}

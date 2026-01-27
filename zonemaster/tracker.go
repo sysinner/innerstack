@@ -30,8 +30,8 @@ import (
 	"github.com/sysinner/incore/status"
 	inapi2 "github.com/sysinner/incore/v2/inapi"
 
-	hauth1 "github.com/hooto/hauth/go/hauth/v1"
-	hauth2 "github.com/hooto/hauth/v2/hauth"
+	hauth1 "github.com/hooto/hauth/go"
+	hauth2 "github.com/hooto/hauth/go/v2"
 	iamdata "github.com/hooto/iam/data"
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 )

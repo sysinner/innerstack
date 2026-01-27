@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"strings"
 
-	hauth1 "github.com/hooto/hauth/go/hauth/v1"
+	hauth1 "github.com/hooto/hauth/go"
 	"github.com/hooto/htoml4g/htoml"
 	iamcfg "github.com/hooto/iam/config"
 	"github.com/lessos/lessgo/crypto/idhash"

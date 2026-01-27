@@ -17,7 +17,7 @@ package data
 import (
 	"errors"
 
-	"github.com/hooto/hauth/go/hauth/v1"
+	"github.com/hooto/hauth/go"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/htoml4g/htoml"
 

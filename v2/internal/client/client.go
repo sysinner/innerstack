@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hooto/hauth/go/hauth/v1"
+	hauth1 "github.com/hooto/hauth/go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -49,7 +49,7 @@ var (
 type Config struct {
 	Addr      string               `toml:"addr" json:"addr"`
 	Database  string               `toml:"database,omitempty" json:"database,omitempty"`
-	AccessKey *hauth.AccessKey     `toml:"access_key" json:"access_key"`
+	AccessKey *hauth1.AccessKey    `toml:"access_key" json:"access_key"`
 	Options   *kvapi.ClientOptions `toml:"options,omitempty" json:"options,omitempty"`
 }
 
@@ -432,7 +432,7 @@ func (it *clientDeleter) Exec() *kvapi.ResultSet {
 }
 
 func rpcClientConnect(addr string,
-	key *hauth.AccessKey,
+	key *hauth1.AccessKey,
 	forceNew bool) (*grpc.ClientConn, error) {
 
 	if key == nil {
@@ -473,6 +473,6 @@ func rpcClientConnect(addr string,
 	return c, nil
 }
 
-func newAppCredential(key *hauth.AccessKey) credentials.PerRPCCredentials {
-	return hauth.NewGrpcAppCredential(key)
+func newAppCredential(key *hauth1.AccessKey) credentials.PerRPCCredentials {
+	return hauth1.NewGrpcAppCredential(key)
 }

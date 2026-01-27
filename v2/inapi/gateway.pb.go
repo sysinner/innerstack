@@ -258,8 +258,8 @@ type GatewayService_DomainDeploy struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty" yaml:"id,omitempty"`
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty" yaml:"name,omitempty"`
+	Id                string                               `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty" yaml:"id,omitempty"`
+	Name              string                               `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty" yaml:"name,omitempty"`
 	LetsencryptEnable bool                                 `protobuf:"varint,4,opt,name=letsencrypt_enable,json=letsencryptEnable,proto3" json:"letsencrypt_enable,omitempty" toml:"letsencrypt_enable,omitempty" yaml:"letsencrypt_enable,omitempty"`
 	Routes            []*GatewayService_DomainDeploy_Route `protobuf:"bytes,9,rep,name=routes,proto3" json:"routes,omitempty" toml:"routes,omitempty" yaml:"routes,omitempty"`
 	Version           uint64                               `protobuf:"varint,15,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty" yaml:"version,omitempty"`

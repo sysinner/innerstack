@@ -21,7 +21,7 @@ import (
 	"hash/crc32"
 	"time"
 
-	hauth2 "github.com/hooto/hauth/v2/hauth"
+	hauth2 "github.com/hooto/hauth/go/v2"
 	"github.com/hooto/iam/iamclient"
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 	"github.com/sysinner/incore/config"

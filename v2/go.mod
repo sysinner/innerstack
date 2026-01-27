@@ -1,16 +1,16 @@
 module github.com/sysinner/incore/v2
 
-go 1.25.5
+go 1.25.6
 
 require (
-	github.com/hooto/hauth v0.1.4
-	github.com/hooto/hlog4g v0.9.5
+	github.com/hooto/hauth/go v0.1.5
+	github.com/hooto/hauth/go/v2 v2.0.0-20260125120444-4cbf92d8d081
 	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/htoml4g v0.9.5
-	github.com/hooto/iam v1.0.1
+	github.com/hooto/iam v1.0.4
 	github.com/lessos/lessgo v1.0.1
-	github.com/lynkdb/kvgo/v2 v2.0.12
-	github.com/lynkdb/lynkapi v0.0.9
+	github.com/lynkdb/kvgo/v2 v2.0.13
+	github.com/lynkdb/lynkapi v0.0.11
 	github.com/sysinner/incore v0.10.2
 	golang.org/x/crypto v0.47.0
 	golang.org/x/net v0.49.0
@@ -38,7 +38,9 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/hooto/hauth v0.1.4 // indirect
 	github.com/hooto/hflag4g v0.10.1 // indirect
+	github.com/hooto/hlog4g v0.9.5 // indirect
 	github.com/hooto/hmsg v0.1.0 // indirect
 	github.com/hooto/httpsrv v0.12.6 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
