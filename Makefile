@@ -1,34 +1,27 @@
 PROTOC_CMD = protoc
-PROTOC_ARGS = --proto_path=./api --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./api/*.proto
-PROTOC_RUST_ARGS = --proto_path=./api --rust_out=experimental-codegen=enabled,kernel=cpp:./inapi ./api/*.proto
 
-PROTOC_V2_ARGS = --proto_path=./v2/api/inapi --go_opt=paths=source_relative --go_out=./v2/inapi --go-grpc_out=./v2/inapi ./v2/api/inapi/*.proto
+PROTOC_V2_ARGS = --proto_path=./api/inapi --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./api/inapi/*.proto
 
 HTOML_TAG_FIX_CMD = htoml-tag-fix
 HTOML_TAG_FIX_ARGS = ./inapi
 
 LYNKAPI_FILTER_CMD = lynkapi-fitter
-LYNKAPI_FILTER_V2_ARGS = v2/inapi
+LYNKAPI_FILTER_V2_ARGS = inapi
 
-##  RUNC_IMAGE=sysinner/incore-build:0.1
-##  RUNC_PLATFORM=--platform=linux/amd64
-##
-##  RUNC_OK=$(docker images -q "${RUNC_IMAGE}" 2 >/dev/null)
-
-.PHONY: api
+.PHONY: api cli
 api:
-	$(PROTOC_CMD) $(PROTOC_ARGS)
 	$(PROTOC_CMD) $(PROTOC_V2_ARGS)
-	# $(PROTOC_CMD) $(PROTOC_RUST_ARGS)
 	$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_ARGS)
 	$(LYNKAPI_FILTER_CMD) $(LYNKAPI_FILTER_V2_ARGS)
 
-.PHONY: api-in-runc
-api-in-runc:
-	./build/build-runc.sh
-	## docker run --rm -it ${RUNC_PLATFORM} --user "$(shell id -u):$(shell id -g)" -v $(PWD):/build_path -w /build_path ${RUNC_IMAGE}
+cli:
+	go build -o bin/cli cmd/cli/main.go
 
-all: api
+inagent:
+	GOOS=linux GOARCH=amd64 go build -o bin/inagent-linux-amd64 cmd/inagent/inagent.go
+	GOOS=linux GOARCH=arm64 go build -o bin/inagent-linux-arm64 cmd/inagent/inagent.go
+
+all: api cli inagent
 	@echo ""
 	@echo "build complete"
 	@echo ""

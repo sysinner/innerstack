@@ -1,0 +1,131 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+import "host.proto";
+import "zone.proto";
+import "app.proto";
+
+service Hostlet {
+  rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
+}
+
+service Zonelet {
+  rpc ZoneInit(ZoneInitRequest) returns (ZoneInitResponse) {}
+
+  rpc ZoneInfo(ZoneInfoRequest) returns (ZoneInfoResponse) {}
+
+  rpc HostJoin(HostJoinRequest) returns (HostJoinResponse) {}
+
+  rpc HostList(HostListRequest) returns (HostListResponse) {}
+  
+  rpc AppInstanceDeploy(AppInstanceDeployRequest) returns (AppInstanceDeployResponse) {}
+
+  rpc AppInstanceInfo(AppInstanceInfoRequest) returns (AppInstanceInfoResponse) {}
+
+  rpc AppInstanceList(AppInstanceListRequest) returns (AppInstanceListResponse) {}
+
+  rpc AppInstanceDelete(AppInstanceDeleteRequest) returns (AppInstanceDeleteResponse) {}
+
+  rpc HostStatusUpdate(HostStatusUpdateRequest)
+      returns (HostStatusUpdateResponse) {}
+}
+
+message CommonResponse {}
+
+message HostInitRequest {
+  string zone_id = 1;
+  repeated string zone_hosts = 2;
+  string token = 3;
+}
+
+message HostInitResponse {
+  string host_id = 1;
+  HostStatus status = 2;
+}
+
+
+
+message HostJoinRequest {
+  string addr = 1;
+  string token = 2;
+}
+
+message HostJoinResponse {
+  HostStatus status = 1;
+}
+
+message HostListRequest {}
+
+message HostListResponse {
+  repeated Host hosts = 2;
+}
+
+message HostStatusUpdateRequest {
+  Host host = 2;
+  HostStatus status = 3;
+}
+
+message HostStatusUpdateResponse {
+  repeated AppInstance app_instances = 2;
+}
+
+message ZoneInitRequest {
+  string name = 1;
+}
+
+message ZoneInitResponse {}
+
+message ZoneInfoRequest {}
+
+message ZoneInfoResponse {
+  Zone zone = 1;
+  repeated Host hosts = 2;
+}
+
+message AppInstanceDeployRequest {
+  string id = 1;
+  AppSpec spec = 2;
+  uint32 replica_cap = 3;
+}
+
+message AppInstanceDeployResponse {
+  string id = 1;
+}
+
+message AppInstanceInfoRequest {
+  string id = 1;
+}
+
+message AppInstanceInfoResponse {
+  AppInstance instance = 1;
+}
+
+message AppInstanceListRequest {}
+
+message AppInstanceListResponse {
+  repeated AppInstance items = 1;
+}
+
+message AppInstanceDeleteRequest {
+  string id = 1;
+}
+
+message AppInstanceDeleteResponse {}

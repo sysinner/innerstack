@@ -1,0 +1,165 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+import "common.proto";
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+message AppInstance {
+  string id = 1;
+  string name = 2;
+
+  map<string, string> labels = 6;
+
+  map<string, string> annotations = 7;
+
+  AppOperate operate = 90;
+  
+  AppSpec spec = 100;
+}
+
+message AppReplicaInstance {
+  string id = 1;
+
+  AppOperate operate = 90;
+  
+  AppOperateReplica replica = 91;
+  
+  AppSpec spec = 100;
+}
+
+message AppSpec {
+
+  string name = 2;
+
+  string description = 3;
+
+  string runtime_image = 5;
+
+  string cpu_limit = 10;
+  string memory_limit = 11;
+  string volume_limit = 12;
+
+  AppServicePort service_ports = 13;
+
+  repeated AppExecutor executors = 19;
+
+  repeated AppPackage packages = 20;
+
+  repeated AppSpecDepend depends = 21;
+
+  repeated AppSpecDepend service_depends = 22;
+}
+
+message AppPackage {
+  string name = 2;
+  string version = 3;
+}
+
+message AppSpecDepend {
+  string name = 2;
+  string version = 3;
+}
+
+message AppServicePort {
+  uint32 port = 1;
+  string name = 2;
+  repeated AppServiceReplica endpoints = 3;
+}
+
+message AppServiceReplica {
+   uint32 rep = 1; 
+    string ip = 2;
+    uint32 port = 3;
+    string vpc_ipv4 = 4;
+}
+
+message AppExecutor {
+  string name = 1;
+  int64 updated = 2;
+  string vendor = 3;
+  string dir = 4;
+  string user = 5;
+  string group = 6;
+
+  string start_script = 10;
+  string stop_script = 11;
+  uint32 priority = 12;
+  AppExecPlanner plan = 13;
+  repeated Label options = 14;
+  AppExecutorStatus status = 15;
+}
+
+message AppExecPlanner {
+  bool on_boot = 1;
+  uint32 on_tick = 2;
+  string on_calendar = 3;
+  AppExecPlanOnFailed on_failed = 4;
+}
+
+message AppExecPlanOnFailed {
+  string retry_sec = 1;
+  int32 retry_max = 2;
+}
+
+message AppExecutorStatusPlanner {
+  int64 updated = 1;
+  int32 on_failed_retry_num = 2;
+}
+
+message AppExecutorStatus {
+  string name = 1;
+  int64 created = 2;
+  int64 updated = 3;
+  string vendor = 4;
+  uint64 action = 5;
+  AppExecutorStatusPlanner plan = 6;
+}
+
+message AppOperate {
+
+  string action = 1;
+
+  int64 cpu_limit = 10;
+  int64 memory_limit = 11;
+  int64 volume_limit = 12;
+
+  repeated AppOperateOption options = 13;
+  repeated AppServicePort services = 14;
+
+  uint32 replica_cap = 19;
+  repeated AppOperateReplica replicas = 20;
+}
+
+
+
+message AppOperateOption {
+  string name = 1;
+  repeated AppOperateOptionField items = 3;
+}
+
+message AppOperateOptionField {
+  string name = 1;
+  string value = 2;
+}
+
+message AppOperateReplica {
+  uint32 id = 1;
+  string host_id = 2;
+}
