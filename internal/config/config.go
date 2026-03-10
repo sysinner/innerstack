@@ -124,7 +124,8 @@ func Setup(ver, rel string) error {
 
 			if !inutil.IsLocalIP(Config.Hostlet.LanAddr) &&
 				Config.Hostlet.LanAddr != "127.0.0.1" {
-				return errors.New("lan_addr " + Config.Hostlet.LanAddr + " not found in local network interfaces")
+				return errors.New("lan_addr " + Config.Hostlet.LanAddr +
+					" not found in local network interfaces")
 			}
 		}
 

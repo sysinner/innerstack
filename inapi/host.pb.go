@@ -34,17 +34,26 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Host represents a physical or virtual machine in the cluster.
+// It contains the host's identity, connection information, operational
+// parameters, and current status.
 type Host struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id        string       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
-	Name      string       `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
-	PeerAddr  string       `protobuf:"bytes,3,opt,name=peer_addr,json=peerAddr,proto3" json:"peer_addr,omitempty" toml:"peer_addr,omitempty"`
-	SecretKey string       `protobuf:"bytes,8,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty" toml:"secret_key,omitempty"`
-	Operate   *HostOperate `protobuf:"bytes,10,opt,name=operate,proto3" json:"operate,omitempty" toml:"operate,omitempty"`
-	Status    *HostStatus  `protobuf:"bytes,30,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
+	// id is the unique identifier of the host.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	// name is the hostname of the machine.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// peer_addr is the network address used for peer-to-peer communication.
+	PeerAddr string `protobuf:"bytes,3,opt,name=peer_addr,json=peerAddr,proto3" json:"peer_addr,omitempty" toml:"peer_addr,omitempty"`
+	// secret_key is the authentication key for secure communication.
+	SecretKey string `protobuf:"bytes,8,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty" toml:"secret_key,omitempty"`
+	// operate specifies the operational parameters for the host.
+	Operate *HostOperate `protobuf:"bytes,10,opt,name=operate,proto3" json:"operate,omitempty" toml:"operate,omitempty"`
+	// status reflects the current observed state of the host.
+	Status *HostStatus `protobuf:"bytes,30,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
 }
 
 func (x *Host) Reset() {
@@ -121,13 +130,17 @@ func (x *Host) GetStatus() *HostStatus {
 	return nil
 }
 
+// HostOperate defines the operational resource allocation parameters for a host.
 type HostOperate struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	CpuAlloc     int64 `protobuf:"varint,1,opt,name=cpu_alloc,json=cpuAlloc,proto3" json:"cpu_alloc,omitempty" toml:"cpu_alloc,omitempty"`
-	MemAlloc     int64 `protobuf:"varint,2,opt,name=mem_alloc,json=memAlloc,proto3" json:"mem_alloc,omitempty" toml:"mem_alloc,omitempty"`
+	// cpu_alloc specifies the allocated CPU resources in millicores.
+	CpuAlloc int64 `protobuf:"varint,1,opt,name=cpu_alloc,json=cpuAlloc,proto3" json:"cpu_alloc,omitempty" toml:"cpu_alloc,omitempty"`
+	// mem_alloc specifies the allocated memory in bytes.
+	MemAlloc int64 `protobuf:"varint,2,opt,name=mem_alloc,json=memAlloc,proto3" json:"mem_alloc,omitempty" toml:"mem_alloc,omitempty"`
+	// storage_alloc specifies the allocated storage in bytes.
 	StorageAlloc int64 `protobuf:"varint,3,opt,name=storage_alloc,json=storageAlloc,proto3" json:"storage_alloc,omitempty" toml:"storage_alloc,omitempty"`
 }
 
@@ -184,14 +197,18 @@ func (x *HostOperate) GetStorageAlloc() int64 {
 	return 0
 }
 
+// HostPlatform contains information about the host's operating system and hardware.
 type HostPlatform struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Os     string `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty" toml:"os,omitempty"`
+	// os is the operating system name (e.g., "linux", "darwin").
+	Os string `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty" toml:"os,omitempty"`
+	// kernel is the kernel version string.
 	Kernel string `protobuf:"bytes,2,opt,name=kernel,proto3" json:"kernel,omitempty" toml:"kernel,omitempty"`
-	Arch   string `protobuf:"bytes,3,opt,name=arch,proto3" json:"arch,omitempty" toml:"arch,omitempty"`
+	// arch is the CPU architecture (e.g., "amd64", "arm64").
+	Arch string `protobuf:"bytes,3,opt,name=arch,proto3" json:"arch,omitempty" toml:"arch,omitempty"`
 }
 
 func (x *HostPlatform) Reset() {
@@ -247,14 +264,18 @@ func (x *HostPlatform) GetArch() string {
 	return ""
 }
 
+// HostVolume represents a storage volume on the host.
 type HostVolume struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name  string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// name is the name or mount point of the volume.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// total is the total capacity of the volume in bytes.
 	Total uint64 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty" toml:"total,omitempty"`
-	Used  uint64 `protobuf:"varint,3,opt,name=used,proto3" json:"used,omitempty" toml:"used,omitempty"`
+	// used is the used space on the volume in bytes.
+	Used uint64 `protobuf:"varint,3,opt,name=used,proto3" json:"used,omitempty" toml:"used,omitempty"`
 }
 
 func (x *HostVolume) Reset() {
@@ -310,41 +331,66 @@ func (x *HostVolume) GetUsed() uint64 {
 	return 0
 }
 
+// HostStatus represents the current status and metrics of a host.
 type HostStatus struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// host_id is the unique identifier of the host.
 	HostId string `protobuf:"bytes,1,opt,name=host_id,json=hostId,proto3" json:"host_id,omitempty" toml:"host_id,omitempty"`
-	// Timestamp
-	Uptime  int64 `protobuf:"varint,5,opt,name=uptime,proto3" json:"uptime,omitempty" toml:"uptime,omitempty"`
+	// Timestamp fields
+	// uptime is the duration in seconds since the host was started.
+	Uptime int64 `protobuf:"varint,5,opt,name=uptime,proto3" json:"uptime,omitempty" toml:"uptime,omitempty"`
+	// updated is the Unix timestamp of the last status update.
 	Updated int64 `protobuf:"varint,6,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
 	// CPU Info
+	// cpu_model is the CPU model name.
 	CpuModel string `protobuf:"bytes,10,opt,name=cpu_model,json=cpuModel,proto3" json:"cpu_model,omitempty" toml:"cpu_model,omitempty"`
-	CpuCores int32  `protobuf:"varint,11,opt,name=cpu_cores,json=cpuCores,proto3" json:"cpu_cores,omitempty" toml:"cpu_cores,omitempty"`
-	CpuSys   int64  `protobuf:"varint,12,opt,name=cpu_sys,json=cpuSys,proto3" json:"cpu_sys,omitempty" toml:"cpu_sys,omitempty"`
-	CpuUser  int64  `protobuf:"varint,13,opt,name=cpu_user,json=cpuUser,proto3" json:"cpu_user,omitempty" toml:"cpu_user,omitempty"`
+	// cpu_cores is the number of CPU cores.
+	CpuCores int32 `protobuf:"varint,11,opt,name=cpu_cores,json=cpuCores,proto3" json:"cpu_cores,omitempty" toml:"cpu_cores,omitempty"`
+	// cpu_sys is the CPU time spent in system mode (in jiffies or milliseconds).
+	CpuSys int64 `protobuf:"varint,12,opt,name=cpu_sys,json=cpuSys,proto3" json:"cpu_sys,omitempty" toml:"cpu_sys,omitempty"`
+	// cpu_user is the CPU time spent in user mode (in jiffies or milliseconds).
+	CpuUser int64 `protobuf:"varint,13,opt,name=cpu_user,json=cpuUser,proto3" json:"cpu_user,omitempty" toml:"cpu_user,omitempty"`
 	// Memory Info
-	MemTotal     int64 `protobuf:"varint,20,opt,name=mem_total,json=memTotal,proto3" json:"mem_total,omitempty" toml:"mem_total,omitempty"`
-	MemUsed      int64 `protobuf:"varint,21,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty" toml:"mem_used,omitempty"`
+	// mem_total is the total memory in bytes.
+	MemTotal int64 `protobuf:"varint,20,opt,name=mem_total,json=memTotal,proto3" json:"mem_total,omitempty" toml:"mem_total,omitempty"`
+	// mem_used is the used memory in bytes.
+	MemUsed int64 `protobuf:"varint,21,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty" toml:"mem_used,omitempty"`
+	// mem_available is the available memory in bytes.
 	MemAvailable int64 `protobuf:"varint,22,opt,name=mem_available,json=memAvailable,proto3" json:"mem_available,omitempty" toml:"mem_available,omitempty"`
 	// Network Info
+	// lan_addr is the LAN (local area network) IP address.
 	LanAddr string `protobuf:"bytes,30,opt,name=lan_addr,json=lanAddr,proto3" json:"lan_addr,omitempty" toml:"lan_addr,omitempty"`
+	// wan_addr is the WAN (wide area network) IP address.
 	WanAddr string `protobuf:"bytes,31,opt,name=wan_addr,json=wanAddr,proto3" json:"wan_addr,omitempty" toml:"wan_addr,omitempty"`
 	// Network IO
+	// net_recv_bytes is the total bytes received over the network.
 	NetRecvBytes int64 `protobuf:"varint,40,opt,name=net_recv_bytes,json=netRecvBytes,proto3" json:"net_recv_bytes,omitempty" toml:"net_recv_bytes,omitempty"`
+	// net_recv_count is the total number of packets received.
 	NetRecvCount int64 `protobuf:"varint,41,opt,name=net_recv_count,json=netRecvCount,proto3" json:"net_recv_count,omitempty" toml:"net_recv_count,omitempty"`
+	// net_sent_bytes is the total bytes sent over the network.
 	NetSentBytes int64 `protobuf:"varint,42,opt,name=net_sent_bytes,json=netSentBytes,proto3" json:"net_sent_bytes,omitempty" toml:"net_sent_bytes,omitempty"`
+	// net_sent_count is the total number of packets sent.
 	NetSentCount int64 `protobuf:"varint,43,opt,name=net_sent_count,json=netSentCount,proto3" json:"net_sent_count,omitempty" toml:"net_sent_count,omitempty"`
 	// Storage IO
-	DiskReadBytes  int64 `protobuf:"varint,50,opt,name=disk_read_bytes,json=diskReadBytes,proto3" json:"disk_read_bytes,omitempty" toml:"disk_read_bytes,omitempty"`
-	DiskReadCount  int64 `protobuf:"varint,51,opt,name=disk_read_count,json=diskReadCount,proto3" json:"disk_read_count,omitempty" toml:"disk_read_count,omitempty"`
+	// disk_read_bytes is the total bytes read from disk.
+	DiskReadBytes int64 `protobuf:"varint,50,opt,name=disk_read_bytes,json=diskReadBytes,proto3" json:"disk_read_bytes,omitempty" toml:"disk_read_bytes,omitempty"`
+	// disk_read_count is the total number of disk read operations.
+	DiskReadCount int64 `protobuf:"varint,51,opt,name=disk_read_count,json=diskReadCount,proto3" json:"disk_read_count,omitempty" toml:"disk_read_count,omitempty"`
+	// disk_write_bytes is the total bytes written to disk.
 	DiskWriteBytes int64 `protobuf:"varint,52,opt,name=disk_write_bytes,json=diskWriteBytes,proto3" json:"disk_write_bytes,omitempty" toml:"disk_write_bytes,omitempty"`
+	// disk_write_count is the total number of disk write operations.
 	DiskWriteCount int64 `protobuf:"varint,53,opt,name=disk_write_count,json=diskWriteCount,proto3" json:"disk_write_count,omitempty" toml:"disk_write_count,omitempty"`
 	// Storage Usage
+	// disk_total_bytes is the total disk capacity in bytes.
 	DiskTotalBytes int64 `protobuf:"varint,54,opt,name=disk_total_bytes,json=diskTotalBytes,proto3" json:"disk_total_bytes,omitempty" toml:"disk_total_bytes,omitempty"`
-	DiskFreeBytes  int64 `protobuf:"varint,55,opt,name=disk_free_bytes,json=diskFreeBytes,proto3" json:"disk_free_bytes,omitempty" toml:"disk_free_bytes,omitempty"`
-	// Container Server Info (支持多种 driver: docker, pouch 等)
+	// disk_free_bytes is the free disk space in bytes.
+	DiskFreeBytes int64 `protobuf:"varint,55,opt,name=disk_free_bytes,json=diskFreeBytes,proto3" json:"disk_free_bytes,omitempty" toml:"disk_free_bytes,omitempty"`
+	// Container Server Info
+	// containers maps driver names to their container service status.
+	// Supports multiple drivers: docker, containerd, etc.
 	Containers map[string]*HostStatus_Container `protobuf:"bytes,60,rep,name=containers,proto3" json:"containers,omitempty" toml:"containers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -541,17 +587,22 @@ func (x *HostStatus) GetContainers() map[string]*HostStatus_Container {
 	return nil
 }
 
-// 容器服务状态信息
+// HostStatus_Container represents the status of a container runtime service.
 type HostStatus_Container struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Driver       string `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty" toml:"driver,omitempty"`                                  // 驱动名称: docker, pouch, etc.
-	Version      string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`                                // 驱动版本
-	ApiVersion   string `protobuf:"bytes,3,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty" toml:"api_version,omitempty"`        // API 版本
-	ContainerNum int32  `protobuf:"varint,4,opt,name=container_num,json=containerNum,proto3" json:"container_num,omitempty" toml:"container_num,omitempty"` // 容器数量
-	ImageNum     int32  `protobuf:"varint,5,opt,name=image_num,json=imageNum,proto3" json:"image_num,omitempty" toml:"image_num,omitempty"`             // 镜像数量
+	// driver is the container driver name (e.g., "docker", "containerd").
+	Driver string `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty" toml:"driver,omitempty"`
+	// version is the driver version string.
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	// api_version is the API version of the container runtime.
+	ApiVersion string `protobuf:"bytes,3,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty" toml:"api_version,omitempty"`
+	// container_num is the number of running containers.
+	ContainerNum int32 `protobuf:"varint,4,opt,name=container_num,json=containerNum,proto3" json:"container_num,omitempty" toml:"container_num,omitempty"`
+	// image_num is the number of available images.
+	ImageNum int32 `protobuf:"varint,5,opt,name=image_num,json=imageNum,proto3" json:"image_num,omitempty" toml:"image_num,omitempty"`
 }
 
 func (x *HostStatus_Container) Reset() {
@@ -621,14 +672,18 @@ func (x *HostStatus_Container) GetImageNum() int32 {
 	return 0
 }
 
+// HostService_Zone represents zone information from the host service perspective.
 type HostService_Zone struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Meta        *Common_Meta `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty" toml:"meta,omitempty"`
-	Action      string       `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
-	Description string       `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
+	// meta contains common metadata for the zone.
+	Meta *Common_Meta `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty" toml:"meta,omitempty"`
+	// action specifies the current action on the zone.
+	Action string `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
+	// description provides a human-readable description of the zone.
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
 }
 
 func (x *HostService_Zone) Reset() {
@@ -684,6 +739,7 @@ func (x *HostService_Zone) GetDescription() string {
 	return ""
 }
 
+// HostService_ZoneListRequest is the request message for listing zones.
 type HostService_ZoneListRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -722,11 +778,13 @@ func (*HostService_ZoneListRequest) Descriptor() ([]byte, []int) {
 	return file_host_proto_rawDescGZIP(), []int{7}
 }
 
+// HostService_ZoneListResponse is the response message containing the list of zones.
 type HostService_ZoneListResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// zones is the list of zones available to the host.
 	Zones []*HostService_Zone `protobuf:"bytes,9,rep,name=zones,proto3" json:"zones,omitempty" toml:"zones,omitempty"`
 }
 

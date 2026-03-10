@@ -21,145 +21,406 @@ import "common.proto";
 option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
 
+// AppInstance represents a deployed application instance in the cluster.
+// It is the top-level resource that encapsulates the application specification,
+// operational parameters, and current status.
 message AppInstance {
+  // id is the unique identifier of the application instance.
   string id = 1;
+
+  // name is the human-readable name of the application instance.
   string name = 2;
 
-  map<string, string> labels = 6;
+  // map<string, string> labels = 6;
 
-  map<string, string> annotations = 7;
+  // map<string, string> annotations = 7;
 
-  AppOperate operate = 90;
-  
-  AppSpec spec = 100;
+  // spec defines the desired state and configuration of the application.
+  AppSpec spec = 90;
+
+  // operate specifies the operational parameters and desired actions.
+  AppOperate operate = 100;
+
+  // status reflects the current observed state of the application instance.
+  AppStatus status = 101;
 }
 
-message AppReplicaInstance {
-  string id = 1;
-
-  AppOperate operate = 90;
-  
-  AppOperateReplica replica = 91;
-  
-  AppSpec spec = 100;
-}
-
+// AppSpec defines the specification of an application, including its resources,
+// services, executors, packages, dependencies, and configuration.
 message AppSpec {
+  // kind indicates the type of application (e.g., "app", "service").
+  string kind = 1;
 
+  // name is the unique name of the application specification.
   string name = 2;
 
+  // description provides a human-readable description of the application.
   string description = 3;
 
-  string runtime_image = 5;
+  // resources defines the compute resource requirements and limits.
+  AppSpecResources resources = 5;
 
-  string cpu_limit = 10;
-  string memory_limit = 11;
-  string volume_limit = 12;
+  // service_ports is a list of service ports exposed by the application.
+  repeated AppServicePort service_ports = 13;
 
-  AppServicePort service_ports = 13;
-
+  // executors is a list of executors (commands/scripts) that run within the application.
   repeated AppExecutor executors = 19;
 
-  repeated AppPackage packages = 20;
+  // packages is a list of software packages required by the application.
+  repeated AppSpecPackage packages = 20;
 
+  // depends is a list of application-level dependencies.
   repeated AppSpecDepend depends = 21;
 
+  // service_depends is a list of service-level dependencies.
   repeated AppSpecDepend service_depends = 22;
+
+  // config defines the configuration schema for the application.
+  AppSpecConfig config = 23;
 }
 
-message AppPackage {
+// AppSpecResources defines the resource allocation for an application.
+message AppSpecResources {
+  // runtime_image specifies the container runtime image to use (e.g., docker image).
+  string runtime_image = 1;
+
+  // cpu_limit specifies the maximum CPU resources allowed (e.g., "500m" for 0.5 cores).
+  string cpu_limit = 2;
+
+  // memory_limit specifies the maximum memory resources allowed (e.g., "512Mi").
+  string memory_limit = 3;
+
+  // volume_limit specifies the maximum storage volume allowed (e.g., "10Gi").
+  string volume_limit = 4;
+}
+
+// AppSpecPackage represents a software package dependency.
+message AppSpecPackage {
+  // name is the name of the package.
   string name = 2;
+
+  // version specifies the required version of the package.
   string version = 3;
 }
 
+// AppSpecDepend represents a dependency on another application or service.
 message AppSpecDepend {
+  // name is the name of the dependent application or service.
   string name = 2;
+
+  // version specifies the required version of the dependency.
   string version = 3;
 }
 
+// AppServicePort defines a service port exposed by the application.
 message AppServicePort {
+  // port is the port number on which the service is exposed.
   uint32 port = 1;
+
+  // name is a descriptive name for the service port.
   string name = 2;
+
+  // endpoints is a list of replica endpoints for this service port.
   repeated AppServiceReplica endpoints = 3;
 }
 
+// AppServiceReplica represents an endpoint replica for a service port.
 message AppServiceReplica {
-   uint32 rep = 1; 
-    string ip = 2;
-    uint32 port = 3;
-    string vpc_ipv4 = 4;
+  // rep is the replica identifier/number.
+  uint32 rep = 1;
+
+  // ip is the IP address of the replica.
+  string ip = 2;
+
+  // port is the port number of the replica.
+  uint32 port = 3;
+
+  // vpc_ipv4 is the VPC IPv4 address of the replica.
+  string vpc_ipv4 = 4;
 }
 
+// AppExecutor defines an executor that runs commands or scripts within the application.
 message AppExecutor {
+  // name is the unique name of the executor.
   string name = 1;
+
+  // updated is the Unix timestamp of the last update.
   int64 updated = 2;
+
+  // vendor specifies the vendor or provider of the executor.
   string vendor = 3;
+
+  // dir specifies the working directory for the executor.
   string dir = 4;
+
+  // user specifies the user under which the executor runs.
   string user = 5;
+
+  // group specifies the group under which the executor runs.
   string group = 6;
 
+  // start_script is the script or command to start the executor.
   string start_script = 10;
+
+  // stop_script is the script or command to stop the executor.
   string stop_script = 11;
+
+  // priority specifies the execution priority (higher values = higher priority).
   uint32 priority = 12;
-  AppExecPlanner plan = 13;
+
+  // plan defines the execution scheduling plan.
+  AppSpecExecPlanner plan = 13;
+
+  // options is a list of key-value options for the executor.
   repeated Label options = 14;
+
+  // status reflects the current status of the executor.
   AppExecutorStatus status = 15;
 }
 
-message AppExecPlanner {
+// AppSpecExecPlanner defines the scheduling plan for an executor.
+message AppSpecExecPlanner {
+  // on_boot indicates whether to execute on system boot.
   bool on_boot = 1;
+
+  // on_tick specifies the interval in seconds for periodic execution (0 = disabled).
   uint32 on_tick = 2;
+
+  // on_calendar specifies a cron-like schedule for execution (e.g., "0 * * * *").
   string on_calendar = 3;
+
+  // on_failed defines the behavior when execution fails.
   AppExecPlanOnFailed on_failed = 4;
 }
 
+// AppExecPlanOnFailed defines the retry behavior for failed executions.
 message AppExecPlanOnFailed {
+  // retry_sec specifies the retry interval in seconds (e.g., "10s", "1m").
   string retry_sec = 1;
+
+  // retry_max specifies the maximum number of retry attempts.
   int32 retry_max = 2;
 }
 
+// AppExecutorStatusPlanner tracks the planning status of an executor.
 message AppExecutorStatusPlanner {
+  // updated is the Unix timestamp of the last status update.
   int64 updated = 1;
+
+  // on_failed_retry_num is the current retry count after failures.
   int32 on_failed_retry_num = 2;
 }
 
+// AppExecutorStatus represents the current status of an executor.
 message AppExecutorStatus {
+  // name is the name of the executor.
   string name = 1;
+
+  // created is the Unix timestamp when the executor was created.
   int64 created = 2;
+
+  // updated is the Unix timestamp of the last status change.
   int64 updated = 3;
+
+  // vendor specifies the vendor or provider of the executor.
   string vendor = 4;
+
+  // action indicates the current or last action being performed.
   uint64 action = 5;
+
+  // plan contains the planning status information.
   AppExecutorStatusPlanner plan = 6;
 }
 
+// AppOperate defines the operational parameters and desired actions for an application.
 message AppOperate {
-
+  // action specifies the desired operation (manually set by user).
+  // Valid values: start, stop, destroy.
   string action = 1;
 
+  // version is the operational version for optimistic concurrency control.
+  uint64 version = 2;
+
+  // cpu_limit specifies the CPU limit in millicores (e.g., 500 = 0.5 cores).
   int64 cpu_limit = 10;
+
+  // memory_limit specifies the memory limit in bytes.
   int64 memory_limit = 11;
+
+  // volume_limit specifies the volume limit in bytes.
   int64 volume_limit = 12;
 
+  // options is a list of operational options.
   repeated AppOperateOption options = 13;
+
+  // services is a list of service port configurations.
   repeated AppServicePort services = 14;
 
+  // replica_cap specifies the desired number of replicas.
   uint32 replica_cap = 19;
+
+  // replicas is a list of replica operational states.
   repeated AppOperateReplica replicas = 20;
 }
 
-
-
+// AppOperateOption represents a named group of operational options.
 message AppOperateOption {
+  // name is the name of the option group.
   string name = 1;
+
+  // items is a list of fields within this option group.
   repeated AppOperateOptionField items = 3;
 }
 
+// AppOperateOptionField represents a single field in an operational option.
 message AppOperateOptionField {
+  // name is the name of the field.
   string name = 1;
+
+  // value is the value of the field.
   string value = 2;
 }
 
+// AppOperateReplica represents the operational state of a replica.
 message AppOperateReplica {
+  // id is the unique identifier of the replica.
   uint32 id = 1;
+
+  // host_id is the ID of the host where the replica runs.
   string host_id = 2;
+
+  // state is the desired state of the replica.
+  string state = 3;
+}
+
+// AppStatus represents the current observed status of an application.
+message AppStatus {
+  // id is the unique identifier of the application.
+  string id = 1;
+
+  // replicas is a list of status information for each replica.
+  repeated AppReplicaStatus replicas = 20;
+}
+
+// AppReplicaStatus represents the status of a single application replica.
+message AppReplicaStatus {
+  // id is the unique identifier of the replica.
+  uint32 id = 1;
+
+  // host_id is the ID of the host where the replica runs.
+  string host_id = 2;
+
+  // state represents the current status of the replica.
+  // Valid values: starting, running, stopping, stopped, destroying, destroyed, failed.
+  string state = 3;
+
+  // attrs is a list of additional attributes describing the replica state.
+  repeated string attrs = 4;
+}
+
+// AppOptionField represents a single field in an application option.
+message AppOptionField {
+  // type specifies the data type of the field.
+  uint32 type = 1;
+
+  // name is the name of the field.
+  string name = 2;
+
+  // value is the value of the field.
+  string value = 3;
+}
+
+// AppOption represents a configurable option for an application.
+message AppOption {
+  // name is the name of the option.
+  string name = 1;
+
+  // items is a list of fields within this option.
+  repeated AppOptionField items = 2;
+
+  // subs is a list of sub-option names.
+  repeated string subs = 3;
+
+  // ref is a reference to another resource.
+  AppOptionRef ref = 4;
+
+  // user specifies the user who owns or configured this option.
+  string user = 5;
+
+  // updated is the Unix timestamp of the last modification.
+  int64 updated = 6;
+}
+
+// AppOptionRef represents a reference from an option to another resource.
+message AppOptionRef {
+  // spec_id is the ID of the referenced specification.
+  string spec_id = 1;
+
+  // app_id is the ID of the referenced application.
+  string app_id = 2;
+
+  // ports is a list of referenced service ports.
+  repeated ServicePort ports = 3;
+
+  // updated is the Unix timestamp of the last reference update.
+  int64 updated = 4;
+}
+
+// AppSpecConfig defines the configuration schema for an application specification.
+message AppSpecConfig {
+  // name is the name of the configuration schema.
+  string name = 1;
+
+  // fields is a list of configuration fields.
+  repeated AppSpecConfigField fields = 2;
+}
+
+// AppSpecConfigField represents a single configuration field in the schema.
+message AppSpecConfigField {
+  // name is the programmatic name of the field.
+  string name = 1;
+
+  // title is the human-readable title of the field.
+  string title = 2;
+
+  // prompt is a hint or placeholder text for the field.
+  string prompt = 3;
+
+  // type specifies the data type of the field (e.g., "string", "number", "bool").
+  string type = 4;
+
+  // default is the default value of the field.
+  string default = 5;
+
+  // auto_fill specifies an auto-fill expression or value.
+  string auto_fill = 6;
+
+  // validates is a list of validation rules for the field.
+  repeated Label validates = 7;
+
+  // description provides a detailed description of the field.
+  string description = 8;
+
+  // Enums       types.Labels  `json:"enums,omitempty" toml:"enums,omitempty"`
+}
+
+// ServicePort defines a service port mapping for network access.
+message ServicePort {
+  // name is the descriptive name of the service port.
+  string name = 1;
+
+  // box_port is the port number inside the container/application.
+  uint32 box_port = 2;
+
+  // host_port is the port number exposed on the host.
+  uint32 host_port = 3;
+
+  // lan_addr is the LAN (local area network) address for internal access.
+  string lan_addr = 4;
+
+  // wan_addr is the WAN (wide area network) address for external access.
+  string wan_addr = 5;
+
+  // app_spec is the application specification this port belongs to.
+  string app_spec = 6;
 }

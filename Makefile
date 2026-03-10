@@ -8,7 +8,12 @@ HTOML_TAG_FIX_ARGS = ./inapi
 LYNKAPI_FILTER_CMD = lynkapi-fitter
 LYNKAPI_FILTER_V2_ARGS = inapi
 
-.PHONY: api cli
+.PHONY: api cli inagent
+all: api cli inagent
+	@echo ""
+	@echo "build complete"
+	@echo ""
+
 api:
 	$(PROTOC_CMD) $(PROTOC_V2_ARGS)
 	$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_ARGS)
@@ -20,9 +25,4 @@ cli:
 inagent:
 	GOOS=linux GOARCH=amd64 go build -o bin/inagent-linux-amd64 cmd/inagent/inagent.go
 	GOOS=linux GOARCH=arm64 go build -o bin/inagent-linux-arm64 cmd/inagent/inagent.go
-
-all: api cli inagent
-	@echo ""
-	@echo "build complete"
-	@echo ""
 

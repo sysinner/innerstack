@@ -14,6 +14,23 @@
 
 package inapi
 
+// AppSpecConfigField type constants
+const (
+	SpecFieldTypeUnspec = ""       // unspecified type
+	SpecFieldTypeString = "string" // string type
+	SpecFieldTypeSelect = "select" // select type
+
+	SpecFieldTypeText         = "text"          // text type
+	SpecFieldTypeTextJSON     = "text_json"     // json text
+	SpecFieldTypeTextTOML     = "text_toml"     // toml text
+	SpecFieldTypeTextYAML     = "text_yaml"     // yaml text
+	SpecFieldTypeTextINI      = "text_ini"      // ini text
+	SpecFieldTypeTextJavaProp = "text_javaprop" // java properties
+	SpecFieldTypeTextMarkdown = "text_markdown" // markdown text
+
+	SpecFieldTypeAuthCert = "auth_cert" // auth certificate
+)
+
 const (
 	// CPU resource limits in millicores
 	CPUMin = 10
@@ -28,53 +45,76 @@ const (
 	VolumeMax = 10 * 1024 * 1024 * 1024 * 1024 // 10 TiB
 )
 
+// Health status action flags
 const (
-	HealthStatusActionActive uint32 = 1 << 1
-	HealthStatusActionSetup  uint32 = 1 << 2
+	HealthStatusActionActive uint32 = 1 << 1 // health status: active
+	HealthStatusActionSetup  uint32 = 1 << 2 // health status: setup
 
-	HealthFailoverActiveTimeDef   int32 = 7200
-	HealthFailoverActiveTimeMin   int32 = 300
-	HealthFailoverScheduleTimeMin int32 = 36000
+	// Health failover timing configuration (in seconds)
+	HealthFailoverActiveTimeDef   int32 = 7200  // default active time: 2 hours
+	HealthFailoverActiveTimeMin   int32 = 300   // minimum active time: 5 minutes
+	HealthFailoverScheduleTimeMin int32 = 36000 // minimum schedule time: 10 hours
 
-	HealthFailoverMsgSent uint32 = 1 << 16
+	HealthFailoverMsgSent uint32 = 1 << 16 // failover message sent flag
 )
 
 const (
-	OpActionStart     string = "start"
-	OpActionRunning   string = "running"
-	OpActionStop      string = "stop"
-	OpActionStopped   string = "stopped"
-	OpActionDestroy   string = "destroy"
-	OpActionDestroyed string = "destroyed"
-	OpActionMigrate   string = "migrate"
-	OpActionMigrated  string = "migrated"
-	OpActionFailover  string = "failover"
-	OpActionPending   string = "pending"
-	OpActionWarning   string = "warning"
-	OpActionRestart   string = "restart"
-	OpActionResFree   string = "res_free"
-	OpActionHang      string = "hang"
-	OpActionUnbound   string = "unbound"
-	OpActionForce     string = "force"
+	// User action command
+	OpActionStart   = "start"   // user action: start
+	OpActionStop    = "stop"    // user action: stop
+	OpActionDestroy = "destroy" // user action: destroy
 )
 
+// AppReplicaState represents the actual runtime state of a replica
+// These are stable states that a replica can be in
 const (
-	OpLogOK    = "ok"
-	OpLogInfo  = "info"
-	OpLogWarn  = "warn"
-	OpLogError = "error"
+	// Empty state
+	OpStateEmpty = "" // empty state
 
-	NsOpLogZoneRepMigrateAlloc       = "zm/rep-migrate/alloc"
-	NsOpLogZoneRepMigratePrevStop    = "zm/rep-migrate/stop"
-	NsOpLogZoneRepMigratePrevDestory = "zm/rep-migrate/destroy"
-	NsOpLogZoneRepMigrateNextData    = "zm/rep-migrate/data"
-	NsOpLogZoneRepMigrateDone        = "zm/rep-migrate/done"
+	// Lifecycle states
+	OpStateStarting   = "starting"   // replica state: starting
+	OpStateRunning    = "running"    // replica state: running
+	OpStateStopping   = "stopping"   // replica state: stopping
+	OpStateStopped    = "stopped"    // replica state: stopped
+	OpStateDestroying = "destroying" // replica state: destroying
+	OpStateDestroyed  = "destroyed"  // replica state: destroyed
+
+	// Error state
+	OpStateFailed = "failed" // replica state: failed
 )
 
+// AppReplicaEvent represents user actions or transition results
+// These trigger state transitions in the state machine
 const (
-	OpLogNsZoneMasterPodScheduleCharge  = "zm/ps/charge"
-	OpLogNsZoneMasterPodScheduleAlloc   = "zm/ps/alloc"
-	OpLogNsZoneMasterPodScheduleResFree = "zm/ps/resfree"
+	// Transition result events
+	OpEventSuccess = "success" // transition result: success
+	OpEventFail    = "fail"    // transition result: fail
+)
+
+// Operation log status levels
+const (
+	OpLogOK    = "ok"    // operation completed successfully
+	OpLogInfo  = "info"  // informational message
+	OpLogWarn  = "warn"  // warning message
+	OpLogError = "error" // error message
+)
+
+// Zone replica migration operation log namespaces
+// Used for tracking migration progress across zone replicas
+const (
+	NsOpLogZoneRepMigrateAlloc       = "zm/rep-migrate/alloc"   // allocate resources for migration
+	NsOpLogZoneRepMigratePrevStop    = "zm/rep-migrate/stop"    // stop previous replica
+	NsOpLogZoneRepMigratePrevDestory = "zm/rep-migrate/destroy" // destroy previous replica
+	NsOpLogZoneRepMigrateNextData    = "zm/rep-migrate/data"    // migrate data to new replica
+	NsOpLogZoneRepMigrateDone        = "zm/rep-migrate/done"    // migration completed
+)
+
+// Zone master pod scheduling operation log namespaces
+// Used for tracking pod scheduling operations
+const (
+	OpLogNsZoneMasterPodScheduleCharge  = "zm/ps/charge"  // charge resources for scheduling
+	OpLogNsZoneMasterPodScheduleAlloc   = "zm/ps/alloc"   // allocate pod to host
+	OpLogNsZoneMasterPodScheduleResFree = "zm/ps/resfree" // free allocated resources
 )
 
 // var (

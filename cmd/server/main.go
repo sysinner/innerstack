@@ -23,6 +23,7 @@ import (
 	"github.com/sysinner/incore/v2/internal/hostlet"
 	"github.com/sysinner/incore/v2/internal/server"
 	"github.com/sysinner/incore/v2/internal/zonelet"
+	"github.com/sysinner/incore/v2/pkg/inlog"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
 
@@ -32,6 +33,8 @@ var (
 )
 
 func main() {
+
+	inlog.Setup()
 
 	if err := config.Setup(version, release); err != nil {
 		log.Fatalf("incore/config init error %s", err.Error())

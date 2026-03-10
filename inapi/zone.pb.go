@@ -34,15 +34,23 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Zone represents a logical cluster or data center in the infrastructure.
+// A zone contains multiple hosts and serves as a management boundary for
+// resource allocation and application deployment.
 type Zone struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id          string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
-	Description string   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
-	Action      string   `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
-	Hosts       []string `protobuf:"bytes,9,rep,name=hosts,proto3" json:"hosts,omitempty" toml:"hosts,omitempty"`
+	// id is the unique identifier of the zone.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	// description provides a human-readable description of the zone.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
+	// action specifies the current action being performed on the zone.
+	// Valid values: init, update, destroy.
+	Action string `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
+	// hosts is a list of host IDs that belong to this zone.
+	Hosts []string `protobuf:"bytes,9,rep,name=hosts,proto3" json:"hosts,omitempty" toml:"hosts,omitempty"`
 }
 
 func (x *Zone) Reset() {

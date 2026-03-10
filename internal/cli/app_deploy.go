@@ -15,10 +15,16 @@
 package cli
 
 import (
+	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hooto/htoml4g/htoml"
 	"github.com/spf13/cobra"
 
@@ -33,28 +39,46 @@ func NewAppDeployCommand() *cobra.Command {
 		specFile   string
 		instanceId string
 		replicaCap uint32
+		skipConfig bool
+		action     string
 	)
 
 	var deployRun = func(cmd *cobra.Command, args []string) error {
-		if specFile == "" {
-			return fmt.Errorf("spec file is required")
+		// spec is required only when creating new instance (no --id)
+		if specFile == "" && instanceId == "" {
+			return fmt.Errorf("spec file is required for new instance")
 		}
 
-		var spec inapi.AppSpec
-		if err := htoml.DecodeFromFile(specFile, &spec); err != nil {
-			return fmt.Errorf("failed to parse TOML: %w", err)
+		var spec *inapi.AppSpec
+		if specFile != "" {
+			var s inapi.AppSpec
+			if err := htoml.DecodeFromFile(specFile, &s); err != nil {
+				return fmt.Errorf("failed to parse TOML: %w", err)
+			}
+
+			if s.Resources == nil {
+				return fmt.Errorf("resources is required")
+			}
+
+			if s.Resources.CpuLimit == "" {
+				return fmt.Errorf("resources.cpu_limit is required")
+			}
+
+			if s.Resources.MemoryLimit == "" {
+				return fmt.Errorf("resources.memory_limit is required")
+			}
+
+			if s.Resources.VolumeLimit == "" {
+				return fmt.Errorf("resources.volume_limit is required")
+			}
+			spec = &s
 		}
 
-		if spec.CpuLimit == "" {
-			return fmt.Errorf("cpu_limit is required")
-		}
-
-		if spec.MemoryLimit == "" {
-			return fmt.Errorf("memory_limit is required")
-		}
-
-		if spec.VolumeLimit == "" {
-			return fmt.Errorf("volume_limit is required")
+		instanceReq := &inapi.AppInstanceDeployRequest{
+			Id:         instanceId,
+			Spec:       spec,
+			ReplicaCap: replicaCap,
+			Operate:    &inapi.AppOperate{},
 		}
 
 		conn, err := client.Connect(zoneAddr, nil, false)
@@ -68,10 +92,55 @@ func NewAppDeployCommand() *cobra.Command {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		instanceReq := &inapi.AppInstanceDeployRequest{
-			Id:         instanceId,
-			Spec:       &spec,
-			ReplicaCap: replicaCap,
+		// Fetch existing instance options if updating
+		var existingOptions []*inapi.AppOperateOption
+		if instanceReq.Id != "" {
+			infoResp, err := zc.AppInstanceInfo(ctx, &inapi.AppInstanceInfoRequest{
+				Id: instanceReq.Id,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to get existing instance info: %w", err)
+			}
+			if infoResp.Instance != nil && infoResp.Instance.Operate != nil {
+				existingOptions = infoResp.Instance.Operate.Options
+			}
+		}
+
+		// Interactive config input
+		var options []*inapi.AppOperateOption
+		if !skipConfig && spec != nil && spec.Config != nil && len(spec.Config.Fields) > 0 {
+			fmt.Printf("\nConfig: %s\n", spec.Config.Name)
+			fmt.Println(strings.Repeat("-", 60))
+
+			cfgValues, err := promptConfigFields(spec.Config.Fields, existingOptions)
+			if err != nil {
+				return fmt.Errorf("config input failed: %w", err)
+			}
+
+			options = append(options, &inapi.AppOperateOption{
+				Name:  spec.Config.Name,
+				Items: cfgValues,
+			})
+
+			fmt.Println(strings.Repeat("-", 60))
+			fmt.Println("Configuration summary:")
+			for _, item := range cfgValues {
+				fmt.Printf("  %s = %s\n", item.Name, item.Value)
+			}
+			fmt.Println()
+		} else if instanceId != "" && len(existingOptions) > 0 {
+			// Use existing options when skipping config input for update
+			options = existingOptions
+		}
+
+		// Set operate options if config was provided
+		if len(options) > 0 {
+			instanceReq.Operate.Options = options
+		}
+
+		// Set operate action if provided
+		if action != "" {
+			instanceReq.Operate.Action = action
 		}
 
 		instanceResp, err := zc.AppInstanceDeploy(ctx, instanceReq)
@@ -105,15 +174,148 @@ If --id is provided, the existing app instance will be updated.`,
   app deploy --spec app-spec.toml --id <instance_id>
 
   # Update replica count of existing instance
-  app deploy --spec app-spec.toml --id <instance_id> --replica-cap 5`,
+  app deploy --spec app-spec.toml --id <instance_id> --replica-cap 5
+
+  # Skip interactive config input
+  app deploy --spec app-spec.toml --skip-config
+
+  # Set action on existing instance (start, stop, destroy)
+  app deploy --id <instance_id> --action start`,
 	}
 
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "127.0.0.1:9533", "Zone server address")
-	cmd.Flags().StringVarP(&specFile, "spec", "s", "", "Path to app spec file (TOML format, required)")
-	cmd.Flags().StringVarP(&instanceId, "id", "i", "", "App instance ID (if provided, updates existing instance)")
-	cmd.Flags().Uint32VarP(&replicaCap, "replica-cap", "r", 0, "Number of replicas (default: 1 for new, unchanged for update)")
-
-	cmd.MarkFlagRequired("spec")
+	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a",
+		"127.0.0.1:9533", "Zone server address")
+	cmd.Flags().StringVarP(&specFile, "spec", "s",
+		"", "Path to app spec file (TOML format, required)")
+	cmd.Flags().StringVarP(&instanceId, "id", "i",
+		"", "App instance ID (if provided, updates existing instance)")
+	cmd.Flags().Uint32VarP(&replicaCap, "replica-cap", "r",
+		0, "Number of replicas (default: 1 for new, unchanged for update)")
+	cmd.Flags().BoolVarP(&skipConfig, "skip-config", "k",
+		false, "Skip interactive config input")
+	cmd.Flags().StringVarP(&action, "action", "",
+		"", "Operate action (start, stop, destroy)")
 
 	return cmd
+}
+
+// promptConfigFields interactively prompts user for each config field
+// existingOptions is used to provide current values when updating an existing instance
+func promptConfigFields(fields []*inapi.AppSpecConfigField,
+	existingOptions []*inapi.AppOperateOption) ([]*inapi.AppOperateOptionField, error) {
+	var (
+		reader  = bufio.NewReader(os.Stdin)
+		results []*inapi.AppOperateOptionField
+	)
+
+	for _, field := range fields {
+		if field == nil {
+			continue
+		}
+
+		// Calculate default value
+		defaultValue := field.Default
+
+		// Check if there's an existing value for this field
+		if existingOptions != nil {
+			for _, opt := range existingOptions {
+				if opt != nil {
+					for _, item := range opt.Items {
+						if item != nil && item.Name == field.Name && item.Value != "" {
+							defaultValue = item.Value
+							break
+						}
+					}
+				}
+			}
+		}
+
+		if field.AutoFill != "" && defaultValue == field.Default {
+			autoValue, err := generateAutoFillValue(field.AutoFill)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate auto-fill value for %s: %w", field.Name, err)
+			}
+			if defaultValue == "" || field.AutoFill != "defval" {
+				defaultValue = autoValue
+			}
+		}
+
+		// Display field info
+		fmt.Println()
+		if field.Title != "" {
+			fmt.Printf("%s", field.Title)
+		} else {
+			fmt.Printf("%s", field.Name)
+		}
+		if field.Type != "" {
+			fmt.Printf(" (%s)", field.Type)
+		}
+		fmt.Println()
+
+		if field.Prompt != "" {
+			fmt.Printf("  Hint: %s\n", field.Prompt)
+		}
+		if field.Description != "" {
+			fmt.Printf("  Description: %s\n", field.Description)
+		}
+
+		// Prompt for input
+		if defaultValue != "" {
+			fmt.Printf("  Enter value [%s]: ", defaultValue)
+		} else {
+			fmt.Printf("  Enter value: ")
+		}
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("failed to read input: %w", err)
+		}
+
+		input = strings.TrimSpace(input)
+		value := input
+		if value == "" {
+			value = defaultValue
+		}
+
+		// Validate required field
+		if value == "" && field.AutoFill == "" && field.Default == "" {
+			return nil, fmt.Errorf("field %s is required", field.Name)
+		}
+
+		results = append(results, &inapi.AppOperateOptionField{
+			Name:  field.Name,
+			Value: value,
+		})
+	}
+
+	return results, nil
+}
+
+// generateAutoFillValue generates a value based on the auto_fill type
+func generateAutoFillValue(autoFill string) (string, error) {
+	switch autoFill {
+	case "defval":
+		// Use default value, return empty to indicate using default
+		return "", nil
+	case "hexstr_32":
+		// Generate 32-char hex string (16 random bytes)
+		bytes := make([]byte, 16)
+		if _, err := rand.Read(bytes); err != nil {
+			return "", fmt.Errorf("failed to generate random bytes: %w", err)
+		}
+		return hex.EncodeToString(bytes), nil
+	case "hexstr_16":
+		// Generate 16-char hex string (8 random bytes)
+		bytes := make([]byte, 8)
+		if _, err := rand.Read(bytes); err != nil {
+			return "", fmt.Errorf("failed to generate random bytes: %w", err)
+		}
+		return hex.EncodeToString(bytes), nil
+	case "uuid":
+		// Generate UUID v4 using github.com/google/uuid
+		return uuid.New().String(), nil
+	default:
+		// Unknown auto_fill type, return empty
+		return "", nil
+	}
 }

@@ -40,6 +40,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type HostletClient interface {
+	// HostInit initializes a new host and registers it with the specified zone.
 	HostInit(ctx context.Context, in *HostInitRequest, opts ...grpc.CallOption) (*HostInitResponse, error)
 }
 
@@ -64,6 +65,7 @@ func (c *hostletClient) HostInit(ctx context.Context, in *HostInitRequest, opts 
 // All implementations must embed UnimplementedHostletServer
 // for forward compatibility
 type HostletServer interface {
+	// HostInit initializes a new host and registers it with the specified zone.
 	HostInit(context.Context, *HostInitRequest) (*HostInitResponse, error)
 	mustEmbedUnimplementedHostletServer()
 }
@@ -138,14 +140,23 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ZoneletClient interface {
+	// ZoneInit initializes a new zone with the specified name.
 	ZoneInit(ctx context.Context, in *ZoneInitRequest, opts ...grpc.CallOption) (*ZoneInitResponse, error)
+	// ZoneInfo retrieves information about the current zone.
 	ZoneInfo(ctx context.Context, in *ZoneInfoRequest, opts ...grpc.CallOption) (*ZoneInfoResponse, error)
+	// HostJoin registers a new host to join the zone.
 	HostJoin(ctx context.Context, in *HostJoinRequest, opts ...grpc.CallOption) (*HostJoinResponse, error)
+	// HostList retrieves all hosts in the zone.
 	HostList(ctx context.Context, in *HostListRequest, opts ...grpc.CallOption) (*HostListResponse, error)
+	// AppInstanceDeploy deploys a new application instance or updates an existing one.
 	AppInstanceDeploy(ctx context.Context, in *AppInstanceDeployRequest, opts ...grpc.CallOption) (*AppInstanceDeployResponse, error)
+	// AppInstanceInfo retrieves detailed information about a specific application instance.
 	AppInstanceInfo(ctx context.Context, in *AppInstanceInfoRequest, opts ...grpc.CallOption) (*AppInstanceInfoResponse, error)
+	// AppInstanceList retrieves all application instances in the zone.
 	AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error)
+	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error)
+	// HostStatusUpdate updates the status of a host and receives updated app instances.
 	HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error)
 }
 
@@ -242,14 +253,23 @@ func (c *zoneletClient) HostStatusUpdate(ctx context.Context, in *HostStatusUpda
 // All implementations must embed UnimplementedZoneletServer
 // for forward compatibility
 type ZoneletServer interface {
+	// ZoneInit initializes a new zone with the specified name.
 	ZoneInit(context.Context, *ZoneInitRequest) (*ZoneInitResponse, error)
+	// ZoneInfo retrieves information about the current zone.
 	ZoneInfo(context.Context, *ZoneInfoRequest) (*ZoneInfoResponse, error)
+	// HostJoin registers a new host to join the zone.
 	HostJoin(context.Context, *HostJoinRequest) (*HostJoinResponse, error)
+	// HostList retrieves all hosts in the zone.
 	HostList(context.Context, *HostListRequest) (*HostListResponse, error)
+	// AppInstanceDeploy deploys a new application instance or updates an existing one.
 	AppInstanceDeploy(context.Context, *AppInstanceDeployRequest) (*AppInstanceDeployResponse, error)
+	// AppInstanceInfo retrieves detailed information about a specific application instance.
 	AppInstanceInfo(context.Context, *AppInstanceInfoRequest) (*AppInstanceInfoResponse, error)
+	// AppInstanceList retrieves all application instances in the zone.
 	AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error)
+	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error)
+	// HostStatusUpdate updates the status of a host and receives updated app instances.
 	HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error)
 	mustEmbedUnimplementedZoneletServer()
 }

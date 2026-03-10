@@ -25,7 +25,8 @@ type hostFit struct {
 	volume   string
 }
 
-// hostPriority represents the priority of scheduling to a particular host, lower priority is better.
+// hostPriority represents the priority of scheduling to a particular host.
+// Lower priority is better.
 type hostPriority struct {
 	id     string
 	score  int64

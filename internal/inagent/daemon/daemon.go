@@ -15,7 +15,9 @@
 package daemon
 
 import (
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/user"
@@ -24,34 +26,19 @@ import (
 	"syscall"
 	"time"
 
-	"encoding/json"
-
-	"github.com/hooto/hlog4g/hlog"
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
+	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/inagent/executor"
-)
-
-const (
-	addr_sock        = "unix:/home/action/.sysinner/inagent.sock"
-	pod_instance_cfg = "/home/action/.sysinner/app_instance.json"
-	home_dir         = "/home/action"
+	"github.com/sysinner/incore/v2/pkg/inlog"
 )
 
 var (
-	hostId           = ""
-	appId            = ""
-	repId     uint32 = 0
-	init_dirs        = []string{
-		"/home/action/local/bin",
-		"/home/action/local/share",
-		"/home/action/local/profile.d",
-		"/home/action/var/tmp",
-		"/home/action/var/log",
-		"/home/action/.ssh",
-	}
+	hostId        = ""
+	appId         = ""
+	repId  uint32 = 0
 )
 
 type agentDaemonCommand struct {
@@ -77,9 +64,11 @@ func NewAgentDaemonCommand() *cobra.Command {
 
 func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 
-	hostId = strings.TrimSpace(os.Getenv("HOST_ID"))
+	inlog.Setup()
+
+	hostId = strings.TrimSpace(os.Getenv("APP_HOST_ID"))
 	if !inapi.ObjectIdValid.MatchString(hostId) {
-		return errors.New("ENV HOST_ID Not Match")
+		return errors.New("ENV APP_HOST_ID Not Match")
 	}
 
 	//
@@ -98,31 +87,33 @@ func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 		repId = uint32(v)
 	}
 
-	//
-	for _, v := range init_dirs {
+	// Create init directories using hostapi.InitDirs
+	for _, v := range hostapi.InitDirs {
 		if err := os.MkdirAll(v, 0755); err != nil {
 			return err
 		}
 	}
 
-	//
-	if _, err := user.Lookup(config.User.Username); err != nil {
-		if _, err = exec.Command(
-			"/usr/sbin/useradd",
-			"-d", "/home/action",
-			"-s", "/bin/bash",
-			"-u", config.User.Uid, config.User.Username,
-		).Output(); err != nil {
-			return err
+	if false {
+		//
+		if _, err := user.Lookup(config.User.Username); err != nil {
+			if _, err = exec.Command(
+				"/usr/sbin/useradd",
+				"-d", "/home/action",
+				"-s", "/bin/bash",
+				"-u", config.User.Uid, config.User.Username,
+			).Output(); err != nil {
+				return err
+			}
 		}
-	}
 
-	//
-	syscall.Setgid(config.DefaultGroupID)
-	syscall.Setuid(config.DefaultUserID)
+		//
+		syscall.Setgid(config.DefaultGroupID)
+		syscall.Setuid(config.DefaultUserID)
+	}
 	syscall.Chdir("/home/action")
 
-	hlog.Printf("info", "inagent/daemon started")
+	slog.Info("inagent/daemon started")
 
 	worker()
 	return nil
@@ -138,24 +129,28 @@ func worker() {
 
 func workerEntry() {
 
-	var (
-		app inapi.AppReplicaInstance
-		err error
-	)
+	var app hostapi.AppReplicaInstance
 
-	f, err := os.Open(home_dir + "/.sysinner/app_instance.json")
+	f, err := os.Open(hostapi.AppInstanceFile)
 	if err != nil {
-		hlog.Printf("error", err.Error())
+		slog.Error("failed to open app instance file", "error", err)
 		return
 	}
 	defer f.Close()
 
 	if err = json.NewDecoder(f).Decode(&app); err != nil {
-		hlog.Printf("error", err.Error())
+		slog.Error("failed to decode app instance", "error", err)
 		return
 	}
 
-	for _, v := range app.Operate.Replicas {
+	if app.App == nil || app.App.Spec == nil ||
+		app.App.Spec.Resources == nil ||
+		app.App.Operate == nil {
+		slog.Error("app or spec/operate is nil in app instance config")
+		return
+	}
+
+	for _, v := range app.App.Operate.Replicas {
 		if v.HostId != hostId || v.Id != repId {
 			continue
 		}
@@ -164,12 +159,13 @@ func workerEntry() {
 	}
 
 	if app.Replica == nil {
-		hlog.Printf("error", "replica not found in app instance config")
+		slog.Error("replica not found in app instance config")
 		return
 	}
 
-	if err = executor.Runner(&app, "/home/action"); err != nil {
-		hlog.Printf("error", err.Error())
+	if err = executor.Runner(&app, hostapi.HomeDir); err != nil {
+		slog.Error("executor runner failed", "error", err)
 		return
 	}
+
 }

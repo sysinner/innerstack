@@ -154,6 +154,9 @@ type ExecutorStatus struct {
 	Action  ExecutorAction        `json:"action,omitempty" toml:"action,omitempty"`
 	Plan    ExecutorStatusPlanner `json:"plan,omitempty" toml:"plan,omitempty"`
 	Cmd     *exec.Cmd             `json:"-" toml:"-"`
+	// Output stores the last captured stdout/stderr output from command execution
+	Output    string `json:"output,omitempty" toml:"output,omitempty"`
+	OutputBuf []byte `json:"-" toml:"-"`
 }
 
 type ExecutorStatuses []*ExecutorStatus

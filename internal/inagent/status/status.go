@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	Executors = inapi.AppExecutors{}
-	Statuses  = inapi.ExecutorStatuses{}
+	Executors     = inapi.AppExecutors{}
+	ExecStatusSet = inapi.ExecutorStatuses{}
 	// HealthStatus inapi.HealthStatus
 )

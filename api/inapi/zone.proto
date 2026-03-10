@@ -19,9 +19,20 @@ package inapi;
 option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
 
+// Zone represents a logical cluster or data center in the infrastructure.
+// A zone contains multiple hosts and serves as a management boundary for
+// resource allocation and application deployment.
 message Zone {
+  // id is the unique identifier of the zone.
   string id = 1;
+
+  // description provides a human-readable description of the zone.
   string description = 3;
+
+  // action specifies the current action being performed on the zone.
+  // Valid values: init, update, destroy.
   string action = 6;
+
+  // hosts is a list of host IDs that belong to this zone.
   repeated string hosts = 9;
 }

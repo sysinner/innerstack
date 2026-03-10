@@ -15,11 +15,13 @@
 package hoststatus
 
 import (
+	"encoding/json"
 	"sync"
 	"sync/atomic"
 
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/inutil/syncx"
+	"github.com/sysinner/incore/v2/internal/stateflow"
 )
 
 var (
@@ -31,12 +33,49 @@ var (
 
 	ImageList syncx.Map
 
+	Active HostActiveConfig
+
+	AppWorkflow stateflow.AppStateWorkflow
+)
+
+var (
 	HostReady      atomic.Bool
 	ContainerReady atomic.Bool
-
-	Active HostActiveConfig
 )
 
 type HostActiveConfig struct {
+	mu           sync.RWMutex
 	AppInstances []*inapi.AppInstance `json:"app_instances,omitempty"`
+	index        map[string]*inapi.AppInstance
+}
+
+func (it *HostActiveConfig) Sync(app *inapi.AppInstance) {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.index == nil {
+		it.index = make(map[string]*inapi.AppInstance)
+	}
+}
+
+func (h *HostActiveConfig) UnmarshalJSON(data []byte) error {
+	// 定义一个别名，避免递归调用 UnmarshalJSON 导致死循环
+	type Alias HostActiveConfig
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(h),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	h.index = make(map[string]*inapi.AppInstance)
+
+	for _, app := range h.AppInstances {
+		if app != nil {
+			h.index[app.Id] = app
+		}
+	}
+
+	return nil
 }

@@ -17,13 +17,13 @@ package executor
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/hooto/hlog4g/hlog"
-
 	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/inagent/status"
 	"github.com/sysinner/incore/v2/internal/inutil/tplrender"
 )
@@ -36,19 +36,22 @@ func keyenc(k string) string {
 	return strings.Replace(strings.Replace(k, "/", "__", -1), "-", "_", -1)
 }
 
-func repParams(app *inapi.AppReplicaInstance) map[string]string {
+func repParams(app *hostapi.AppReplicaInstance) map[string]string {
 
 	sets := map[string]string{}
 
-	sets["pod__replica__rep_id"] = fmt.Sprintf("%d", app.Replica.Id)
-	sets["pod__operate__replica_cap"] = fmt.Sprintf("%d", app.Operate.ReplicaCap)
+	sets["app__id"] = app.App.Id
+	sets["app__replica__rep_id"] = fmt.Sprintf("%d", app.Replica.Id)
+	sets["app__operate__replica_cap"] = fmt.Sprintf("%d", app.App.Operate.ReplicaCap)
 
-	for _, opt := range app.Operate.Options {
+	for _, opt := range app.App.Operate.Options {
 
 		for _, item := range opt.Items {
 			var (
-				ckey = keyenc(fmt.Sprintf("%s__%s", opt.Name, item.Name))
-				key  = keyenc(fmt.Sprintf("app__%s__option__%s", app.Spec.Name, ckey))
+				ckey = keyenc(fmt.Sprintf("%s__%s",
+					opt.Name, item.Name))
+				key = keyenc(fmt.Sprintf("app__%s__option__%s",
+					app.App.Spec.Name, ckey))
 			)
 			sets[key] = item.Value
 			if _, ok := sets[ckey]; !ok {
@@ -57,20 +60,20 @@ func repParams(app *inapi.AppReplicaInstance) map[string]string {
 		}
 	}
 
-	for _, p := range app.Operate.Services {
+	for _, p := range app.App.Operate.Services {
 
 		if p.Name == "" || len(p.Endpoints) < 1 {
 			continue
 		}
 
-		key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
+		key := keyenc(fmt.Sprintf("app__oprep__port__%s__",
 			p.Name,
 		))
 		sets[key+"lan_addr"] = p.Endpoints[0].Ip
 		sets[key+"host_port"] = fmt.Sprintf("%d", p.Endpoints[0].Port)
 	}
 
-	for _, p := range app.Spec.Packages {
+	for _, p := range app.App.Spec.Packages {
 		sets[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] =
 			fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
 	}
@@ -82,7 +85,10 @@ func execStatusName(id string, name string) string {
 	return (fmt.Sprintf("%s/%s", id, name))
 }
 
-func execAction(app *inapi.AppReplicaInstance, home_dir, appspec_id, exec_name, action string) error {
+func execAction(
+	app *hostapi.AppReplicaInstance,
+	homeDir, specName, execName, action string,
+) error {
 
 	sets := repParams(app)
 
@@ -90,15 +96,15 @@ func execAction(app *inapi.AppReplicaInstance, home_dir, appspec_id, exec_name, 
 
 		n := 0
 
-		if appspec_id != "" && appspec_id != app.Spec.Name {
+		if specName != "" && specName != app.App.Spec.Name {
 			continue
 		}
-		for _, ve := range app.Spec.Executors {
-			if exec_name != "" && exec_name != ve.Name {
+		for _, ve := range app.App.Spec.Executors {
+			if execName != "" && execName != ve.Name {
 				continue
 			}
 			n += 1
-			esName := execStatusName(app.Spec.Name, ve.Name)
+			esName := execStatusName(app.App.Spec.Name, ve.Name)
 			if sts, _ := executorAction(esName, ve, sets, inapi.OpActionStop); sts == inapi.OpLogOK {
 				n -= 1
 			}
@@ -114,18 +120,22 @@ func execAction(app *inapi.AppReplicaInstance, home_dir, appspec_id, exec_name, 
 	return errors.New("timeout in execAction")
 }
 
-func Restart(pod *inapi.AppReplicaInstance, home_dir, appspec_id, exec_name string) error {
-	if err := execAction(pod, home_dir, appspec_id, exec_name, inapi.OpActionStop); err != nil {
+func Restart(pod *hostapi.AppReplicaInstance, homeDir, specName, execName string) error {
+	if err := execAction(pod, homeDir, specName, execName, inapi.OpActionStop); err != nil {
 		return err
 	}
-	return execAction(pod, home_dir, appspec_id, exec_name, inapi.OpActionStart)
+	return execAction(pod, homeDir, specName, execName, inapi.OpActionStart)
 }
 
-func StopAll(pod *inapi.AppReplicaInstance, home_dir string) error {
-	return execAction(pod, home_dir, "", "", inapi.OpActionStop)
+func StopAll(pod *hostapi.AppReplicaInstance, homeDir string) error {
+	return execAction(pod, homeDir, "", "", inapi.OpActionStop)
 }
 
-func Runner(app *inapi.AppReplicaInstance, home_dir string) error {
+func Runner(app *hostapi.AppReplicaInstance, homeDir string) error {
+
+	if len(app.App.Spec.Executors) == 0 {
+		return nil
+	}
 
 	sets := repParams(app)
 
@@ -133,12 +143,12 @@ func Runner(app *inapi.AppReplicaInstance, home_dir string) error {
 
 		pdone := 0
 
-		if app.Operate.Action != inapi.OpActionStart &&
-			app.Operate.Action != inapi.OpActionStop {
+		if app.App.Operate.Action != inapi.OpActionStart &&
+			app.App.Operate.Action != inapi.OpActionStop {
 			break
 		}
 
-		for _, ve := range app.Spec.Executors {
+		for _, ve := range app.App.Spec.Executors {
 
 			if priority != ve.Priority {
 				continue
@@ -146,9 +156,9 @@ func Runner(app *inapi.AppReplicaInstance, home_dir string) error {
 
 			pdone++
 
-			esName := execStatusName(app.Spec.Name, ve.Name)
+			esName := execStatusName(app.App.Spec.Name, ve.Name)
 
-			if es := status.Statuses.Get(esName); es != nil {
+			if es := status.ExecStatusSet.Get(esName); es != nil {
 				if es.Action.Allow(inapi.ExecutorActionStarted) ||
 					es.Action.Allow(inapi.ExecutorActionStopped) {
 					pdone--
@@ -156,8 +166,9 @@ func Runner(app *inapi.AppReplicaInstance, home_dir string) error {
 			}
 
 			status.Executors.Sync(ve)
-			if sts, _ := executorAction(esName, ve, sets, app.Operate.Action); sts != "" {
-				// status.OpLog.LogSet(pod.Operate.Version, oplogName(string(esName)), sts, msg)
+			if sts, msg := executorAction(esName, ve, sets, app.App.Operate.Action); sts != "" {
+				// status.OpLog.LogSet(pod.App.Operate.Version, oplogName(string(esName)), sts, msg)
+				slog.Info(fmt.Sprintf("exec stats %s, msg %s", sts, msg))
 			}
 		}
 
@@ -171,10 +182,19 @@ func Runner(app *inapi.AppReplicaInstance, home_dir string) error {
 	return nil
 }
 
-func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string, op_action string) (string, string) {
+func executorAction(
+	esName string, etr *inapi.AppExecutor,
+	dms map[string]string, opAction string,
+) (string, string) {
 
-	es := status.Statuses.Get(esName)
-	op_status, op_msg := "", ""
+	if etr.Plan == nil {
+		etr.Plan = &inapi.AppExecPlanner{
+			OnBoot: true,
+		}
+	}
+
+	es := status.ExecStatusSet.Get(esName)
+	opStatus, opMsg := "", ""
 
 	//
 	if es == nil {
@@ -185,7 +205,7 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 			Vendor:  etr.Vendor,
 		}
 
-		status.Statuses.Sync(es)
+		status.ExecStatusSet.Sync(es)
 	}
 
 	//
@@ -204,10 +224,18 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 
 			if es.Cmd.ProcessState.Success() {
 				es.Action.Remove(inapi.ExecutorActionFailed)
-				op_status, op_msg = inapi.OpLogOK, "process ok"
+				opStatus, opMsg = inapi.OpLogOK, "process ok"
 			} else {
 				es.Action.Append(inapi.ExecutorActionFailed)
-				op_status, op_msg = inapi.OpLogError, "process error "+es.Cmd.ProcessState.String()
+				opStatus = inapi.OpLogError
+				// capture output from buffer
+				es.Output = strings.TrimSpace(string(es.OutputBuf))
+				if es.Output != "" {
+					opMsg = fmt.Sprintf("process error %s, output: %s",
+						es.Cmd.ProcessState.String(), es.Output)
+				} else {
+					opMsg = "process error " + es.Cmd.ProcessState.String()
+				}
 			}
 
 			if es.Action.Allow(inapi.ExecutorActionStart) {
@@ -220,8 +248,7 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 				es.Action.Append(inapi.ExecutorActionStopped)
 			}
 
-			hlog.Printf("info", "executor:%s done status: %s",
-				esName, es.Action.String())
+			slog.Info("executor done", "name", esName, "status", es.Action.String())
 
 			if es.Cmd.Process != nil {
 				es.Cmd.Process.Kill()
@@ -231,38 +258,40 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 			es.Cmd = nil
 			es.Updated = time.Now().Unix()
 
-			return op_status, op_msg
+			return opStatus, opMsg
 		}
+
 	}
 
-	if op_action == inapi.OpActionStop &&
+	if opAction == inapi.OpActionStop &&
 		es.Action.Allow(inapi.ExecutorActionStopped) {
 		return inapi.OpLogOK, "stopped"
 	}
 
 	//
-	// hlog.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
+	// slog.Debug("executor action", "name", etr.Name, "action", es.Action.String())
 	if es.Action.Allow(inapi.ExecutorActionPending) {
-		hlog.Printf("debug", "executor:%s Cmd.ProcessState Pending SKIP", esName)
+		slog.Debug("executor Cmd.ProcessState Pending SKIP", "name", esName)
 		return inapi.OpLogInfo, "pending"
 	}
 
 	// Exec Planner
-	if op_action == inapi.OpActionStop {
+	if opAction == inapi.OpActionStop {
 		es.Action = inapi.ExecutorActionStop
-	} else if op_action == inapi.OpActionStart {
+	} else if opAction == inapi.OpActionStart && etr.Plan != nil {
 
 		es.Action.Remove(inapi.ExecutorActionStop)
 		es.Action.Remove(inapi.ExecutorActionStopped)
 
 		//
-		if etr.Plan.OnBoot &&
+		if etr.Plan != nil &&
+			etr.Plan.OnBoot &&
 			es.Plan.Updated < 1 &&
 			!es.Action.Allow(inapi.ExecutorActionStarted) {
 
 			es.Action.Append(inapi.ExecutorActionStart)
 
-			hlog.Printf("warn", "executor:%s Plan.OnBoot Exec", esName)
+			slog.Warn("executor Plan.OnBoot Exec", "name", esName)
 		}
 
 		//
@@ -284,8 +313,9 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 				es.Action.Append(inapi.ExecutorActionStart)
 				es.Action.Remove(inapi.ExecutorActionStarted)
 
-				hlog.Printf("info", "executor:%s Plan.OnTick", esName)
+				slog.Info("executor Plan.OnTick", "name", esName)
 			}
+
 		}
 
 		//
@@ -293,27 +323,29 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 			!es.Action.Allow(inapi.ExecutorActionStart) &&
 			es.Action.Allow(inapi.ExecutorActionFailed) {
 
-			retry_sec := inapi.ExecPlanTimer(etr.Plan.OnFailed.RetrySec).Seconds()
-			if retry_sec < 1 {
-				retry_sec = 10
+			retrySec := inapi.ExecPlanTimer(etr.Plan.OnFailed.RetrySec).Seconds()
+			if retrySec < 1 {
+				retrySec = 10
 			}
 
 			if es.Plan.Updated > 0 &&
 				(etr.Plan.OnFailed.RetryMax == -1 ||
 					es.Plan.OnFailedRetryNum < int(etr.Plan.OnFailed.RetryMax)) &&
-				(time.Now().Unix()-es.Plan.Updated) > retry_sec {
+				(time.Now().Unix()-es.Plan.Updated) > retrySec {
 
 				es.Action.Append(inapi.ExecutorActionStart)
 				es.Action.Remove(inapi.ExecutorActionStarted)
 
 				es.Plan.OnFailedRetryNum++
 
-				hlog.Printf("warn", "executor:%s Plan.OnFailed Retry %d",
-					esName, es.Plan.OnFailedRetryNum)
+				slog.Warn("executor Plan.OnFailed Retry",
+					"name", esName, "retry_num", es.Plan.OnFailedRetryNum)
 			}
 		}
 
 	} else {
+		slog.Info("inagent/exec run ...")
+
 		return "", ""
 	}
 
@@ -327,18 +359,21 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 		return "", ""
 	}
 
+	slog.Info("inagent/exec run ...")
+
 	//
 	es.Action.Append(inapi.ExecutorActionPending)
 	es.Plan.Updated = time.Now().Unix()
 	if es.Cmd == nil {
-		es.Cmd = exec.Command("bash", "--rcfile", "/home/action/.bashrc")
+		es.Cmd = exec.Command("sh")
 	}
+
+	slog.Info("inagent/exec run ...")
 
 	//
 	bs, err := tplrender.Render(script, dms)
 	if err != nil {
-		hlog.Printf("error", "executor:%s template.Execute E:%s",
-			esName, err.Error())
+		slog.Error("executor template.Execute", "name", esName, "error", err)
 		return inapi.OpLogError, err.Error()
 	}
 	vars := ""
@@ -348,26 +383,24 @@ func executorAction(esName string, etr *inapi.AppExecutor, dms map[string]string
 		}
 		vars += fmt.Sprintf("%s=%s", k, v)
 	}
-	hlog.Printf("debug", "executor %s, vars %s, exec {{{{%s}}}}",
-		esName, vars, string(bs))
+	slog.Debug("executor exec", "name", esName, "vars", vars, "script", string(bs))
 
 	//
-	if err := executorCmd(esName, es.Cmd, string(bs)); err != nil {
-		hlog.Printf("error", "executor:%s CMD E:%s",
-			esName, err.Error())
+	if err := executorCmd(es, string(bs)); err != nil {
+		slog.Error("executor CMD", "name", esName, "error", err)
 		return inapi.OpLogError, err.Error()
-	} else {
-		// hlog.Printf("info", "executor:%s pending", esName)
 	}
 
 	return inapi.OpLogInfo, "pending"
 }
 
-func executorCmd(name string, cmd *exec.Cmd, script string) error {
+func executorCmd(es *inapi.ExecutorStatus, script string) error {
 
-	if cmd == nil {
+	if es == nil || es.Cmd == nil {
 		return errors.New("No Command INIT")
 	}
+
+	cmd := es.Cmd
 
 	if cmd.Process != nil && cmd.ProcessState == nil {
 		return errors.New("Command Pending")
@@ -382,13 +415,14 @@ func executorCmd(name string, cmd *exec.Cmd, script string) error {
 		return err
 	}
 
-	// in.Write([]byte("set -e\nset -o pipefail\n" + script + "\nexit\n"))
-	in.Write([]byte("source /home/action/.bashrc\nset -e\nset -o pipefail\n" + script + "\nexit\n"))
+	// setup stdout/stderr capture using OutputBuf
+	es.OutputBuf = make([]byte, 0, 4096)
+	outputWriter := &outputBuffer{buf: &es.OutputBuf}
+	cmd.Stdout = outputWriter
+	cmd.Stderr = outputWriter
+
+	in.Write([]byte("set -e\n" + script + "\nexit\n"))
 	in.Close()
-
-	// hlog.Printf("info", "executor:%s cmd:{{{%s}}}", name, script)
-
-	// cmd.Stdin = strings.NewReader("set -e\nset -o pipefail\n" + script + "\nexit\n")
 
 	if err := cmd.Start(); err != nil {
 		return err
@@ -397,4 +431,14 @@ func executorCmd(name string, cmd *exec.Cmd, script string) error {
 	go cmd.Wait()
 
 	return nil
+}
+
+// outputBuffer is a thread-safe writer that appends to a byte slice
+type outputBuffer struct {
+	buf *[]byte
+}
+
+func (ob *outputBuffer) Write(p []byte) (n int, err error) {
+	*ob.buf = append(*ob.buf, p...)
+	return len(p), nil
 }

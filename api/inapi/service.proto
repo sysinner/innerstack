@@ -23,109 +23,182 @@ import "host.proto";
 import "zone.proto";
 import "app.proto";
 
+// Hostlet is the gRPC service running on each host machine.
+// It handles host-level operations including initialization and status reporting.
 service Hostlet {
+  // HostInit initializes a new host and registers it with the specified zone.
   rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
 }
 
+// Zonelet is the gRPC service for zone-level management.
+// It handles zone initialization, host management, and application deployment.
 service Zonelet {
+  // ZoneInit initializes a new zone with the specified name.
   rpc ZoneInit(ZoneInitRequest) returns (ZoneInitResponse) {}
 
+  // ZoneInfo retrieves information about the current zone.
   rpc ZoneInfo(ZoneInfoRequest) returns (ZoneInfoResponse) {}
 
+  // HostJoin registers a new host to join the zone.
   rpc HostJoin(HostJoinRequest) returns (HostJoinResponse) {}
 
+  // HostList retrieves all hosts in the zone.
   rpc HostList(HostListRequest) returns (HostListResponse) {}
-  
-  rpc AppInstanceDeploy(AppInstanceDeployRequest) returns (AppInstanceDeployResponse) {}
 
-  rpc AppInstanceInfo(AppInstanceInfoRequest) returns (AppInstanceInfoResponse) {}
+  // AppInstanceDeploy deploys a new application instance or updates an existing one.
+  rpc AppInstanceDeploy(AppInstanceDeployRequest)
+      returns (AppInstanceDeployResponse) {}
 
-  rpc AppInstanceList(AppInstanceListRequest) returns (AppInstanceListResponse) {}
+  // AppInstanceInfo retrieves detailed information about a specific application instance.
+  rpc AppInstanceInfo(AppInstanceInfoRequest)
+      returns (AppInstanceInfoResponse) {}
 
-  rpc AppInstanceDelete(AppInstanceDeleteRequest) returns (AppInstanceDeleteResponse) {}
+  // AppInstanceList retrieves all application instances in the zone.
+  rpc AppInstanceList(AppInstanceListRequest)
+      returns (AppInstanceListResponse) {}
 
+  // AppInstanceDelete deletes an application instance from the zone.
+  rpc AppInstanceDelete(AppInstanceDeleteRequest)
+      returns (AppInstanceDeleteResponse) {}
+
+  // HostStatusUpdate updates the status of a host and receives updated app instances.
   rpc HostStatusUpdate(HostStatusUpdateRequest)
       returns (HostStatusUpdateResponse) {}
 }
 
+// CommonResponse is a generic empty response message.
 message CommonResponse {}
 
+// HostInitRequest is the request message for initializing a host.
 message HostInitRequest {
+  // zone_id is the ID of the zone to which the host should be registered.
   string zone_id = 1;
+
+  // zone_hosts is a list of existing host addresses in the zone for discovery.
   repeated string zone_hosts = 2;
+
+  // token is the authentication token for host registration.
   string token = 3;
 }
 
+// HostInitResponse is the response message after host initialization.
 message HostInitResponse {
+  // host_id is the unique identifier assigned to the newly initialized host.
   string host_id = 1;
+
+  // status contains the initial status of the host.
   HostStatus status = 2;
 }
 
-
-
+// HostJoinRequest is the request message for a host to join a zone.
 message HostJoinRequest {
+  // addr is the network address of the host joining the zone.
   string addr = 1;
+
+  // token is the authentication token for joining.
   string token = 2;
 }
 
+// HostJoinResponse is the response message after a host joins a zone.
 message HostJoinResponse {
+  // status contains the current status of the host after joining.
   HostStatus status = 1;
 }
 
+// HostListRequest is the request message for listing hosts in a zone.
 message HostListRequest {}
 
+// HostListResponse is the response message containing the list of hosts.
 message HostListResponse {
+  // hosts is the list of hosts in the zone.
   repeated Host hosts = 2;
 }
 
+// HostStatusUpdateRequest is the request message for updating host status.
 message HostStatusUpdateRequest {
+  // host contains the host information to update.
   Host host = 2;
+
+  // status contains the current status metrics of the host.
   HostStatus status = 3;
 }
 
+// HostStatusUpdateResponse is the response message after updating host status.
 message HostStatusUpdateResponse {
+  // app_instances is the list of application instances that need to be synced
+  // to the host after the status update.
   repeated AppInstance app_instances = 2;
 }
 
+// ZoneInitRequest is the request message for initializing a zone.
 message ZoneInitRequest {
+  // name is the name of the zone to create.
   string name = 1;
 }
 
+// ZoneInitResponse is the response message after zone initialization.
 message ZoneInitResponse {}
 
+// ZoneInfoRequest is the request message for retrieving zone information.
 message ZoneInfoRequest {}
 
+// ZoneInfoResponse is the response message containing zone information.
 message ZoneInfoResponse {
+  // zone contains the zone information.
   Zone zone = 1;
+
+  // hosts is the list of hosts belonging to the zone.
   repeated Host hosts = 2;
 }
 
+// AppInstanceDeployRequest is the request message for deploying an application instance.
 message AppInstanceDeployRequest {
+  // id is the unique identifier for the application instance.
+  // If empty, a new ID will be generated.
   string id = 1;
+
+  // spec defines the application specification including resources, executors, etc.
   AppSpec spec = 2;
+
+  // replica_cap specifies the desired number of replicas for the application.
   uint32 replica_cap = 3;
+
+  // operate specifies the operational parameters and desired action.
+  AppOperate operate = 4;
 }
 
+// AppInstanceDeployResponse is the response message after deploying an application instance.
 message AppInstanceDeployResponse {
+  // id is the unique identifier of the deployed application instance.
   string id = 1;
 }
 
+// AppInstanceInfoRequest is the request message for retrieving application instance info.
 message AppInstanceInfoRequest {
+  // id is the unique identifier of the application instance to retrieve.
   string id = 1;
 }
 
+// AppInstanceInfoResponse is the response message containing application instance info.
 message AppInstanceInfoResponse {
+  // instance contains the application instance information.
   AppInstance instance = 1;
 }
 
+// AppInstanceListRequest is the request message for listing application instances.
 message AppInstanceListRequest {}
 
+// AppInstanceListResponse is the response message containing the list of application instances.
 message AppInstanceListResponse {
+  // items is the list of application instances.
   repeated AppInstance items = 1;
 }
 
+// AppInstanceDeleteRequest is the request message for deleting an application instance.
 message AppInstanceDeleteRequest {
+  // id is the unique identifier of the application instance to delete.
   string id = 1;
 }
 
+// AppInstanceDeleteResponse is the response message after deleting an application instance.
 message AppInstanceDeleteResponse {}

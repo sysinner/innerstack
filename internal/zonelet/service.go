@@ -256,6 +256,8 @@ func (s *zoneServer) HostStatusUpdate(
 					}
 				}
 			}
+		} else {
+			slog.Warn("app decode err "+err.Error(), "value", string(item.Value))
 		}
 	}
 
@@ -269,57 +271,66 @@ func (s *zoneServer) AppInstanceDeploy(
 		return nil, errors.New("zonelet leader")
 	}
 
-	if req.Spec == nil {
-		return nil, errors.New("spec is required")
+	// For new instances, spec is required
+	if req.Id == "" && req.Spec == nil {
+		return nil, errors.New("spec is required for new instance")
 	}
 
-	if req.Spec.Name == "" {
-		return nil, errors.New("spec.name is required")
-	}
+	var cpuLimit, memoryLimit, volumeLimit int64
 
-	cpuLimit := int64(0)
-	if req.Spec.CpuLimit != "" {
-		if v, err := inutil.ParseCPUs(req.Spec.CpuLimit); err != nil {
-			return nil, fmt.Errorf("invalid cpu_limit: %w", err)
-		} else {
-			cpuLimit = v
+	if req.Spec != nil {
+		if req.Spec.Name == "" {
+			return nil, errors.New("spec.name is required")
 		}
-	}
 
-	memoryLimit := int64(0)
-	if req.Spec.MemoryLimit != "" {
-		if v, err := inutil.ParseBytes(req.Spec.MemoryLimit); err != nil {
-			return nil, fmt.Errorf("invalid memory_limit: %w", err)
-		} else {
-			memoryLimit = v
+		if req.Spec.Resources == nil {
+			return nil, errors.New("spec.resources is required")
 		}
-	}
 
-	volumeLimit := int64(0)
-	if req.Spec.VolumeLimit != "" {
-		if v, err := inutil.ParseBytes(req.Spec.VolumeLimit); err != nil {
-			return nil, fmt.Errorf("invalid volume_limit: %w", err)
-		} else {
-			volumeLimit = v
+		if req.Spec.Resources.CpuLimit != "" {
+			if v, err := inutil.ParseCPUs(req.Spec.Resources.CpuLimit); err != nil {
+				return nil, fmt.Errorf("invalid cpu_limit: %w", err)
+			} else {
+				cpuLimit = v
+			}
 		}
-	}
 
-	if cpuLimit < inapi.CPUMin || cpuLimit > inapi.CPUMax {
-		return nil, fmt.Errorf("spec.cpu_limit must be between %d and %d", inapi.CPUMin, inapi.CPUMax)
-	}
+		if req.Spec.Resources.MemoryLimit != "" {
+			if v, err := inutil.ParseBytes(req.Spec.Resources.MemoryLimit); err != nil {
+				return nil, fmt.Errorf("invalid memory_limit: %w", err)
+			} else {
+				memoryLimit = v
+			}
+		}
 
-	if memoryLimit < inapi.MemoryMin || memoryLimit > inapi.MemoryMax {
-		return nil, fmt.Errorf("spec.memory_limit must be between %d and %d", inapi.MemoryMin, inapi.MemoryMax)
-	}
+		if req.Spec.Resources.VolumeLimit != "" {
+			if v, err := inutil.ParseBytes(req.Spec.Resources.VolumeLimit); err != nil {
+				return nil, fmt.Errorf("invalid volume_limit: %w", err)
+			} else {
+				volumeLimit = v
+			}
+		}
 
-	if volumeLimit < inapi.VolumeMin || volumeLimit > inapi.VolumeMax {
-		return nil, fmt.Errorf("spec.volume_limit must be between %d and %d", inapi.VolumeMin, inapi.VolumeMax)
+		if cpuLimit < inapi.CPUMin || cpuLimit > inapi.CPUMax {
+			return nil, fmt.Errorf("spec.cpu_limit must be between %d and %d",
+				inapi.CPUMin, inapi.CPUMax)
+		}
+
+		if memoryLimit < inapi.MemoryMin || memoryLimit > inapi.MemoryMax {
+			return nil, fmt.Errorf("spec.memory_limit must be between %d and %d",
+				inapi.MemoryMin, inapi.MemoryMax)
+		}
+
+		if volumeLimit < inapi.VolumeMin || volumeLimit > inapi.VolumeMax {
+			return nil, fmt.Errorf("spec.volume_limit must be between %d and %d",
+				inapi.VolumeMin, inapi.VolumeMax)
+		}
 	}
 
 	var instance *inapi.AppInstance
 
 	if req.Id != "" {
-		// 更新现有实例
+		// Update existing instance
 		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, req.Id)
 
 		var existingInstance inapi.AppInstance
@@ -332,19 +343,36 @@ func (s *zoneServer) AppInstanceDeploy(
 			return nil, err
 		}
 
-		// 更新实例的 spec 和 operate
 		instance = &existingInstance
-		instance.Spec = req.Spec
+
+		// Update spec only if provided
+		if req.Spec != nil {
+			instance.Spec = req.Spec
+		}
+
 		if instance.Operate == nil {
 			instance.Operate = &inapi.AppOperate{}
 		}
 
-		instance.Operate.CpuLimit = cpuLimit
-		instance.Operate.MemoryLimit = memoryLimit
-		instance.Operate.VolumeLimit = volumeLimit
+		// Update resource limits only if spec is provided
+		if req.Spec != nil {
+			instance.Operate.CpuLimit = cpuLimit
+			instance.Operate.MemoryLimit = memoryLimit
+			instance.Operate.VolumeLimit = volumeLimit
+		}
 
 		if req.ReplicaCap > 0 {
 			instance.Operate.ReplicaCap = min(128, req.ReplicaCap)
+		}
+
+		// Update operate options if provided
+		if req.Operate != nil && len(req.Operate.Options) > 0 {
+			instance.Operate.Options = req.Operate.Options
+		}
+
+		// Update operate action if provided
+		if req.Operate != nil && req.Operate.Action != "" {
+			instance.Operate.Action = req.Operate.Action
 		}
 
 		if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {
@@ -355,20 +383,29 @@ func (s *zoneServer) AppInstanceDeploy(
 			"instance_id", req.Id,
 			"instance_name", instance.Name,
 			"replica_cap", instance.Operate.ReplicaCap,
+			"action", instance.Operate.Action,
 		)
 	} else {
 		// 创建新实例
 
+		operate := &inapi.AppOperate{
+			Action:      inapi.OpActionStart,
+			CpuLimit:    cpuLimit,
+			MemoryLimit: memoryLimit,
+			VolumeLimit: volumeLimit,
+			ReplicaCap:  max(1, min(128, req.ReplicaCap)),
+		}
+
+		// Set operate options if provided
+		if req.Operate != nil && len(req.Operate.Options) > 0 {
+			operate.Options = req.Operate.Options
+		}
+
 		instance = &inapi.AppInstance{
-			Id:   inutil.SeqRandHexString(4, 8),
-			Name: req.Spec.Name,
-			Operate: &inapi.AppOperate{
-				CpuLimit:    cpuLimit,
-				MemoryLimit: memoryLimit,
-				VolumeLimit: volumeLimit,
-				ReplicaCap:  max(1, min(128, req.ReplicaCap)),
-			},
-			Spec: req.Spec,
+			Id:      inutil.SeqRandHexString(4, 8),
+			Name:    req.Spec.Name,
+			Operate: operate,
+			Spec:    req.Spec,
 		}
 
 		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, instance.Id)

@@ -2,30 +2,8 @@
 
 set -e
 
-uid=$(id -u)
-if [ $uid -ne 2048 ]; then
-  # Check if user 'action' already exists
-  if ! id action > /dev/null 2>&1; then
-    # Try to create user with uid 2048
-    # useradd: RedHat/CentOS/Alpine
-    # adduser: Debian/Ubuntu (with different syntax)
-    if command -v useradd > /dev/null 2>&1; then
-      useradd -u 2048 -d /home/action -s /bin/sh action
-    elif command -v adduser > /dev/null 2>&1; then
-      # Alpine uses adduser with different syntax than Debian
-      if [ -f /etc/alpine-release ]; then
-        adduser -D -u 2048 -h /home/action -s /bin/sh action
-      else
-        # Debian/Ubuntu adduser
-        adduser --disabled-password --gecos "" --uid 2048 --home /home/action --shell /bin/sh action
-      fi
-    fi
-  fi
-  # Ensure home directory exists with correct permissions
-  mkdir -p /home/action
-  chown 2048:2048 /home/action 2>/dev/null || true
-  su -c "/home/action/.sysinner/inagent daemon" action
-else
-  /home/action/.sysinner/inagent daemon
-fi
+# Ensure directories exist
+mkdir -p /home/action
+mkdir -p /opt
 
+/home/action/.sysinner/inagent daemon

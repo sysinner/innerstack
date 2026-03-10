@@ -19,15 +19,6 @@ package inapi;
 option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
 
-message OpLogSets {
-  string name = 1;
-  uint32 version = 3;
-  repeated OpLogEntry items = 4;
-}
-
-message OpLogEntry {
-  string name = 1;
-  string status = 2;
-  uint64 updated = 3;  // unix time in milliseconds
-  string message = 4;
+message Package {
+  string name = 2;
 }

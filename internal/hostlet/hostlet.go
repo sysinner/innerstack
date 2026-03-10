@@ -15,23 +15,20 @@
 package hostlet
 
 import (
-	"encoding/json"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"
+	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
 
 func TryRun() error {
 	cfgfile := filepath.Join(config.Prefix + "/etc/hostlet_active.json")
-	if b, err := os.ReadFile(cfgfile); err == nil {
-		if err = json.Unmarshal(b, &hoststatus.Active); err != nil {
-			slog.Warn("hostlet load config failed", "error", err)
-		}
+	if err := inutil.JsonDecodeFromFile(cfgfile, &hoststatus.Active); err != nil {
+		slog.Warn("hostlet load config failed", "error", err)
 	}
 	return nil
 }
@@ -42,14 +39,10 @@ func Run() {
 		slog.Error("hostlet", "err", err.Error())
 	}
 
-	if err := containerStatusRefresh(); err != nil {
-		slog.Error("hostlet", "err", err.Error())
-	}
-
-	tr := time.NewTimer(5e9)
+	tr := time.NewTimer(3e9)
 	defer tr.Stop()
 
-	tc := time.NewTimer(10e9)
+	tc := time.NewTimer(5e9)
 	defer tc.Stop()
 
 	for {
@@ -62,15 +55,13 @@ func Run() {
 			if err := statusRefresh(); err != nil {
 				slog.Error("hostlet", "err", err.Error())
 			}
-			tr.Reset(5e9)
+			tr.Reset(3e9)
 
 		case <-tc.C:
-			if err := containerStatusRefresh(); err != nil {
-				slog.Error("hostlet", "err", err.Error())
-			} else if err = containerControlRefresh(); err != nil {
+			if err := containerRefresh(); err != nil {
 				slog.Error("hostlet", "err", err.Error())
 			}
-			tc.Reset(10e9)
+			tc.Reset(5e9)
 		}
 	}
 }

@@ -5,18 +5,20 @@ go 1.25.6
 // replace github.com/lynkdb/kvgo/v2 v2.0.13 => /opt/workspace/src/github.com/lynkdb/kvgo
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/fsouza/go-dockerclient v1.13.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/hooto/hauth/go v0.1.5
 	github.com/hooto/hauth/go/v2 v2.0.0-20260125120444-4cbf92d8d081
-	github.com/hooto/hlog4g v0.9.5
+	github.com/hooto/hflag4g v0.10.1
 	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/htoml4g v0.9.5
 	github.com/lynkdb/kvgo/v2 v2.0.14
 	github.com/lynkdb/lynkapi v0.0.11
 	github.com/olekukonko/tablewriter v1.1.3
+	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/shirou/gopsutil/v4 v4.26.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.47.0
@@ -52,7 +54,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/hooto/hflag4g v0.10.1 // indirect
+	github.com/hooto/hlog4g v0.9.5 // indirect
 	github.com/hooto/httpsrv v0.12.6 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect

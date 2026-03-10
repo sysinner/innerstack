@@ -358,8 +358,10 @@ func initSetup() error {
 	if cfg.Server.MaxBodySize <= 0 {
 		cfg.Server.MaxBodySize = 16 << 20 // 默认 16MB
 	} else {
-		cfg.Server.MaxBodySize = max(cfg.Server.MaxBodySize, 8<<20)  // 最小 8 MB
-		cfg.Server.MaxBodySize = min(cfg.Server.MaxBodySize, 64<<20) // 最大 64 MB
+		// min 8 MB, max 64 MB
+		cfg.Server.MaxBodySize = max(cfg.Server.MaxBodySize, 8<<20)
+		// max 64 MB
+		cfg.Server.MaxBodySize = min(cfg.Server.MaxBodySize, 64<<20)
 	}
 
 	if cfg.Server.ReadTimeout <= 0 {
@@ -494,9 +496,10 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 			switch route.Type {
 			case "localfs":
 
-				if p := lynkapi.SlicesSearchFunc(domain.Routes, func(a *inapi.GatewayService_DomainDeploy_Route) bool {
-					return a.Path == route.Path
-				}); p == nil {
+				if p := lynkapi.SlicesSearchFunc(domain.Routes,
+					func(a *inapi.GatewayService_DomainDeploy_Route) bool {
+						return a.Path == route.Path
+					}); p == nil {
 					domainEntry.Routes = append(domainEntry.Routes, route)
 					domainEntry.indexRoutes[route.Path] = route
 				}

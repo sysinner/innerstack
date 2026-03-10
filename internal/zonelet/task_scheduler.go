@@ -48,7 +48,8 @@ func schedulerRefresh(forceRefresh bool) error {
 			if err := item.JsonDecode(&instance); err != nil {
 				continue
 			}
-			if instance.Operate == nil || instance.Spec == nil {
+			if instance.Operate == nil || instance.Spec == nil ||
+				instance.Spec.Resources == nil {
 				slog.Warn("scheduler skip instance with invalid operate or spec",
 					"instance_id", instance.Id)
 				continue
@@ -165,14 +166,16 @@ func schedulerRefresh(forceRefresh bool) error {
 
 	// Schedule replicas for each instance
 	for _, instance := range []*inapi.AppInstance{activeInstance} {
-		// Determine replica capacity (default 1)
-		instance.Operate.ReplicaCap = max(1, min(128, instance.Operate.ReplicaCap))
+		// Determine replica capacity (default 1, max 128)
+		rc := instance.Operate.ReplicaCap
+		instance.Operate.ReplicaCap = max(1, min(128, rc))
 
 		sort.Slice(instance.Operate.Replicas, func(i, j int) bool {
 			return instance.Operate.Replicas[i].Id < instance.Operate.Replicas[j].Id
 		})
 
-		for repId := uint32(len(instance.Operate.Replicas)); repId < instance.Operate.ReplicaCap; repId++ {
+		repLen := uint32(len(instance.Operate.Replicas))
+		for repId := repLen; repId < instance.Operate.ReplicaCap; repId++ {
 			newReplica := &inapi.AppOperateReplica{
 				Id: repId,
 			}

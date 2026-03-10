@@ -25,8 +25,18 @@ import (
 
 	drvClient "github.com/fsouza/go-dockerclient"
 
+	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 )
+
+// dockerStateMap maps Docker container states to inapi replica states.
+var dockerStateMap = map[string]string{
+	"running": inapi.OpStateRunning,
+	"exited":  inapi.OpStateStopped,
+	"dead":    inapi.OpStateStopped,
+	"paused":  inapi.OpStateRunning,
+	"created": inapi.OpStateStarting,
+}
 
 var (
 	driver             hostapi.Driver = &dockerDriver{}
@@ -150,11 +160,17 @@ func (it *dockerDriver) ContainerList(ctx context.Context) ([]*hostapi.Container
 
 	result := make([]*hostapi.ContainerInfo, 0, len(containers))
 	for _, ctr := range containers {
+		// Map Docker state to inapi state
+		state := ctr.State
+		if s, ok := dockerStateMap[ctr.State]; ok {
+			state = s
+		}
+
 		info := &hostapi.ContainerInfo{
 			ID:     ctr.ID,
 			Name:   strings.Trim(strings.Join(ctr.Names, "/"), "/"),
 			Image:  ctr.Image,
-			State:  ctr.State,
+			State:  state,
 			Status: ctr.Status,
 			Labels: ctr.Labels,
 		}
@@ -172,7 +188,10 @@ func (it *dockerDriver) ContainerList(ctx context.Context) ([]*hostapi.Container
 			if port.IP != "" {
 				pb.HostIP = port.IP
 			}
-			info.Ports = append(info.Ports, pb)
+			if info.Ports == nil {
+				info.Ports = make(map[int32]hostapi.PortBinding)
+			}
+			info.Ports[pb.ContainerPort] = pb
 		}
 
 		for _, net := range ctr.Networks.Networks {
@@ -188,7 +207,101 @@ func (it *dockerDriver) ContainerList(ctx context.Context) ([]*hostapi.Container
 	return result, nil
 }
 
-func (it *dockerDriver) ContainerCreate(ctx context.Context, opts *hostapi.ContainerCreateOptions) (*hostapi.ContainerInfo, error) {
+// ContainerInspect returns detailed container info including resource limits.
+func (it *dockerDriver) ContainerInspect(
+	ctx context.Context, nameOrId string,
+) (*hostapi.ContainerInfo, error) {
+	if err := it.init(); err != nil {
+		return nil, err
+	}
+
+	container, err := it.client.InspectContainerWithOptions(drvClient.InspectContainerOptions{
+		ID:      nameOrId,
+		Context: ctx,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Map Docker state to inapi state
+	state := container.State.Status
+	if s, ok := dockerStateMap[container.State.Status]; ok {
+		state = s
+	}
+
+	info := &hostapi.ContainerInfo{
+		ID:      container.ID,
+		Name:    strings.TrimPrefix(container.Name, "/"),
+		Image:   container.Config.Image,
+		ImageID: container.Image,
+		State:   state,
+		Status:  container.State.String(),
+		Labels:  container.Config.Labels,
+	}
+
+	// CPU limit: NanoCPUs is in units of 1e-9 CPUs.
+	// Convert to millicores (1000 = 1 core).
+	if container.HostConfig.NanoCPUs > 0 {
+		info.CpuLimit = container.HostConfig.NanoCPUs / 1e6
+	}
+
+	// Memory limit (bytes)
+	if container.HostConfig.Memory > 0 {
+		info.MemoryLimit = container.HostConfig.Memory
+	}
+
+	if container.Created.Unix() > 0 {
+		info.Created = container.Created.Unix()
+	}
+
+	if container.State.Pid != 0 {
+		info.Pid = container.State.Pid
+	}
+
+	if !container.State.StartedAt.IsZero() {
+		info.Started = container.State.StartedAt.Unix()
+	}
+
+	// Extract port bindings
+	for port, bindings := range container.HostConfig.PortBindings {
+		for _, binding := range bindings {
+			proto := "tcp"
+			parts := strings.Split(string(port), "/")
+			if len(parts) == 2 {
+				proto = parts[1]
+			}
+			var containerPort int32
+			fmt.Sscanf(parts[0], "%d", &containerPort)
+			var hostPort int32
+			fmt.Sscanf(binding.HostPort, "%d", &hostPort)
+			if info.Ports == nil {
+				info.Ports = make(map[int32]hostapi.PortBinding)
+			}
+			info.Ports[containerPort] = hostapi.PortBinding{
+				HostIP:        binding.HostIP,
+				HostPort:      hostPort,
+				ContainerPort: containerPort,
+				Protocol:      proto,
+			}
+		}
+	}
+
+	// Extract IP from network settings
+	if container.NetworkSettings != nil {
+		for _, net := range container.NetworkSettings.Networks {
+			if net.IPAddress != "" {
+				info.IP = net.IPAddress
+				break
+			}
+		}
+	}
+
+	return info, nil
+}
+
+func (it *dockerDriver) ContainerCreate(
+	ctx context.Context, opts *hostapi.ContainerCreateOptions,
+) (*hostapi.ContainerInfo, error) {
 	if err := it.init(); err != nil {
 		return nil, err
 	}
@@ -260,7 +373,7 @@ func (it *dockerDriver) ContainerCreate(ctx context.Context, opts *hostapi.Conta
 		ID:      container.ID,
 		Name:    opts.Name,
 		Image:   opts.Image,
-		State:   "created",
+		State:   inapi.OpStateStarting,
 		Created: container.Created.Unix(),
 		Labels:  opts.Labels,
 	}, nil
