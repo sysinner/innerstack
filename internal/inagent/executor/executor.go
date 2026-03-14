@@ -188,7 +188,7 @@ func executorAction(
 ) (string, string) {
 
 	if etr.Plan == nil {
-		etr.Plan = &inapi.AppExecPlanner{
+		etr.Plan = &inapi.AppSpecExecPlanner{
 			OnBoot: true,
 		}
 	}

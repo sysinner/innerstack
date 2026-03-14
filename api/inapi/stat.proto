@@ -19,15 +19,38 @@ package inapi;
 option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
 
+// OpLogSets represents a collection of operation log entries, typically used
+// to track the status and progress of batch operations or workflows.
 message OpLogSets {
+  // Name identifies this operation log set, typically representing the
+  // operation type or workflow name.
   string name = 1;
+
+  // Version indicates the schema or data version of this log set,
+  // useful for migration and compatibility checking.
   uint32 version = 3;
+
+  // Items contains the list of individual operation log entries
+  // within this set.
   repeated OpLogEntry items = 4;
 }
 
+// OpLogEntry represents a single operation log entry that records
+// the execution status and result of a specific operation.
 message OpLogEntry {
+  // Name identifies this specific operation, such as a task name,
+  // step name, or resource identifier.
   string name = 1;
+
+  // Status indicates the current state of the operation.
+  // Common values include "pending", "running", "success", "failed", "cancelled".
   string status = 2;
-  uint64 updated = 3;  // unix time in milliseconds
+
+  // Updated is the Unix timestamp in milliseconds when this entry
+  // was last modified, used for tracking operation progress and timing.
+  uint64 updated = 3;
+
+  // Message provides additional details about the operation result,
+  // error description, or progress information.
   string message = 4;
 }

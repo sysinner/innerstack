@@ -43,6 +43,8 @@ func main() {
 	rootCmd.AddCommand(cli.NewAppDeployCommand())
 	rootCmd.AddCommand(cli.NewAppDeleteCommand())
 
+	rootCmd.AddCommand(cli.NewPkgBuildCommand())
+
 	if err := rootCmd.Execute(); err != nil {
 		// fmt.Println(err)
 		os.Exit(1)

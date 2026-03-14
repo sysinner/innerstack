@@ -34,12 +34,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Package represents a software package in the package repository.
+// It combines metadata (identity information) with release information
+// (build artifacts for a specific platform).
 type Package struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// metadata contains the package identity and descriptive information
+	Metadata *PackageMetadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty" toml:"metadata,omitempty"`
+	// release contains build artifact properties for a specific platform
+	Release *PackageRelease `protobuf:"bytes,2,opt,name=release,proto3" json:"release,omitempty" toml:"release,omitempty"`
 }
 
 func (x *Package) Reset() {
@@ -74,21 +80,611 @@ func (*Package) Descriptor() ([]byte, []int) {
 	return file_package_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Package) GetName() string {
+func (x *Package) GetMetadata() *PackageMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *Package) GetRelease() *PackageRelease {
+	if x != nil {
+		return x.Release
+	}
+	return nil
+}
+
+// PackageMetadata defines the identity and descriptive information of a package.
+// These fields are platform-independent and define what the package is.
+// Required fields: name, version
+// All other fields are optional.
+type PackageMetadata struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// name is the package name (required).
+	// Must be lowercase, start with a letter, and contain only
+	// alphanumeric characters, hyphens, or underscores.
+	// Example: "my-app", "nginx", "postgresql"
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// version is the package core version (required).
+	// Must follow semantic versioning core format (MAJOR.MINOR.PATCH).
+	// Pre-release and build metadata should be specified via --version flag during build.
+	// Examples: "1.0.0", "2.1.0", "0.1.0"
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	// authors are the package authors (optional).
+	// Can include name and optional email in format "Name <email>".
+	Authors []string `protobuf:"bytes,4,rep,name=authors,proto3" json:"authors,omitempty" toml:"authors,omitempty"`
+	// description is a short description of the package (optional).
+	// Should be a single line summarizing what the package does.
+	Description string `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
+	// documentation is the URL to package documentation (optional).
+	Documentation string `protobuf:"bytes,6,opt,name=documentation,proto3" json:"documentation,omitempty" toml:"documentation,omitempty"`
+	// homepage is the URL to the package homepage (optional).
+	Homepage string `protobuf:"bytes,7,opt,name=homepage,proto3" json:"homepage,omitempty" toml:"homepage,omitempty"`
+	// repository is the URL to the source code repository (optional).
+	// Examples: "https://github.com/user/repo"
+	Repository string `protobuf:"bytes,8,opt,name=repository,proto3" json:"repository,omitempty" toml:"repository,omitempty"`
+	// license is the package license identifier (optional).
+	// Use SPDX license identifiers when possible.
+	// Examples: "MIT", "Apache-2.0", "GPL-3.0"
+	License string `protobuf:"bytes,9,opt,name=license,proto3" json:"license,omitempty" toml:"license,omitempty"`
+	// keywords are search keywords for the package (optional).
+	Keywords []string `protobuf:"bytes,10,rep,name=keywords,proto3" json:"keywords,omitempty" toml:"keywords,omitempty"`
+	// categories are classification categories for the package (optional).
+	// Examples: "database", "web-server", "monitoring"
+	Categories []string `protobuf:"bytes,11,rep,name=categories,proto3" json:"categories,omitempty" toml:"categories,omitempty"`
+}
+
+func (x *PackageMetadata) Reset() {
+	*x = PackageMetadata{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_package_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PackageMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageMetadata) ProtoMessage() {}
+
+func (x *PackageMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_package_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageMetadata.ProtoReflect.Descriptor instead.
+func (*PackageMetadata) Descriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PackageMetadata) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
+func (x *PackageMetadata) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *PackageMetadata) GetAuthors() []string {
+	if x != nil {
+		return x.Authors
+	}
+	return nil
+}
+
+func (x *PackageMetadata) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *PackageMetadata) GetDocumentation() string {
+	if x != nil {
+		return x.Documentation
+	}
+	return ""
+}
+
+func (x *PackageMetadata) GetHomepage() string {
+	if x != nil {
+		return x.Homepage
+	}
+	return ""
+}
+
+func (x *PackageMetadata) GetRepository() string {
+	if x != nil {
+		return x.Repository
+	}
+	return ""
+}
+
+func (x *PackageMetadata) GetLicense() string {
+	if x != nil {
+		return x.License
+	}
+	return ""
+}
+
+func (x *PackageMetadata) GetKeywords() []string {
+	if x != nil {
+		return x.Keywords
+	}
+	return nil
+}
+
+func (x *PackageMetadata) GetCategories() []string {
+	if x != nil {
+		return x.Categories
+	}
+	return nil
+}
+
+// PackageRelease defines build artifact properties for a specific platform.
+// These fields are determined after the build process and identify
+// the physical characteristics of the package distribution.
+type PackageRelease struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// version is the full version string for this build.
+	// If build without --version flag, it equals to Metadata.Version (core version only).
+	// If build with --version flag, it can include pre-release and build metadata.
+	// Examples: "1.0.0", "1.0.0-beta.1", "1.0.0-beta.1+build.123"
+	Version string `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	// os is the target operating system.
+	// Common values: "linux", "freebsd", "darwin", "all"
+	Os string `protobuf:"bytes,4,opt,name=os,proto3" json:"os,omitempty" toml:"os,omitempty"`
+	// arch is the target CPU architecture.
+	// Common values: "amd64", "arm64", "src" (source package)
+	Arch string `protobuf:"bytes,5,opt,name=arch,proto3" json:"arch,omitempty" toml:"arch,omitempty"`
+	// built_at is the Unix timestamp when the package was built.
+	BuiltAt int64 `protobuf:"varint,11,opt,name=built_at,json=builtAt,proto3" json:"built_at,omitempty" toml:"built_at,omitempty"`
+	// size is the package size in bytes.
+	Size int64 `protobuf:"varint,12,opt,name=size,proto3" json:"size,omitempty" toml:"size,omitempty"`
+	// checksum is the SHA-256 checksum of the package archive.
+	Checksum string `protobuf:"bytes,13,opt,name=checksum,proto3" json:"checksum,omitempty" toml:"checksum,omitempty"`
+}
+
+func (x *PackageRelease) Reset() {
+	*x = PackageRelease{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_package_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PackageRelease) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageRelease) ProtoMessage() {}
+
+func (x *PackageRelease) ProtoReflect() protoreflect.Message {
+	mi := &file_package_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageRelease.ProtoReflect.Descriptor instead.
+func (*PackageRelease) Descriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PackageRelease) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *PackageRelease) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *PackageRelease) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *PackageRelease) GetBuiltAt() int64 {
+	if x != nil {
+		return x.BuiltAt
+	}
+	return 0
+}
+
+func (x *PackageRelease) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *PackageRelease) GetChecksum() string {
+	if x != nil {
+		return x.Checksum
+	}
+	return ""
+}
+
+// PackageSpecRef is a reference to a package, used for dependencies.
+// It specifies constraints rather than exact matches.
+type PackageSpecRef struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// name is the required package name.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// version is the version constraint (semver range).
+	// Examples: ">=1.0.0", "^2.0.0", "~1.2.0", "1.0.0 - 2.0.0"
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+}
+
+func (x *PackageSpecRef) Reset() {
+	*x = PackageSpecRef{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_package_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PackageSpecRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageSpecRef) ProtoMessage() {}
+
+func (x *PackageSpecRef) ProtoReflect() protoreflect.Message {
+	mi := &file_package_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageSpecRef.ProtoReflect.Descriptor instead.
+func (*PackageSpecRef) Descriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PackageSpecRef) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PackageSpecRef) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+// PackageSpec defines the package specification for building.
+// This is the structure used in ipk.toml configuration files.
+type PackageSpec struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// metadata contains the package metadata (identity information).
+	// The [metadata] section in ipk.toml.
+	Metadata *PackageMetadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty" toml:"metadata,omitempty"`
+	// build contains the build configuration.
+	// The [build] section in ipk.toml.
+	Build *PackageSpecBuild `protobuf:"bytes,2,opt,name=build,proto3" json:"build,omitempty" toml:"build,omitempty"`
+	// dependencies are the package dependencies (optional).
+	// The [[dependencies]] sections in ipk.toml.
+	Dependencies []*PackageSpecRef `protobuf:"bytes,3,rep,name=dependencies,proto3" json:"dependencies,omitempty" toml:"dependencies,omitempty"`
+}
+
+func (x *PackageSpec) Reset() {
+	*x = PackageSpec{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_package_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PackageSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageSpec) ProtoMessage() {}
+
+func (x *PackageSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_package_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageSpec.ProtoReflect.Descriptor instead.
+func (*PackageSpec) Descriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PackageSpec) GetMetadata() *PackageMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *PackageSpec) GetBuild() *PackageSpecBuild {
+	if x != nil {
+		return x.Build
+	}
+	return nil
+}
+
+func (x *PackageSpec) GetDependencies() []*PackageSpecRef {
+	if x != nil {
+		return x.Dependencies
+	}
+	return nil
+}
+
+// PackageSpecBuild defines the build configuration.
+// Specifies how to build the package from source.
+type PackageSpecBuild struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// include specifies files/directories to include in the package.
+	// Supports glob patterns. If empty, all files are included by default.
+	// Examples: ["src/**", "lib/**", "config/*"]
+	Include []string `protobuf:"bytes,1,rep,name=include,proto3" json:"include,omitempty" toml:"include,omitempty"`
+	// exclude specifies files/directories to exclude from the package.
+	// Supports glob patterns. Applied after include patterns.
+	// Examples: ["*.test", "node_modules/**", ".git/**"]
+	Exclude []string `protobuf:"bytes,2,rep,name=exclude,proto3" json:"exclude,omitempty" toml:"exclude,omitempty"`
+	// file is the path to a build file (optional).
+	// Alternative to inline script. Examples: "Makefile", "build.sh"
+	File string `protobuf:"bytes,3,opt,name=file,proto3" json:"file,omitempty" toml:"file,omitempty"`
+	// script is the build script to execute (optional).
+	// Supports template variables: {{.ipk_dir}}, {{.ipk_build_dir}},
+	// {{.ipk_name}}, {{.ipk_version}}, {{.ipk_release}}, {{.ipk_os}},
+	// {{.ipk_arch}}, {{.ipk_prefix}}
+	Script string `protobuf:"bytes,4,opt,name=script,proto3" json:"script,omitempty" toml:"script,omitempty"`
+	// env specifies environment variables for the build script.
+	// These are available in addition to IPK_* variables.
+	Env map[string]string `protobuf:"bytes,5,rep,name=env,proto3" json:"env,omitempty" toml:"env,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// minify_js specifies JavaScript files to minify (glob patterns).
+	// Requires a JavaScript minifier to be available.
+	MinifyJs []string `protobuf:"bytes,9,rep,name=minify_js,json=minifyJs,proto3" json:"minify_js,omitempty" toml:"minify_js,omitempty"`
+	// minify_css specifies CSS files to minify (glob patterns).
+	// Requires a CSS minifier to be available.
+	MinifyCss []string `protobuf:"bytes,10,rep,name=minify_css,json=minifyCss,proto3" json:"minify_css,omitempty" toml:"minify_css,omitempty"`
+	// minify_html specifies HTML/template files to minify (glob patterns).
+	// Also processes .tpl files. Removes whitespace and comments.
+	MinifyHtml []string `protobuf:"bytes,11,rep,name=minify_html,json=minifyHtml,proto3" json:"minify_html,omitempty" toml:"minify_html,omitempty"`
+	// optimize_png specifies PNG files to optimize (glob patterns).
+	// Uses lossless PNG optimization.
+	OptimizePng []string `protobuf:"bytes,12,rep,name=optimize_png,json=optimizePng,proto3" json:"optimize_png,omitempty" toml:"optimize_png,omitempty"`
+}
+
+func (x *PackageSpecBuild) Reset() {
+	*x = PackageSpecBuild{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_package_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PackageSpecBuild) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageSpecBuild) ProtoMessage() {}
+
+func (x *PackageSpecBuild) ProtoReflect() protoreflect.Message {
+	mi := &file_package_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageSpecBuild.ProtoReflect.Descriptor instead.
+func (*PackageSpecBuild) Descriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PackageSpecBuild) GetInclude() []string {
+	if x != nil {
+		return x.Include
+	}
+	return nil
+}
+
+func (x *PackageSpecBuild) GetExclude() []string {
+	if x != nil {
+		return x.Exclude
+	}
+	return nil
+}
+
+func (x *PackageSpecBuild) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *PackageSpecBuild) GetScript() string {
+	if x != nil {
+		return x.Script
+	}
+	return ""
+}
+
+func (x *PackageSpecBuild) GetEnv() map[string]string {
+	if x != nil {
+		return x.Env
+	}
+	return nil
+}
+
+func (x *PackageSpecBuild) GetMinifyJs() []string {
+	if x != nil {
+		return x.MinifyJs
+	}
+	return nil
+}
+
+func (x *PackageSpecBuild) GetMinifyCss() []string {
+	if x != nil {
+		return x.MinifyCss
+	}
+	return nil
+}
+
+func (x *PackageSpecBuild) GetMinifyHtml() []string {
+	if x != nil {
+		return x.MinifyHtml
+	}
+	return nil
+}
+
+func (x *PackageSpecBuild) GetOptimizePng() []string {
+	if x != nil {
+		return x.OptimizePng
+	}
+	return nil
+}
+
 var File_package_proto protoreflect.FileDescriptor
 
 var file_package_proto_rawDesc = []byte{
 	0x0a, 0x0d, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12,
-	0x05, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x22, 0x1d, 0x0a, 0x07, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67,
-	0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x69, 0x6e,
-	0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x05, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x22, 0x6e, 0x0a, 0x07, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67,
+	0x65, 0x12, 0x32, 0x0a, 0x08, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x50, 0x61, 0x63, 0x6b,
+	0x61, 0x67, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x08, 0x6d, 0x65, 0x74,
+	0x61, 0x64, 0x61, 0x74, 0x61, 0x12, 0x2f, 0x0a, 0x07, 0x72, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x50,
+	0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x52, 0x07, 0x72,
+	0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x22, 0xb3, 0x02, 0x0a, 0x0f, 0x50, 0x61, 0x63, 0x6b, 0x61,
+	0x67, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61,
+	0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x18,
+	0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x18, 0x0a, 0x07, 0x61, 0x75, 0x74, 0x68,
+	0x6f, 0x72, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x09, 0x52, 0x07, 0x61, 0x75, 0x74, 0x68, 0x6f,
+	0x72, 0x73, 0x12, 0x20, 0x0a, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f,
+	0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70,
+	0x74, 0x69, 0x6f, 0x6e, 0x12, 0x24, 0x0a, 0x0d, 0x64, 0x6f, 0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x64, 0x6f, 0x63,
+	0x75, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f,
+	0x6d, 0x65, 0x70, 0x61, 0x67, 0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f,
+	0x6d, 0x65, 0x70, 0x61, 0x67, 0x65, 0x12, 0x1e, 0x0a, 0x0a, 0x72, 0x65, 0x70, 0x6f, 0x73, 0x69,
+	0x74, 0x6f, 0x72, 0x79, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x72, 0x65, 0x70, 0x6f,
+	0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x12, 0x18, 0x0a, 0x07, 0x6c, 0x69, 0x63, 0x65, 0x6e, 0x73,
+	0x65, 0x18, 0x09, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6c, 0x69, 0x63, 0x65, 0x6e, 0x73, 0x65,
+	0x12, 0x1a, 0x0a, 0x08, 0x6b, 0x65, 0x79, 0x77, 0x6f, 0x72, 0x64, 0x73, 0x18, 0x0a, 0x20, 0x03,
+	0x28, 0x09, 0x52, 0x08, 0x6b, 0x65, 0x79, 0x77, 0x6f, 0x72, 0x64, 0x73, 0x12, 0x1e, 0x0a, 0x0a,
+	0x63, 0x61, 0x74, 0x65, 0x67, 0x6f, 0x72, 0x69, 0x65, 0x73, 0x18, 0x0b, 0x20, 0x03, 0x28, 0x09,
+	0x52, 0x0a, 0x63, 0x61, 0x74, 0x65, 0x67, 0x6f, 0x72, 0x69, 0x65, 0x73, 0x22, 0x99, 0x01, 0x0a,
+	0x0e, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x52, 0x65, 0x6c, 0x65, 0x61, 0x73, 0x65, 0x12,
+	0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x0e, 0x0a, 0x02, 0x6f, 0x73, 0x18,
+	0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x6f, 0x73, 0x12, 0x12, 0x0a, 0x04, 0x61, 0x72, 0x63,
+	0x68, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x61, 0x72, 0x63, 0x68, 0x12, 0x19, 0x0a,
+	0x08, 0x62, 0x75, 0x69, 0x6c, 0x74, 0x5f, 0x61, 0x74, 0x18, 0x0b, 0x20, 0x01, 0x28, 0x03, 0x52,
+	0x07, 0x62, 0x75, 0x69, 0x6c, 0x74, 0x41, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x73, 0x69, 0x7a, 0x65,
+	0x18, 0x0c, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x12, 0x1a, 0x0a, 0x08,
+	0x63, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x75, 0x6d, 0x18, 0x0d, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08,
+	0x63, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x75, 0x6d, 0x22, 0x3e, 0x0a, 0x0e, 0x50, 0x61, 0x63, 0x6b,
+	0x61, 0x67, 0x65, 0x53, 0x70, 0x65, 0x63, 0x52, 0x65, 0x66, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61,
+	0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x18,
+	0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0xab, 0x01, 0x0a, 0x0b, 0x50, 0x61, 0x63,
+	0x6b, 0x61, 0x67, 0x65, 0x53, 0x70, 0x65, 0x63, 0x12, 0x32, 0x0a, 0x08, 0x6d, 0x65, 0x74, 0x61,
+	0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x69, 0x6e, 0x61,
+	0x70, 0x69, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61,
+	0x74, 0x61, 0x52, 0x08, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x12, 0x2d, 0x0a, 0x05,
+	0x62, 0x75, 0x69, 0x6c, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x69, 0x6e,
+	0x61, 0x70, 0x69, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x53, 0x70, 0x65, 0x63, 0x42,
+	0x75, 0x69, 0x6c, 0x64, 0x52, 0x05, 0x62, 0x75, 0x69, 0x6c, 0x64, 0x12, 0x39, 0x0a, 0x0c, 0x64,
+	0x65, 0x70, 0x65, 0x6e, 0x64, 0x65, 0x6e, 0x63, 0x69, 0x65, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28,
+	0x0b, 0x32, 0x15, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67,
+	0x65, 0x53, 0x70, 0x65, 0x63, 0x52, 0x65, 0x66, 0x52, 0x0c, 0x64, 0x65, 0x70, 0x65, 0x6e, 0x64,
+	0x65, 0x6e, 0x63, 0x69, 0x65, 0x73, 0x22, 0xde, 0x02, 0x0a, 0x10, 0x50, 0x61, 0x63, 0x6b, 0x61,
+	0x67, 0x65, 0x53, 0x70, 0x65, 0x63, 0x42, 0x75, 0x69, 0x6c, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x69,
+	0x6e, 0x63, 0x6c, 0x75, 0x64, 0x65, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x07, 0x69, 0x6e,
+	0x63, 0x6c, 0x75, 0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x65, 0x78, 0x63, 0x6c, 0x75, 0x64, 0x65,
+	0x18, 0x02, 0x20, 0x03, 0x28, 0x09, 0x52, 0x07, 0x65, 0x78, 0x63, 0x6c, 0x75, 0x64, 0x65, 0x12,
+	0x12, 0x0a, 0x04, 0x66, 0x69, 0x6c, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x66,
+	0x69, 0x6c, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x18, 0x04, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x06, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x12, 0x32, 0x0a, 0x03, 0x65,
+	0x6e, 0x76, 0x18, 0x05, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x20, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69,
+	0x2e, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x53, 0x70, 0x65, 0x63, 0x42, 0x75, 0x69, 0x6c,
+	0x64, 0x2e, 0x45, 0x6e, 0x76, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x03, 0x65, 0x6e, 0x76, 0x12,
+	0x1b, 0x0a, 0x09, 0x6d, 0x69, 0x6e, 0x69, 0x66, 0x79, 0x5f, 0x6a, 0x73, 0x18, 0x09, 0x20, 0x03,
+	0x28, 0x09, 0x52, 0x08, 0x6d, 0x69, 0x6e, 0x69, 0x66, 0x79, 0x4a, 0x73, 0x12, 0x1d, 0x0a, 0x0a,
+	0x6d, 0x69, 0x6e, 0x69, 0x66, 0x79, 0x5f, 0x63, 0x73, 0x73, 0x18, 0x0a, 0x20, 0x03, 0x28, 0x09,
+	0x52, 0x09, 0x6d, 0x69, 0x6e, 0x69, 0x66, 0x79, 0x43, 0x73, 0x73, 0x12, 0x1f, 0x0a, 0x0b, 0x6d,
+	0x69, 0x6e, 0x69, 0x66, 0x79, 0x5f, 0x68, 0x74, 0x6d, 0x6c, 0x18, 0x0b, 0x20, 0x03, 0x28, 0x09,
+	0x52, 0x0a, 0x6d, 0x69, 0x6e, 0x69, 0x66, 0x79, 0x48, 0x74, 0x6d, 0x6c, 0x12, 0x21, 0x0a, 0x0c,
+	0x6f, 0x70, 0x74, 0x69, 0x6d, 0x69, 0x7a, 0x65, 0x5f, 0x70, 0x6e, 0x67, 0x18, 0x0c, 0x20, 0x03,
+	0x28, 0x09, 0x52, 0x0b, 0x6f, 0x70, 0x74, 0x69, 0x6d, 0x69, 0x7a, 0x65, 0x50, 0x6e, 0x67, 0x1a,
+	0x36, 0x0a, 0x08, 0x45, 0x6e, 0x76, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b,
+	0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a,
+	0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61,
+	0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b,
+	0x69, 0x6e, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -103,16 +699,28 @@ func file_package_proto_rawDescGZIP() []byte {
 	return file_package_proto_rawDescData
 }
 
-var file_package_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_package_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_package_proto_goTypes = []interface{}{
-	(*Package)(nil), // 0: inapi.Package
+	(*Package)(nil),          // 0: inapi.Package
+	(*PackageMetadata)(nil),  // 1: inapi.PackageMetadata
+	(*PackageRelease)(nil),   // 2: inapi.PackageRelease
+	(*PackageSpecRef)(nil),   // 3: inapi.PackageSpecRef
+	(*PackageSpec)(nil),      // 4: inapi.PackageSpec
+	(*PackageSpecBuild)(nil), // 5: inapi.PackageSpecBuild
+	nil,                      // 6: inapi.PackageSpecBuild.EnvEntry
 }
 var file_package_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: inapi.Package.metadata:type_name -> inapi.PackageMetadata
+	2, // 1: inapi.Package.release:type_name -> inapi.PackageRelease
+	1, // 2: inapi.PackageSpec.metadata:type_name -> inapi.PackageMetadata
+	5, // 3: inapi.PackageSpec.build:type_name -> inapi.PackageSpecBuild
+	3, // 4: inapi.PackageSpec.dependencies:type_name -> inapi.PackageSpecRef
+	6, // 5: inapi.PackageSpecBuild.env:type_name -> inapi.PackageSpecBuild.EnvEntry
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_package_proto_init() }
@@ -133,6 +741,66 @@ func file_package_proto_init() {
 				return nil
 			}
 		}
+		file_package_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackageMetadata); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_package_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackageRelease); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_package_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackageSpecRef); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_package_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackageSpec); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_package_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackageSpecBuild); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -140,7 +808,7 @@ func file_package_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_package_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

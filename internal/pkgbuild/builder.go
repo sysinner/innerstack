@@ -1,0 +1,714 @@
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package pkgbuild
+
+import (
+	"archive/tar"
+	"compress/gzip"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"text/template"
+	"time"
+
+	"github.com/sysinner/incore/v2/inapi"
+)
+
+const (
+	metaDir      = ".ipk"
+	metaFileName = "metadata.json"
+)
+
+// Config holds the build configuration
+type Config struct {
+	// Dir is the package source directory
+	Dir string
+	// OutputDir is the output directory for the package
+	OutputDir string
+	// SpecFile is the spec file path (optional, auto-detect if empty)
+	SpecFile string
+	// Version is the full version with optional pre-release and build metadata
+	// If empty, uses Metadata.Version (core version only)
+	// Example: "1.0.0-beta.1+build.123"
+	Version string
+	// Os is the operating system target (linux, freebsd, all)
+	Os string
+	// Arch is the architecture target (amd64, arm64, src)
+	Arch string
+	// Compress is the compression format (xz, gzip)
+	Compress string
+	// NoCompress skips final compression (for debugging)
+	NoCompress bool
+	// ShowBuild prints the build script before execution
+	ShowBuild bool
+	// BuildDir is the build temp directory (for debugging)
+	BuildDir string
+	// Quiet suppresses non-error output
+	Quiet bool
+}
+
+// Builder handles package building
+type Builder struct {
+	config   Config
+	spec     *inapi.PackageSpec
+	buildDir string
+	meta     *inapi.Package
+	verbose  bool
+}
+
+// NewBuilder creates a new Builder instance
+func NewBuilder(cfg Config) *Builder {
+	return &Builder{
+		config:  cfg,
+		verbose: !cfg.Quiet,
+	}
+}
+
+// Build executes the package build process
+func (b *Builder) Build() error {
+	// Step 1: Validate environment
+	if err := b.validateEnv(); err != nil {
+		return err
+	}
+
+	// Step 2: Setup working directory
+	if err := b.setupWorkDir(); err != nil {
+		return err
+	}
+	defer b.cleanup()
+
+	// Step 3: Load and validate spec
+	if err := b.loadSpec(); err != nil {
+		return err
+	}
+
+	// Step 4: Determine version info
+	b.resolveVersion()
+
+	// Step 5: Check if target already exists
+	if err := b.checkExisting(); err != nil {
+		return err
+	}
+
+	// Step 6: Print build info
+	b.printBuildInfo()
+
+	// Step 7: Process files (copy, minify, optimize)
+	if err := b.processFiles(); err != nil {
+		return err
+	}
+
+	// Step 8: Execute build script
+	if err := b.runBuildScript(); err != nil {
+		return err
+	}
+
+	// Step 9: Write metadata
+	if err := b.writeMetadata(); err != nil {
+		return err
+	}
+
+	// Step 10: Create archive
+	if !b.config.NoCompress {
+		if err := b.createArchive(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Builder) validateEnv() error {
+	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" {
+		return fmt.Errorf("unsupported architecture: %s (requires amd64 or arm64)", runtime.GOARCH)
+	}
+	return nil
+}
+
+func (b *Builder) setupWorkDir() error {
+	dir := b.config.Dir
+	if dir == "" {
+		dir = "."
+	}
+
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve directory: %w", err)
+	}
+	if _, err := os.Stat(absDir); err != nil {
+		return fmt.Errorf("directory not found: %s", absDir)
+	}
+	b.config.Dir = absDir
+
+	// Change to pack directory
+	if err := os.Chdir(absDir); err != nil {
+		return fmt.Errorf("failed to change directory: %w", err)
+	}
+
+	// Setup build directory
+	buildDir := b.config.BuildDir
+	if buildDir == "" {
+		buildDir = filepath.Join(os.TempDir(), fmt.Sprintf("ipk-%d", time.Now().UnixNano()))
+	}
+	absBuildDir, err := filepath.Abs(buildDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve build directory: %w", err)
+	}
+	b.buildDir = absBuildDir
+
+	// Create build directory
+	if err := os.MkdirAll(b.buildDir, 0755); err != nil {
+		return fmt.Errorf("failed to create build directory: %w", err)
+	}
+
+	return nil
+}
+
+func (b *Builder) loadSpec() error {
+	_, spec, err := SpecFind(".", b.config.SpecFile)
+	if err != nil {
+		return fmt.Errorf("failed to find spec file: %w", err)
+	}
+
+	if err := SpecValidate(spec); err != nil {
+		return fmt.Errorf("invalid spec: %w", err)
+	}
+
+	b.spec = spec
+	return nil
+}
+
+func (b *Builder) resolveVersion() {
+	// Determine the full version for PackageRelease.Version
+	// If --version is specified, use it (can include pre-release and build metadata)
+	// Otherwise, use Metadata.Version (core version only)
+	version := b.spec.Metadata.Version
+	if b.config.Version != "" {
+		version = b.config.Version
+	}
+
+	// Determine operating system (default: linux)
+	os := b.config.Os
+	if os == "" {
+		os = "linux"
+	}
+
+	// Determine architecture (default: amd64)
+	arch := b.config.Arch
+	if arch == "" {
+		arch = "amd64"
+	}
+
+	// Create metadata
+	// Note: Metadata.Version keeps the core version from spec
+	// Release.Version contains the full version (with optional pre-release/build metadata)
+	b.meta = &inapi.Package{
+		Metadata: b.spec.Metadata,
+		Release: &inapi.PackageRelease{
+			Version: version,
+			Os:      os,
+			Arch:    arch,
+			BuiltAt: time.Now().Unix(),
+		},
+	}
+}
+
+func (b *Builder) checkExisting() error {
+	if b.config.NoCompress {
+		return nil
+	}
+
+	targetPath := b.targetPath()
+	ext := "txz"
+	if b.config.Compress == "gzip" {
+		ext = "tgz"
+	}
+	archivePath := targetPath + "." + ext
+
+	if _, err := os.Stat(archivePath); err == nil {
+		return fmt.Errorf("target package already exists: %s", archivePath)
+	}
+
+	return nil
+}
+
+func (b *Builder) printBuildInfo() {
+	if !b.verbose {
+		return
+	}
+
+	fmt.Printf(`
+Building
+  name:        %s
+  version:     %s
+  os:          %s
+  arch:        %s
+`,
+		b.meta.Metadata.Name,
+		b.meta.Release.Version,
+		b.meta.Release.Os,
+		b.meta.Release.Arch,
+	)
+}
+
+func (b *Builder) processFiles() error {
+	build := b.spec.Build
+
+	// Process JavaScript files (minify)
+	if len(build.MinifyJs) > 0 {
+		if err := b.processFilesByPattern(build.MinifyJs, ".js", MinifyJS); err != nil {
+			return fmt.Errorf("js minification failed: %w", err)
+		}
+	}
+
+	// Process CSS files (minify)
+	if len(build.MinifyCss) > 0 {
+		if err := b.processFilesByPattern(build.MinifyCss, ".css", MinifyCSS); err != nil {
+			return fmt.Errorf("css minification failed: %w", err)
+		}
+	}
+
+	// Process HTML files (minify)
+	if len(build.MinifyHtml) > 0 {
+		if err := b.processFilesByPattern(build.MinifyHtml, ".html", MinifyHTML); err != nil {
+			return fmt.Errorf("html minification failed: %w", err)
+		}
+		// Also process .tpl files
+		if err := b.processFilesByPattern(build.MinifyHtml, ".tpl", MinifyHTML); err != nil {
+			return fmt.Errorf("html minification failed: %w", err)
+		}
+	}
+
+	// Process PNG files (optimize)
+	if len(build.OptimizePng) > 0 {
+		if err := b.processFilesByPattern(build.OptimizePng, ".png", OptimizePNG); err != nil {
+			return fmt.Errorf("png optimization failed: %w", err)
+		}
+	}
+
+	// Copy include files
+	if len(build.Include) > 0 {
+		if err := b.copyFiles(build.Include); err != nil {
+			return fmt.Errorf("file copy failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ProcessFunc is a function that processes a file
+type ProcessFunc func(src, dst string) error
+
+func (b *Builder) processFilesByPattern(patterns []string, ext string, fn ProcessFunc) error {
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return err
+		}
+
+		for _, src := range matches {
+			if shouldIgnore(src) {
+				continue
+			}
+
+			info, err := os.Stat(src)
+			if err != nil || info.IsDir() {
+				continue
+			}
+
+			if ext != "" && !strings.HasSuffix(src, ext) {
+				continue
+			}
+
+			dst := filepath.Join(b.buildDir, src)
+			if _, err := os.Stat(dst); err == nil {
+				continue // Already processed
+			}
+
+			if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+				return err
+			}
+
+			if err := fn(src, dst); err != nil {
+				// Fallback to copy on error
+				if err := copyFile(src, dst); err != nil {
+					return err
+				}
+				if b.verbose {
+					fmt.Printf("  FILE FALLBACK %s\n", src)
+				}
+			} else if b.verbose {
+				fmt.Printf("  FILE OK %s\n", src)
+			}
+		}
+	}
+	return nil
+}
+
+func (b *Builder) copyFiles(patterns []string) error {
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return err
+		}
+
+		for _, src := range matches {
+			if shouldIgnore(src) {
+				continue
+			}
+
+			info, err := os.Stat(src)
+			if err != nil {
+				continue
+			}
+
+			dst := filepath.Join(b.buildDir, src)
+			if _, err := os.Stat(dst); err == nil {
+				continue // Already exists
+			}
+
+			if info.IsDir() {
+				// Copy directory recursively
+				if err := b.copyDir(src, dst); err != nil {
+					return err
+				}
+			} else {
+				if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+					return err
+				}
+				if err := copyFile(src, dst); err != nil {
+					return err
+				}
+				if b.verbose {
+					fmt.Printf("  FILE OK %s\n", src)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (b *Builder) copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+
+		if shouldIgnore(path) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if d.IsDir() {
+			return os.MkdirAll(dstPath, 0755)
+		}
+
+		if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+			return err
+		}
+
+		if err := copyFile(path, dstPath); err != nil {
+			return err
+		}
+
+		if b.verbose {
+			fmt.Printf("  FILE OK %s\n", path)
+		}
+		return nil
+	})
+}
+
+func shouldIgnore(path string) bool {
+	base := filepath.Base(path)
+	ignored := []string{".git", ".gitignore", ".gitmodules", ".DS_Store", ".build_tempdir", "ipk.toml"}
+	for _, i := range ignored {
+		if base == i {
+			return true
+		}
+	}
+	return strings.Contains(path, "/.git/")
+}
+
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	info, err := srcFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode())
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	return err
+}
+
+func (b *Builder) runBuildScript() error {
+	if b.spec.Build.Script == "" {
+		return nil
+	}
+
+	// Template variables (snake_case naming with ipk_ prefix)
+	vars := map[string]string{
+		"ipk_dir":       b.config.Dir,
+		"ipk_build_dir": b.buildDir,
+		"ipk_name":      b.meta.Metadata.Name,
+		"ipk_version":   b.meta.Release.Version,
+		"ipk_os":        b.meta.Release.Os,
+		"ipk_arch":      b.meta.Release.Arch,
+		"ipk_prefix":    "/opt/" + b.meta.Metadata.Name,
+	}
+
+	// Process template
+	tmpl, err := template.New("build").Parse(b.spec.Build.Script)
+	if err != nil {
+		return fmt.Errorf("invalid build script template: %w", err)
+	}
+
+	var script strings.Builder
+	if err := tmpl.Execute(&script, vars); err != nil {
+		return fmt.Errorf("failed to process build script: %w", err)
+	}
+
+	buildScript := script.String()
+
+	if b.config.ShowBuild {
+		fmt.Printf("\nBuild Script:\n%s\n\n", buildScript)
+	}
+
+	// Execute script
+	cmd := exec.Command("sh", "-c", buildScript)
+	cmd.Dir = b.config.Dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Set environment variables
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("IPK_DIR=%s", b.config.Dir),
+		fmt.Sprintf("IPK_BUILD_DIR=%s", b.buildDir),
+		fmt.Sprintf("IPK_NAME=%s", b.meta.Metadata.Name),
+		fmt.Sprintf("IPK_VERSION=%s", b.meta.Release.Version),
+		fmt.Sprintf("IPK_OS=%s", b.meta.Release.Os),
+		fmt.Sprintf("IPK_ARCH=%s", b.meta.Release.Arch),
+		fmt.Sprintf("IPK_PREFIX=%s", "/opt/"+b.meta.Metadata.Name),
+	)
+
+	// Add custom env from spec
+	for k, v := range b.spec.Build.Env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("build script failed: %w", err)
+	}
+
+	return nil
+}
+
+func (b *Builder) writeMetadata() error {
+	metaDir := filepath.Join(b.buildDir, metaDir)
+	if err := os.MkdirAll(metaDir, 0755); err != nil {
+		return err
+	}
+
+	metaPath := filepath.Join(metaDir, metaFileName)
+	data, err := json.MarshalIndent(b.meta, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	if err := os.WriteFile(metaPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write metadata: %w", err)
+	}
+
+	return nil
+}
+
+func (b *Builder) createArchive() error {
+	targetPath := b.targetPath()
+	ext := "txz"
+	if b.config.Compress == "gzip" {
+		ext = "tgz"
+	}
+	archivePath := targetPath + "." + ext
+
+	if b.verbose {
+		fmt.Printf("\n  Creating archive: %s\n", archivePath)
+	}
+
+	// Create tar archive
+	tarPath := targetPath + ".tar"
+	if err := b.createTar(tarPath); err != nil {
+		return err
+	}
+	defer os.Remove(tarPath)
+
+	// Compress
+	switch b.config.Compress {
+	case "gzip":
+		if err := b.compressGzip(tarPath, archivePath); err != nil {
+			return err
+		}
+	default:
+		// Use xz by default
+		if err := b.compressXz(tarPath, archivePath); err != nil {
+			return err
+		}
+	}
+
+	// Get file size for info
+	if info, err := os.Stat(archivePath); err == nil {
+		if b.verbose {
+			fmt.Printf("  OK: %s (%.2f MB)\n", archivePath, float64(info.Size())/1024/1024)
+		}
+	}
+
+	return nil
+}
+
+func (b *Builder) createTar(tarPath string) error {
+	tarFile, err := os.Create(tarPath)
+	if err != nil {
+		return err
+	}
+	defer tarFile.Close()
+
+	tw := tar.NewWriter(tarFile)
+	defer tw.Close()
+
+	return filepath.WalkDir(b.buildDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(b.buildDir, path)
+		if err != nil {
+			return err
+		}
+
+		// Create tar header
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		header.Name = relPath
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		if !d.Type().IsRegular() {
+			return nil
+		}
+
+		// Copy file content
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		_, err = io.Copy(tw, file)
+		return err
+	})
+}
+
+func (b *Builder) compressGzip(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	gw, err := gzip.NewWriterLevel(dstFile, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer gw.Close()
+
+	_, err = io.Copy(gw, srcFile)
+	return err
+}
+
+func (b *Builder) compressXz(src, dst string) error {
+	// Use xz command (not available in Go stdlib)
+	cmd := exec.Command("xz", "-z", "-e", "-9", "-f", "--threads=0", src)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("xz compression failed: %w", err)
+	}
+
+	// xz creates .xz file, rename to our target
+	xzPath := src + ".xz"
+	return os.Rename(xzPath, dst)
+}
+
+// targetPath returns the target package path without extension.
+// Format: {name}_{version}_{os}_{arch}
+// Example: myapp_1.0.0_linux_amd64
+func (b *Builder) targetPath() string {
+	name := fmt.Sprintf("%s_%s_%s_%s",
+		b.meta.Metadata.Name,
+		b.meta.Release.Version,
+		b.meta.Release.Os,
+		b.meta.Release.Arch,
+	)
+
+	outputDir := b.config.OutputDir
+	if outputDir != "" {
+		return filepath.Join(outputDir, name)
+	}
+	return name
+}
+
+func (b *Builder) cleanup() {
+	if b.config.NoCompress || b.config.BuildDir != "" {
+		return // Keep build dir for debugging
+	}
+	os.RemoveAll(b.buildDir)
+}

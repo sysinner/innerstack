@@ -34,14 +34,22 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// OpLogSets represents a collection of operation log entries, typically used
+// to track the status and progress of batch operations or workflows.
 type OpLogSets struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name    string        `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
-	Version uint32        `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
-	Items   []*OpLogEntry `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`
+	// Name identifies this operation log set, typically representing the
+	// operation type or workflow name.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// Version indicates the schema or data version of this log set,
+	// useful for migration and compatibility checking.
+	Version uint32 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	// Items contains the list of individual operation log entries
+	// within this set.
+	Items []*OpLogEntry `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`
 }
 
 func (x *OpLogSets) Reset() {
@@ -97,14 +105,24 @@ func (x *OpLogSets) GetItems() []*OpLogEntry {
 	return nil
 }
 
+// OpLogEntry represents a single operation log entry that records
+// the execution status and result of a specific operation.
 type OpLogEntry struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name    string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
-	Status  string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
-	Updated uint64 `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"` // unix time in milliseconds
+	// Name identifies this specific operation, such as a task name,
+	// step name, or resource identifier.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// Status indicates the current state of the operation.
+	// Common values include "pending", "running", "success", "failed", "cancelled".
+	Status string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
+	// Updated is the Unix timestamp in milliseconds when this entry
+	// was last modified, used for tracking operation progress and timing.
+	Updated uint64 `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	// Message provides additional details about the operation result,
+	// error description, or progress information.
 	Message string `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty" toml:"message,omitempty"`
 }
 

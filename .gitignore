@@ -3,6 +3,7 @@ etc/
 var/
 test/
 pod/
+history-v1/
 
 batch-*.sh
 instack
