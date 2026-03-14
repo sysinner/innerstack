@@ -134,6 +134,7 @@ const (
 	Zonelet_AppInstanceList_FullMethodName   = "/inapi.Zonelet/AppInstanceList"
 	Zonelet_AppInstanceDelete_FullMethodName = "/inapi.Zonelet/AppInstanceDelete"
 	Zonelet_HostStatusUpdate_FullMethodName  = "/inapi.Zonelet/HostStatusUpdate"
+	Zonelet_PackagePush_FullMethodName       = "/inapi.Zonelet/PackagePush"
 )
 
 // ZoneletClient is the client API for Zonelet service.
@@ -158,6 +159,8 @@ type ZoneletClient interface {
 	AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error)
 	// HostStatusUpdate updates the status of a host and receives updated app instances.
 	HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error)
+	// PackagePush uploads a package in chunks.
+	PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error)
 }
 
 type zoneletClient struct {
@@ -249,6 +252,15 @@ func (c *zoneletClient) HostStatusUpdate(ctx context.Context, in *HostStatusUpda
 	return out, nil
 }
 
+func (c *zoneletClient) PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error) {
+	out := new(PackagePushResponse)
+	err := c.cc.Invoke(ctx, Zonelet_PackagePush_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ZoneletServer is the server API for Zonelet service.
 // All implementations must embed UnimplementedZoneletServer
 // for forward compatibility
@@ -271,6 +283,8 @@ type ZoneletServer interface {
 	AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error)
 	// HostStatusUpdate updates the status of a host and receives updated app instances.
 	HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error)
+	// PackagePush uploads a package in chunks.
+	PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error)
 	mustEmbedUnimplementedZoneletServer()
 }
 
@@ -304,6 +318,9 @@ func (UnimplementedZoneletServer) AppInstanceDelete(context.Context, *AppInstanc
 }
 func (UnimplementedZoneletServer) HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HostStatusUpdate not implemented")
+}
+func (UnimplementedZoneletServer) PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PackagePush not implemented")
 }
 func (UnimplementedZoneletServer) mustEmbedUnimplementedZoneletServer() {}
 
@@ -480,6 +497,24 @@ func _Zonelet_HostStatusUpdate_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Zonelet_PackagePush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PackagePushRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneletServer).PackagePush(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Zonelet_PackagePush_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneletServer).PackagePush(ctx, req.(*PackagePushRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Zonelet_ServiceDesc is the grpc.ServiceDesc for Zonelet service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -522,6 +557,10 @@ var Zonelet_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HostStatusUpdate",
 			Handler:    _Zonelet_HostStatusUpdate_Handler,
+		},
+		{
+			MethodName: "PackagePush",
+			Handler:    _Zonelet_PackagePush_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

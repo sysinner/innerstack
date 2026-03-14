@@ -24,6 +24,11 @@ const (
 	HostSetupStart   = "start"
 	HostSetupStop    = "stop"
 	HostSetupDestroy = "destroy"
+
+	// PackageChunkSizeDefault is the default chunk size (2MB)
+	PackageChunkSizeDefault = int32(2 * 1024 * 1024)
+	// PackageMaxSize is the maximum package size (200MB)
+	PackageMaxSize = int64(200 * 1024 * 1024)
 )
 
 var (
@@ -56,4 +61,42 @@ func NsHostStatus(zone, host string) []byte {
 
 func NsAppInstance(zone, id string) []byte {
 	return []byte(fmt.Sprintf("v2/app/instance/%s/%s", zone, id))
+}
+
+// PackageId generates a unique package ID from package metadata.
+// Format: {name}_{version}_{os}_{arch}
+func PackageId(pkg *Package) string {
+	if pkg == nil || pkg.Metadata == nil || pkg.Release == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s_%s_%s_%s",
+		pkg.Metadata.Name,
+		pkg.Release.Version,
+		pkg.Release.Os,
+		pkg.Release.Arch,
+	)
+}
+
+// NsPackageUpload returns the KV key for package upload session.
+// Key: v2/pkg/upload/{zone}/{pkg_id}
+func NsPackageUpload(zone, pkgId string) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/upload/%s/%s", zone, pkgId))
+}
+
+// NsPackageChunk returns the KV key for a specific chunk.
+// Key: v2/pkg/chunk/{zone}/{pkg_id}/{chunk_index}
+func NsPackageChunk(zone, pkgId string, chunkIndex int32) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/%s/%d", zone, pkgId, chunkIndex))
+}
+
+// NsPackageChunkPrefix returns the KV key prefix for all chunks of a package.
+// Key: v2/pkg/chunk/{zone}/{pkg_id}/
+func NsPackageChunkPrefix(zone, pkgId string) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/%s/", zone, pkgId))
+}
+
+// NsPackageInfo returns the KV key for package metadata (persistent storage).
+// Key: v2/pkg/info/{zone}/{pkg_id}
+func NsPackageInfo(zone, pkgId string) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/info/%s/%s", zone, pkgId))
 }

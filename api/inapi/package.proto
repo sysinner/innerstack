@@ -184,3 +184,70 @@ message PackageSpecBuild {
   // Uses lossless PNG optimization.
   repeated string optimize_png = 12;
 }
+
+// PackageUploadStatus defines the upload status of a package.
+enum PackageUploadStatus {
+  PACKAGE_UPLOAD_STATUS_UNSPECIFIED = 0;
+  PACKAGE_UPLOAD_STATUS_UPLOADING = 1;
+  PACKAGE_UPLOAD_STATUS_COMPLETE = 2;
+  PACKAGE_UPLOAD_STATUS_FAILED = 3;
+}
+
+// PackageUploadInfo tracks upload progress for a package.
+// KV key: v2/pkg/upload/{zone}/{pkg_id}
+message PackageUploadInfo {
+  // id is the unique package identifier: {name}_{version}_{os}_{arch}
+  string id = 1;
+
+  // package contains the package metadata.
+  Package package = 2;
+
+  // status is the current upload status.
+  PackageUploadStatus status = 3;
+
+  // total_size is the total size of the package in bytes.
+  int64 total_size = 4;
+
+  // uploaded_size is the number of bytes uploaded so far.
+  int64 uploaded_size = 5;
+
+  // chunk_size is the size of each chunk in bytes (default: 2MB).
+  int32 chunk_size = 6;
+
+  // total_chunks is the total number of chunks.
+  int32 total_chunks = 7;
+
+  // uploaded_chunks is the list of uploaded chunk indices.
+  repeated int32 uploaded_chunks = 8;
+
+  // created_at is the Unix timestamp when the upload started.
+  int64 created_at = 9;
+
+  // updated_at is the Unix timestamp of the last update.
+  int64 updated_at = 10;
+
+  // checksum is the SHA-256 checksum set when upload is complete.
+  string checksum = 11;
+}
+
+// PackageChunk represents a single chunk of a package upload.
+// KV key: v2/pkg/chunk/{zone}/{pkg_id}/{chunk_index}
+message PackageChunk {
+  // index is the chunk index (0-based).
+  int32 index = 1;
+
+  // offset is the byte offset in the original file.
+  int64 offset = 2;
+
+  // size is the size of this chunk in bytes.
+  int32 size = 3;
+
+  // crc32 is the CRC32 checksum of the chunk data.
+  uint32 crc32 = 4;
+
+  // data is the chunk content.
+  bytes data = 5;
+
+  // uploaded_at is the Unix timestamp when this chunk was uploaded.
+  int64 uploaded_at = 6;
+}

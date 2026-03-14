@@ -16,10 +16,14 @@ package zonelet
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sysinner/incore/v2/inapi"
@@ -29,6 +33,9 @@ import (
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/internal/status"
 )
+
+// uploadMutex provides per-package mutex for concurrent upload protection
+var uploadMutex sync.Map // map[string]*sync.Mutex
 
 type zoneServer struct {
 	inapi.UnimplementedZoneletServer
@@ -502,4 +509,238 @@ func (s *zoneServer) AppInstanceDelete(
 	)
 
 	return &inapi.AppInstanceDeleteResponse{}, nil
+}
+
+func (s *zoneServer) PackagePush(
+	ctx context.Context, req *inapi.PackagePushRequest,
+) (*inapi.PackagePushResponse, error) {
+
+	if !status.IsZoneletLeader() {
+		return nil, errors.New("zonelet leader")
+	}
+
+	// Validate request
+	if req.Id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req.Chunk == nil {
+		return nil, errors.New("chunk is required")
+	}
+	if req.Chunk.Data == nil {
+		return nil, errors.New("chunk data is required")
+	}
+
+	// Validate chunk size
+	chunkSize := int32(len(req.Chunk.Data))
+	if chunkSize > inapi.PackageChunkSizeDefault {
+		return nil, fmt.Errorf("chunk size %d exceeds maximum %d", chunkSize, inapi.PackageChunkSizeDefault)
+	}
+
+	// Get or create per-package mutex
+	muI, _ := uploadMutex.LoadOrStore(req.Id, &sync.Mutex{})
+	mu := muI.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
+	zone := config.Config.Zonelet.ZoneId
+	uploadKey := inapi.NsPackageUpload(zone, req.Id)
+
+	// Load or create upload session
+	var uploadInfo inapi.PackageUploadInfo
+
+	if rs := data.Zonelet.NewReader(uploadKey).Exec(); rs.OK() {
+		if err := rs.Item().JsonDecode(&uploadInfo); err != nil {
+			return nil, fmt.Errorf("failed to decode upload info: %w", err)
+		}
+	} else if rs.NotFound() {
+		// Create new session
+		if req.Package == nil {
+			return nil, errors.New("package is required for first chunk")
+		}
+		if req.TotalSize <= 0 {
+			return nil, errors.New("total_size is required for first chunk")
+		}
+		if req.TotalSize > inapi.PackageMaxSize {
+			return nil, fmt.Errorf("package size %d exceeds maximum %d", req.TotalSize, inapi.PackageMaxSize)
+		}
+
+		// Validate package metadata
+		if req.Package.Metadata == nil || req.Package.Metadata.Name == "" {
+			return nil, errors.New("package metadata is required")
+		}
+		if req.Package.Release == nil {
+			return nil, errors.New("package release info is required")
+		}
+
+		totalChunks := int32((req.TotalSize + int64(inapi.PackageChunkSizeDefault) - 1) / int64(inapi.PackageChunkSizeDefault))
+
+		uploadInfo = inapi.PackageUploadInfo{
+			Id:             req.Id,
+			Package:        req.Package,
+			Status:         inapi.PackageUploadStatus_PACKAGE_UPLOAD_STATUS_UPLOADING,
+			TotalSize:      req.TotalSize,
+			UploadedSize:   0,
+			ChunkSize:      inapi.PackageChunkSizeDefault,
+			TotalChunks:    totalChunks,
+			UploadedChunks: []int32{},
+			CreatedAt:      time.Now().Unix(),
+			UpdatedAt:      time.Now().Unix(),
+		}
+
+		// Save new upload session
+		if rs := data.Zonelet.NewWriter(uploadKey, &uploadInfo).Exec(); !rs.OK() {
+			return nil, fmt.Errorf("failed to create upload session: %w", rs.Error())
+		}
+	} else {
+		return nil, rs.Error()
+	}
+
+	// Check if already complete
+	if uploadInfo.Status == inapi.PackageUploadStatus_PACKAGE_UPLOAD_STATUS_COMPLETE {
+		if !req.Overwrite {
+			return &inapi.PackagePushResponse{
+				Id:       req.Id,
+				Status:   uploadInfo.Status,
+				Complete: true,
+				Checksum: uploadInfo.Checksum,
+			}, nil
+		}
+		// Overwrite: reset session
+		uploadInfo.Status = inapi.PackageUploadStatus_PACKAGE_UPLOAD_STATUS_UPLOADING
+		uploadInfo.UploadedSize = 0
+		uploadInfo.UploadedChunks = []int32{}
+		uploadInfo.Checksum = ""
+		uploadInfo.UpdatedAt = time.Now().Unix()
+
+		// Save reset upload session
+		if rs := data.Zonelet.NewWriter(uploadKey, &uploadInfo).Exec(); !rs.OK() {
+			return nil, fmt.Errorf("failed to reset upload session: %w", rs.Error())
+		}
+	}
+
+	// Validate chunk index
+	if req.Chunk.Index < 0 || req.Chunk.Index >= uploadInfo.TotalChunks {
+		return nil, fmt.Errorf("invalid chunk index %d (total: %d)", req.Chunk.Index, uploadInfo.TotalChunks)
+	}
+
+	// Check if chunk already uploaded (idempotent)
+	for _, idx := range uploadInfo.UploadedChunks {
+		if idx == req.Chunk.Index {
+			return &inapi.PackagePushResponse{
+				Id:              req.Id,
+				Status:          uploadInfo.Status,
+				UploadedSize:    uploadInfo.UploadedSize,
+				TotalChunks:     uploadInfo.TotalChunks,
+				UploadedChunks:  uploadInfo.UploadedChunks,
+				Complete:        false,
+			}, nil
+		}
+	}
+
+	// Store chunk
+	chunkKey := inapi.NsPackageChunk(zone, req.Id, req.Chunk.Index)
+	chunk := &inapi.PackageChunk{
+		Index:       req.Chunk.Index,
+		Offset:      int64(req.Chunk.Index) * int64(uploadInfo.ChunkSize),
+		Size:        chunkSize,
+		Crc32:       req.Chunk.Crc32,
+		Data:        req.Chunk.Data,
+		UploadedAt:  time.Now().Unix(),
+	}
+
+	if rs := data.Zonelet.NewWriter(chunkKey, chunk).Exec(); !rs.OK() {
+		return nil, fmt.Errorf("failed to store chunk: %w", rs.Error())
+	}
+
+	// Update upload progress
+	uploadInfo.UploadedChunks = append(uploadInfo.UploadedChunks, req.Chunk.Index)
+	sort.Slice(uploadInfo.UploadedChunks, func(i, j int) bool {
+		return uploadInfo.UploadedChunks[i] < uploadInfo.UploadedChunks[j]
+	})
+	uploadInfo.UploadedSize += int64(chunkSize)
+	uploadInfo.UpdatedAt = time.Now().Unix()
+
+	// Check if upload complete
+	complete := int32(len(uploadInfo.UploadedChunks)) == uploadInfo.TotalChunks
+
+	if complete {
+		// Finalize package
+		checksum, err := s.finalizePackage(zone, &uploadInfo)
+		if err != nil {
+			uploadInfo.Status = inapi.PackageUploadStatus_PACKAGE_UPLOAD_STATUS_FAILED
+			data.Zonelet.NewWriter(uploadKey, &uploadInfo).Exec()
+			return nil, fmt.Errorf("failed to finalize package: %w", err)
+		}
+
+		uploadInfo.Status = inapi.PackageUploadStatus_PACKAGE_UPLOAD_STATUS_COMPLETE
+		uploadInfo.Checksum = checksum
+
+		// Store package info (persistent)
+		infoKey := inapi.NsPackageInfo(zone, req.Id)
+		if rs := data.Zonelet.NewWriter(infoKey, uploadInfo.Package).Exec(); !rs.OK() {
+			return nil, fmt.Errorf("failed to store package info: %w", rs.Error())
+		}
+
+		// Cleanup chunks
+		s.cleanupChunks(zone, req.Id, uploadInfo.TotalChunks)
+
+		// Cleanup upload session
+		data.Zonelet.NewDeleter(uploadKey).Exec()
+
+		slog.Warn("zonelet package-push complete",
+			"package_id", req.Id,
+			"size", uploadInfo.TotalSize,
+			"checksum", checksum,
+		)
+	} else {
+		// Save upload session
+		if rs := data.Zonelet.NewWriter(uploadKey, &uploadInfo).Exec(); !rs.OK() {
+			return nil, fmt.Errorf("failed to update upload info: %w", rs.Error())
+		}
+	}
+
+	return &inapi.PackagePushResponse{
+		Id:             req.Id,
+		Status:         uploadInfo.Status,
+		UploadedSize:   uploadInfo.UploadedSize,
+		TotalChunks:    uploadInfo.TotalChunks,
+		UploadedChunks: uploadInfo.UploadedChunks,
+		Complete:       complete,
+		Checksum:       uploadInfo.Checksum,
+	}, nil
+}
+
+// finalizePackage assembles all chunks and calculates SHA-256 checksum
+func (s *zoneServer) finalizePackage(zone string, uploadInfo *inapi.PackageUploadInfo) (string, error) {
+	hash := sha256.New()
+
+	// Read chunks in order and compute hash
+	for i := int32(0); i < uploadInfo.TotalChunks; i++ {
+		chunkKey := inapi.NsPackageChunk(zone, uploadInfo.Id, i)
+
+		var chunk inapi.PackageChunk
+		if rs := data.Zonelet.NewReader(chunkKey).Exec(); !rs.OK() {
+			if rs.NotFound() {
+				return "", fmt.Errorf("chunk %d not found", i)
+			}
+			return "", fmt.Errorf("failed to read chunk %d: %w", i, rs.Error())
+		} else if err := rs.Item().JsonDecode(&chunk); err != nil {
+			return "", fmt.Errorf("failed to decode chunk %d: %w", i, err)
+		}
+
+		if _, err := hash.Write(chunk.Data); err != nil {
+			return "", fmt.Errorf("failed to hash chunk %d: %w", i, err)
+		}
+	}
+
+	checksum := hex.EncodeToString(hash.Sum(nil))
+	return checksum, nil
+}
+
+// cleanupChunks deletes all chunk data after finalization
+func (s *zoneServer) cleanupChunks(zone, pkgId string, totalChunks int32) {
+	for i := int32(0); i < totalChunks; i++ {
+		chunkKey := inapi.NsPackageChunk(zone, pkgId, i)
+		data.Zonelet.NewDeleter(chunkKey).Exec()
+	}
 }

@@ -44,6 +44,7 @@ func main() {
 	rootCmd.AddCommand(cli.NewAppDeleteCommand())
 
 	rootCmd.AddCommand(cli.NewPkgBuildCommand())
+	rootCmd.AddCommand(cli.NewPkgPushCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		// fmt.Println(err)

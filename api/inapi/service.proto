@@ -22,6 +22,7 @@ option go_package = "./;inapi";
 import "host.proto";
 import "zone.proto";
 import "app.proto";
+import "package.proto";
 
 // Hostlet is the gRPC service running on each host machine.
 // It handles host-level operations including initialization and status reporting.
@@ -64,6 +65,9 @@ service Zonelet {
   // HostStatusUpdate updates the status of a host and receives updated app instances.
   rpc HostStatusUpdate(HostStatusUpdateRequest)
       returns (HostStatusUpdateResponse) {}
+
+  // PackagePush uploads a package in chunks.
+  rpc PackagePush(PackagePushRequest) returns (PackagePushResponse) {}
 }
 
 // CommonResponse is a generic empty response message.
@@ -202,3 +206,45 @@ message AppInstanceDeleteRequest {
 
 // AppInstanceDeleteResponse is the response message after deleting an application instance.
 message AppInstanceDeleteResponse {}
+
+// PackagePushRequest is the request message for uploading a package chunk.
+message PackagePushRequest {
+  // id is the package ID ({name}_{version}_{os}_{arch}).
+  string id = 1;
+
+  // package contains the package metadata (required on first chunk).
+  Package package = 2;
+
+  // total_size is the total size of the package file in bytes (required on first chunk).
+  int64 total_size = 3;
+
+  // chunk contains the chunk data.
+  PackageChunk chunk = 4;
+
+  // overwrite allows overwriting an existing package.
+  bool overwrite = 5;
+}
+
+// PackagePushResponse is the response message after uploading a package chunk.
+message PackagePushResponse {
+  // id is the package ID.
+  string id = 1;
+
+  // status is the current upload status.
+  PackageUploadStatus status = 2;
+
+  // uploaded_size is the total bytes uploaded so far.
+  int64 uploaded_size = 3;
+
+  // total_chunks is the total number of chunks.
+  int32 total_chunks = 4;
+
+  // uploaded_chunks is the list of uploaded chunk indices.
+  repeated int32 uploaded_chunks = 5;
+
+  // complete indicates if the upload is finished.
+  bool complete = 6;
+
+  // checksum is the SHA-256 checksum of the package (set when complete).
+  string checksum = 7;
+}

@@ -34,9 +34,72 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// PackageUploadStatus defines the upload status of a package.
+type PackageUploadStatus int32
+
+const (
+	PackageUploadStatus_PACKAGE_UPLOAD_STATUS_UNSPECIFIED PackageUploadStatus = 0
+	PackageUploadStatus_PACKAGE_UPLOAD_STATUS_UPLOADING   PackageUploadStatus = 1
+	PackageUploadStatus_PACKAGE_UPLOAD_STATUS_COMPLETE    PackageUploadStatus = 2
+	PackageUploadStatus_PACKAGE_UPLOAD_STATUS_FAILED      PackageUploadStatus = 3
+)
+
+// Enum value maps for PackageUploadStatus.
+var (
+	PackageUploadStatus_name = map[int32]string{
+		0: "PACKAGE_UPLOAD_STATUS_UNSPECIFIED",
+		1: "PACKAGE_UPLOAD_STATUS_UPLOADING",
+		2: "PACKAGE_UPLOAD_STATUS_COMPLETE",
+		3: "PACKAGE_UPLOAD_STATUS_FAILED",
+	}
+	PackageUploadStatus_value = map[string]int32{
+		"PACKAGE_UPLOAD_STATUS_UNSPECIFIED": 0,
+		"PACKAGE_UPLOAD_STATUS_UPLOADING":   1,
+		"PACKAGE_UPLOAD_STATUS_COMPLETE":    2,
+		"PACKAGE_UPLOAD_STATUS_FAILED":      3,
+	}
+)
+
+func (x PackageUploadStatus) Enum() *PackageUploadStatus {
+	p := new(PackageUploadStatus)
+	*p = x
+	return p
+}
+
+func (x PackageUploadStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PackageUploadStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_package_proto_enumTypes[0].Descriptor()
+}
+
+func (PackageUploadStatus) Type() protoreflect.EnumType {
+	return &file_package_proto_enumTypes[0]
+}
+
+func (x PackageUploadStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PackageUploadStatus.Descriptor instead.
+func (PackageUploadStatus) EnumDescriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{0}
+}
+
 // Package represents a software package in the package repository.
 // It combines metadata (identity information) with release information
 // (build artifacts for a specific platform).
+//
+// Package Archive Naming Format:
+//
+//	{name}_{version}_{os}_{arch}.{ext}
+//
+// Examples:
+//
+//	myapp_1.0.0_linux_amd64.txz    (xz compression, default)
+//	myapp_1.0.0_linux_amd64.tgz    (gzip compression)
+//	myapp_1.0.0-beta.1_linux_arm64.txz (with pre-release version)
 type Package struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -606,6 +669,241 @@ func (x *PackageSpecBuild) GetOptimizePng() []string {
 	return nil
 }
 
+// PackageUploadInfo tracks upload progress for a package.
+// KV key: v2/pkg/upload/{zone}/{pkg_id}
+type PackageUploadInfo struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// id is the unique package identifier: {name}_{version}_{os}_{arch}
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	// package contains the package metadata.
+	Package *Package `protobuf:"bytes,2,opt,name=package,proto3" json:"package,omitempty" toml:"package,omitempty"`
+	// status is the current upload status.
+	Status PackageUploadStatus `protobuf:"varint,3,opt,name=status,proto3,enum=inapi.PackageUploadStatus" json:"status,omitempty" toml:"status,omitempty"`
+	// total_size is the total size of the package in bytes.
+	TotalSize int64 `protobuf:"varint,4,opt,name=total_size,json=totalSize,proto3" json:"total_size,omitempty" toml:"total_size,omitempty"`
+	// uploaded_size is the number of bytes uploaded so far.
+	UploadedSize int64 `protobuf:"varint,5,opt,name=uploaded_size,json=uploadedSize,proto3" json:"uploaded_size,omitempty" toml:"uploaded_size,omitempty"`
+	// chunk_size is the size of each chunk in bytes (default: 2MB).
+	ChunkSize int32 `protobuf:"varint,6,opt,name=chunk_size,json=chunkSize,proto3" json:"chunk_size,omitempty" toml:"chunk_size,omitempty"`
+	// total_chunks is the total number of chunks.
+	TotalChunks int32 `protobuf:"varint,7,opt,name=total_chunks,json=totalChunks,proto3" json:"total_chunks,omitempty" toml:"total_chunks,omitempty"`
+	// uploaded_chunks is the list of uploaded chunk indices.
+	UploadedChunks []int32 `protobuf:"varint,8,rep,packed,name=uploaded_chunks,json=uploadedChunks,proto3" json:"uploaded_chunks,omitempty" toml:"uploaded_chunks,omitempty"`
+	// created_at is the Unix timestamp when the upload started.
+	CreatedAt int64 `protobuf:"varint,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty" toml:"created_at,omitempty"`
+	// updated_at is the Unix timestamp of the last update.
+	UpdatedAt int64 `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty" toml:"updated_at,omitempty"`
+	// checksum is the SHA-256 checksum set when upload is complete.
+	Checksum string `protobuf:"bytes,11,opt,name=checksum,proto3" json:"checksum,omitempty" toml:"checksum,omitempty"`
+}
+
+func (x *PackageUploadInfo) Reset() {
+	*x = PackageUploadInfo{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_package_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PackageUploadInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageUploadInfo) ProtoMessage() {}
+
+func (x *PackageUploadInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_package_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageUploadInfo.ProtoReflect.Descriptor instead.
+func (*PackageUploadInfo) Descriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PackageUploadInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PackageUploadInfo) GetPackage() *Package {
+	if x != nil {
+		return x.Package
+	}
+	return nil
+}
+
+func (x *PackageUploadInfo) GetStatus() PackageUploadStatus {
+	if x != nil {
+		return x.Status
+	}
+	return PackageUploadStatus_PACKAGE_UPLOAD_STATUS_UNSPECIFIED
+}
+
+func (x *PackageUploadInfo) GetTotalSize() int64 {
+	if x != nil {
+		return x.TotalSize
+	}
+	return 0
+}
+
+func (x *PackageUploadInfo) GetUploadedSize() int64 {
+	if x != nil {
+		return x.UploadedSize
+	}
+	return 0
+}
+
+func (x *PackageUploadInfo) GetChunkSize() int32 {
+	if x != nil {
+		return x.ChunkSize
+	}
+	return 0
+}
+
+func (x *PackageUploadInfo) GetTotalChunks() int32 {
+	if x != nil {
+		return x.TotalChunks
+	}
+	return 0
+}
+
+func (x *PackageUploadInfo) GetUploadedChunks() []int32 {
+	if x != nil {
+		return x.UploadedChunks
+	}
+	return nil
+}
+
+func (x *PackageUploadInfo) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *PackageUploadInfo) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *PackageUploadInfo) GetChecksum() string {
+	if x != nil {
+		return x.Checksum
+	}
+	return ""
+}
+
+// PackageChunk represents a single chunk of a package upload.
+// KV key: v2/pkg/chunk/{zone}/{pkg_id}/{chunk_index}
+type PackageChunk struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// index is the chunk index (0-based).
+	Index int32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty" toml:"index,omitempty"`
+	// offset is the byte offset in the original file.
+	Offset int64 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty" toml:"offset,omitempty"`
+	// size is the size of this chunk in bytes.
+	Size int32 `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty" toml:"size,omitempty"`
+	// crc32 is the CRC32 checksum of the chunk data.
+	Crc32 uint32 `protobuf:"varint,4,opt,name=crc32,proto3" json:"crc32,omitempty" toml:"crc32,omitempty"`
+	// data is the chunk content.
+	Data []byte `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty" toml:"data,omitempty"`
+	// uploaded_at is the Unix timestamp when this chunk was uploaded.
+	UploadedAt int64 `protobuf:"varint,6,opt,name=uploaded_at,json=uploadedAt,proto3" json:"uploaded_at,omitempty" toml:"uploaded_at,omitempty"`
+}
+
+func (x *PackageChunk) Reset() {
+	*x = PackageChunk{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_package_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PackageChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageChunk) ProtoMessage() {}
+
+func (x *PackageChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_package_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageChunk.ProtoReflect.Descriptor instead.
+func (*PackageChunk) Descriptor() ([]byte, []int) {
+	return file_package_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PackageChunk) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *PackageChunk) GetOffset() int64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+func (x *PackageChunk) GetSize() int32 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *PackageChunk) GetCrc32() uint32 {
+	if x != nil {
+		return x.Crc32
+	}
+	return 0
+}
+
+func (x *PackageChunk) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *PackageChunk) GetUploadedAt() int64 {
+	if x != nil {
+		return x.UploadedAt
+	}
+	return 0
+}
+
 var File_package_proto protoreflect.FileDescriptor
 
 var file_package_proto_rawDesc = []byte{
@@ -683,8 +981,54 @@ var file_package_proto_rawDesc = []byte{
 	0x36, 0x0a, 0x08, 0x45, 0x6e, 0x76, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b,
 	0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a,
 	0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61,
-	0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b,
-	0x69, 0x6e, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x8a, 0x03, 0x0a, 0x11, 0x50, 0x61, 0x63, 0x6b,
+	0x61, 0x67, 0x65, 0x55, 0x70, 0x6c, 0x6f, 0x61, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x0e, 0x0a,
+	0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x28, 0x0a,
+	0x07, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e,
+	0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x52, 0x07,
+	0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x12, 0x32, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75,
+	0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1a, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e,
+	0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x55, 0x70, 0x6c, 0x6f, 0x61, 0x64, 0x53, 0x74, 0x61,
+	0x74, 0x75, 0x73, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x1d, 0x0a, 0x0a, 0x74,
+	0x6f, 0x74, 0x61, 0x6c, 0x5f, 0x73, 0x69, 0x7a, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x03, 0x52,
+	0x09, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x53, 0x69, 0x7a, 0x65, 0x12, 0x23, 0x0a, 0x0d, 0x75, 0x70,
+	0x6c, 0x6f, 0x61, 0x64, 0x65, 0x64, 0x5f, 0x73, 0x69, 0x7a, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28,
+	0x03, 0x52, 0x0c, 0x75, 0x70, 0x6c, 0x6f, 0x61, 0x64, 0x65, 0x64, 0x53, 0x69, 0x7a, 0x65, 0x12,
+	0x1d, 0x0a, 0x0a, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x5f, 0x73, 0x69, 0x7a, 0x65, 0x18, 0x06, 0x20,
+	0x01, 0x28, 0x05, 0x52, 0x09, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x53, 0x69, 0x7a, 0x65, 0x12, 0x21,
+	0x0a, 0x0c, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x5f, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x73, 0x18, 0x07,
+	0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x74, 0x6f, 0x74, 0x61, 0x6c, 0x43, 0x68, 0x75, 0x6e, 0x6b,
+	0x73, 0x12, 0x27, 0x0a, 0x0f, 0x75, 0x70, 0x6c, 0x6f, 0x61, 0x64, 0x65, 0x64, 0x5f, 0x63, 0x68,
+	0x75, 0x6e, 0x6b, 0x73, 0x18, 0x08, 0x20, 0x03, 0x28, 0x05, 0x52, 0x0e, 0x75, 0x70, 0x6c, 0x6f,
+	0x61, 0x64, 0x65, 0x64, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x73, 0x12, 0x1d, 0x0a, 0x0a, 0x63, 0x72,
+	0x65, 0x61, 0x74, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x09, 0x20, 0x01, 0x28, 0x03, 0x52, 0x09,
+	0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, 0x41, 0x74, 0x12, 0x1d, 0x0a, 0x0a, 0x75, 0x70, 0x64,
+	0x61, 0x74, 0x65, 0x64, 0x5f, 0x61, 0x74, 0x18, 0x0a, 0x20, 0x01, 0x28, 0x03, 0x52, 0x09, 0x75,
+	0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x41, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x63, 0x68, 0x65, 0x63,
+	0x6b, 0x73, 0x75, 0x6d, 0x18, 0x0b, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x63, 0x68, 0x65, 0x63,
+	0x6b, 0x73, 0x75, 0x6d, 0x22, 0x9b, 0x01, 0x0a, 0x0c, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65,
+	0x43, 0x68, 0x75, 0x6e, 0x6b, 0x12, 0x14, 0x0a, 0x05, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x05, 0x52, 0x05, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x12, 0x16, 0x0a, 0x06, 0x6f,
+	0x66, 0x66, 0x73, 0x65, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x6f, 0x66, 0x66,
+	0x73, 0x65, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x05, 0x52, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x63, 0x72, 0x63, 0x33, 0x32,
+	0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x63, 0x72, 0x63, 0x33, 0x32, 0x12, 0x12, 0x0a,
+	0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74,
+	0x61, 0x12, 0x1f, 0x0a, 0x0b, 0x75, 0x70, 0x6c, 0x6f, 0x61, 0x64, 0x65, 0x64, 0x5f, 0x61, 0x74,
+	0x18, 0x06, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0a, 0x75, 0x70, 0x6c, 0x6f, 0x61, 0x64, 0x65, 0x64,
+	0x41, 0x74, 0x2a, 0xa7, 0x01, 0x0a, 0x13, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x55, 0x70,
+	0x6c, 0x6f, 0x61, 0x64, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x25, 0x0a, 0x21, 0x50, 0x41,
+	0x43, 0x4b, 0x41, 0x47, 0x45, 0x5f, 0x55, 0x50, 0x4c, 0x4f, 0x41, 0x44, 0x5f, 0x53, 0x54, 0x41,
+	0x54, 0x55, 0x53, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10,
+	0x00, 0x12, 0x23, 0x0a, 0x1f, 0x50, 0x41, 0x43, 0x4b, 0x41, 0x47, 0x45, 0x5f, 0x55, 0x50, 0x4c,
+	0x4f, 0x41, 0x44, 0x5f, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x55, 0x50, 0x4c, 0x4f, 0x41,
+	0x44, 0x49, 0x4e, 0x47, 0x10, 0x01, 0x12, 0x22, 0x0a, 0x1e, 0x50, 0x41, 0x43, 0x4b, 0x41, 0x47,
+	0x45, 0x5f, 0x55, 0x50, 0x4c, 0x4f, 0x41, 0x44, 0x5f, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f,
+	0x43, 0x4f, 0x4d, 0x50, 0x4c, 0x45, 0x54, 0x45, 0x10, 0x02, 0x12, 0x20, 0x0a, 0x1c, 0x50, 0x41,
+	0x43, 0x4b, 0x41, 0x47, 0x45, 0x5f, 0x55, 0x50, 0x4c, 0x4f, 0x41, 0x44, 0x5f, 0x53, 0x54, 0x41,
+	0x54, 0x55, 0x53, 0x5f, 0x46, 0x41, 0x49, 0x4c, 0x45, 0x44, 0x10, 0x03, 0x42, 0x0c, 0x48, 0x03,
+	0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -699,28 +1043,34 @@ func file_package_proto_rawDescGZIP() []byte {
 	return file_package_proto_rawDescData
 }
 
-var file_package_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_package_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_package_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_package_proto_goTypes = []interface{}{
-	(*Package)(nil),          // 0: inapi.Package
-	(*PackageMetadata)(nil),  // 1: inapi.PackageMetadata
-	(*PackageRelease)(nil),   // 2: inapi.PackageRelease
-	(*PackageSpecRef)(nil),   // 3: inapi.PackageSpecRef
-	(*PackageSpec)(nil),      // 4: inapi.PackageSpec
-	(*PackageSpecBuild)(nil), // 5: inapi.PackageSpecBuild
-	nil,                      // 6: inapi.PackageSpecBuild.EnvEntry
+	(PackageUploadStatus)(0),  // 0: inapi.PackageUploadStatus
+	(*Package)(nil),           // 1: inapi.Package
+	(*PackageMetadata)(nil),   // 2: inapi.PackageMetadata
+	(*PackageRelease)(nil),    // 3: inapi.PackageRelease
+	(*PackageSpecRef)(nil),    // 4: inapi.PackageSpecRef
+	(*PackageSpec)(nil),       // 5: inapi.PackageSpec
+	(*PackageSpecBuild)(nil),  // 6: inapi.PackageSpecBuild
+	(*PackageUploadInfo)(nil), // 7: inapi.PackageUploadInfo
+	(*PackageChunk)(nil),      // 8: inapi.PackageChunk
+	nil,                       // 9: inapi.PackageSpecBuild.EnvEntry
 }
 var file_package_proto_depIdxs = []int32{
-	1, // 0: inapi.Package.metadata:type_name -> inapi.PackageMetadata
-	2, // 1: inapi.Package.release:type_name -> inapi.PackageRelease
-	1, // 2: inapi.PackageSpec.metadata:type_name -> inapi.PackageMetadata
-	5, // 3: inapi.PackageSpec.build:type_name -> inapi.PackageSpecBuild
-	3, // 4: inapi.PackageSpec.dependencies:type_name -> inapi.PackageSpecRef
-	6, // 5: inapi.PackageSpecBuild.env:type_name -> inapi.PackageSpecBuild.EnvEntry
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	2, // 0: inapi.Package.metadata:type_name -> inapi.PackageMetadata
+	3, // 1: inapi.Package.release:type_name -> inapi.PackageRelease
+	2, // 2: inapi.PackageSpec.metadata:type_name -> inapi.PackageMetadata
+	6, // 3: inapi.PackageSpec.build:type_name -> inapi.PackageSpecBuild
+	4, // 4: inapi.PackageSpec.dependencies:type_name -> inapi.PackageSpecRef
+	9, // 5: inapi.PackageSpecBuild.env:type_name -> inapi.PackageSpecBuild.EnvEntry
+	1, // 6: inapi.PackageUploadInfo.package:type_name -> inapi.Package
+	0, // 7: inapi.PackageUploadInfo.status:type_name -> inapi.PackageUploadStatus
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_package_proto_init() }
@@ -801,19 +1151,44 @@ func file_package_proto_init() {
 				return nil
 			}
 		}
+		file_package_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackageUploadInfo); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_package_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PackageChunk); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_package_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   7,
+			NumEnums:      1,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_package_proto_goTypes,
 		DependencyIndexes: file_package_proto_depIdxs,
+		EnumInfos:         file_package_proto_enumTypes,
 		MessageInfos:      file_package_proto_msgTypes,
 	}.Build()
 	File_package_proto = out.File
