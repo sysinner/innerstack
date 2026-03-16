@@ -68,6 +68,9 @@ service Zonelet {
 
   // PackagePush uploads a package in chunks.
   rpc PackagePush(PackagePushRequest) returns (PackagePushResponse) {}
+
+  // PackageList retrieves all packages in the zone.
+  rpc PackageList(PackageListRequest) returns (PackageListResponse) {}
 }
 
 // CommonResponse is a generic empty response message.
@@ -219,7 +222,7 @@ message PackagePushRequest {
   int64 total_size = 3;
 
   // chunk contains the chunk data.
-  PackageChunk chunk = 4;
+  PackageFileChunk chunk = 4;
 
   // overwrite allows overwriting an existing package.
   bool overwrite = 5;
@@ -230,21 +233,19 @@ message PackagePushResponse {
   // id is the package ID.
   string id = 1;
 
-  // status is the current upload status.
-  PackageUploadStatus status = 2;
+  // file contains the upload progress and status information.
+  PackageFile file = 2;
+}
 
-  // uploaded_size is the total bytes uploaded so far.
-  int64 uploaded_size = 3;
+// PackageListRequest is the request message for listing packages.
+message PackageListRequest {
+  // all returns all packages regardless of status when set to true.
+  // Default is false, which returns only complete packages.
+  bool all = 1;
+}
 
-  // total_chunks is the total number of chunks.
-  int32 total_chunks = 4;
-
-  // uploaded_chunks is the list of uploaded chunk indices.
-  repeated int32 uploaded_chunks = 5;
-
-  // complete indicates if the upload is finished.
-  bool complete = 6;
-
-  // checksum is the SHA-256 checksum of the package (set when complete).
-  string checksum = 7;
+// PackageListResponse is the response message containing the list of packages.
+message PackageListResponse {
+  // packages is the list of packages.
+  repeated Package packages = 1;
 }

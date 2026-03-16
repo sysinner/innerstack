@@ -117,6 +117,14 @@ const (
 	OpLogNsZoneMasterPodScheduleResFree = "zm/ps/resfree" // free allocated resources
 )
 
+// PackageFileState constants for package file upload tracking
+const (
+	PackageFileStateUnspec    = ""          // unspecified state
+	PackageFileStateUploading = "uploading" // upload in progress
+	PackageFileStateComplete  = "complete"  // upload completed
+	PackageFileStateFailed    = "failed"    // upload failed
+)
+
 // var (
 // 	OpLogNsZoneMasterPodScheduleRep = func(repId uint32) string {
 // 		if repId > 65535 {

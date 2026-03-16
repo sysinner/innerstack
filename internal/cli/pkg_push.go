@@ -82,7 +82,7 @@ func NewPkgPushCommand() *cobra.Command {
 		// Calculate local SHA-256 checksum
 		localChecksum, err := calculateFileChecksum(packagePath)
 		if err != nil {
-		return fmt.Errorf("failed to calculate checksum: %w", err)
+			return fmt.Errorf("failed to calculate checksum: %w", err)
 		}
 
 		fmt.Printf("Package: %s\n", pkgId)
@@ -90,8 +90,8 @@ func NewPkgPushCommand() *cobra.Command {
 		fmt.Printf("Checksum: %s\n", localChecksum)
 
 		// Validate chunk size
-		if chunkSize <= 0 || chunkSize > int(inapi.PackageChunkSizeDefault) {
-			chunkSize = int(inapi.PackageChunkSizeDefault)
+		if chunkSize <= 0 || chunkSize > int(inapi.PackageFileChunkSizeDefault) {
+			chunkSize = int(inapi.PackageFileChunkSizeDefault)
 		}
 
 		// Connect to server
@@ -105,12 +105,12 @@ func NewPkgPushCommand() *cobra.Command {
 		// Open package file
 		file, err := os.Open(packagePath)
 		if err != nil {
-		return fmt.Errorf("failed to open package file: %w", err)
+			return fmt.Errorf("failed to open package file: %w", err)
 		}
 		defer file.Close()
 
 		// Calculate total chunks
-		totalChunks := int32((totalSize + int64(chunkSize) - 1) / int64(chunkSize))
+		totalChunks := (totalSize + int64(chunkSize) - 1) / int64(chunkSize)
 
 		fmt.Printf("Uploading to %s (chunk size: %d bytes, total chunks: %d)\n\n",
 			addr, chunkSize, totalChunks)
@@ -120,7 +120,7 @@ func NewPkgPushCommand() *cobra.Command {
 		uploadedBytes := int64(0)
 		buffer := make([]byte, chunkSize)
 
-		for chunkIndex := int32(0); chunkIndex < totalChunks; chunkIndex++ {
+		for chunkIndex := int64(0); chunkIndex < totalChunks; chunkIndex++ {
 			// Read chunk
 			offset := int64(chunkIndex) * int64(chunkSize)
 			_, err := file.Seek(offset, io.SeekStart)
@@ -136,22 +136,20 @@ func NewPkgPushCommand() *cobra.Command {
 			// Calculate CRC32
 			crc32Val := crc32.ChecksumIEEE(buffer[:chunkDataSize])
 
-			// Create chunk
-			chunk := &inapi.PackageChunk{
-				Index:  chunkIndex,
-				Offset:  offset,
-				Size:   int32(chunkDataSize),
-				Crc32:  crc32Val,
-				Data:   buffer[:chunkDataSize],
+			// Create chunk (Offset and Size are calculated from Index and len(Data))
+			chunk := &inapi.PackageFileChunk{
+				Index: chunkIndex,
+				Crc32: crc32Val,
+				Data:  buffer[:chunkDataSize],
 			}
 
 			// Create request
 			req := &inapi.PackagePushRequest{
-				Id:         pkgId,
-				Package:    pkg,
-				TotalSize:  totalSize,
-				Chunk:      chunk,
-				Overwrite:  overwrite,
+				Id:        pkgId,
+				Package:   pkg,
+				TotalSize: totalSize,
+				Chunk:     chunk,
+				Overwrite: overwrite,
 			}
 
 			// Only send package on first chunk
@@ -178,18 +176,9 @@ func NewPkgPushCommand() *cobra.Command {
 				progress, uploadedChunks, totalChunks, uploadedBytes, totalSize)
 
 			// Check if complete
-			if resp.Complete {
+			if resp.File != nil && resp.File.State == inapi.PackageFileStateComplete {
 				fmt.Printf("\nUpload complete!\n")
-				fmt.Printf("Server checksum: %s\n", resp.Checksum)
-
-				// Verify checksum
-				if resp.Checksum != localChecksum {
-					fmt.Printf("WARNING: Checksum mismatch! Local: %s, Server: %s\n",
-						localChecksum, resp.Checksum)
-					return fmt.Errorf("checksum verification failed")
-				}
-
-				fmt.Printf("Checksum verified: OK\n")
+				fmt.Printf("Total size: %d bytes\n", totalSize)
 				return nil
 			}
 		}
@@ -204,7 +193,7 @@ func NewPkgPushCommand() *cobra.Command {
 Support chunked upload with progress tracking and checksum verification.
 
 The package file should be a .txz or .tgz archive created by pkg-build.`,
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: runE,
 		Example: `  # Push a package to local server
   cli pkg-push ./myapp_1.0.0_linux_amd64.txz
@@ -220,7 +209,7 @@ The package file should be a .txz or .tgz archive created by pkg-build.`,
 	}
 
 	cmd.Flags().StringVarP(&addr, "addr", "a", "127.0.0.1:9533", "Zonelet server address")
-	cmd.Flags().IntVar(&chunkSize, "chunk-size", int(inapi.PackageChunkSizeDefault), "Chunk size in bytes")
+	cmd.Flags().IntVar(&chunkSize, "chunk-size", int(inapi.PackageFileChunkSizeDefault), "Chunk size in bytes")
 	cmd.Flags().BoolVarP(&overwrite, "overwrite", "o", false, "Overwrite existing package")
 
 	return cmd

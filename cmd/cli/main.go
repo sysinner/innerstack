@@ -45,6 +45,7 @@ func main() {
 
 	rootCmd.AddCommand(cli.NewPkgBuildCommand())
 	rootCmd.AddCommand(cli.NewPkgPushCommand())
+	rootCmd.AddCommand(cli.NewPkgListCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		// fmt.Println(err)

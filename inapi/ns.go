@@ -16,6 +16,7 @@ package inapi
 
 import (
 	"fmt"
+	"strings"
 
 	hauth2 "github.com/hooto/hauth/go/v2"
 )
@@ -25,8 +26,8 @@ const (
 	HostSetupStop    = "stop"
 	HostSetupDestroy = "destroy"
 
-	// PackageChunkSizeDefault is the default chunk size (2MB)
-	PackageChunkSizeDefault = int32(2 * 1024 * 1024)
+	// PackageFileChunkSizeDefault is the default chunk size (2MB)
+	PackageFileChunkSizeDefault = int64(2 * 1024 * 1024)
 	// PackageMaxSize is the maximum package size (200MB)
 	PackageMaxSize = int64(200 * 1024 * 1024)
 )
@@ -69,34 +70,28 @@ func PackageId(pkg *Package) string {
 	if pkg == nil || pkg.Metadata == nil || pkg.Release == nil {
 		return ""
 	}
-	return fmt.Sprintf("%s_%s_%s_%s",
+	return strings.ToLower(fmt.Sprintf("%s_%s_%s_%s",
 		pkg.Metadata.Name,
 		pkg.Release.Version,
 		pkg.Release.Os,
 		pkg.Release.Arch,
-	)
+	))
 }
 
-// NsPackageUpload returns the KV key for package upload session.
-// Key: v2/pkg/upload/{zone}/{pkg_id}
-func NsPackageUpload(zone, pkgId string) []byte {
-	return []byte(fmt.Sprintf("v2/pkg/upload/%s/%s", zone, pkgId))
+// NsPackageInfo returns the KV key for package metadata.
+// Key: v2/pkg/info/{pkg_id}
+func NsPackageInfo(pkgId string) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/info/%s", pkgId))
 }
 
-// NsPackageChunk returns the KV key for a specific chunk.
-// Key: v2/pkg/chunk/{zone}/{pkg_id}/{chunk_index}
-func NsPackageChunk(zone, pkgId string, chunkIndex int32) []byte {
-	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/%s/%d", zone, pkgId, chunkIndex))
+// NsPackageFileChunk returns the KV key for a specific chunk.
+// Key: v2/pkg/chunk/{pkg_id}/{chunk_index:08d}
+func NsPackageFileChunk(pkgId string, chunkIndex int64) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/%08d", pkgId, chunkIndex))
 }
 
-// NsPackageChunkPrefix returns the KV key prefix for all chunks of a package.
-// Key: v2/pkg/chunk/{zone}/{pkg_id}/
-func NsPackageChunkPrefix(zone, pkgId string) []byte {
-	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/%s/", zone, pkgId))
-}
-
-// NsPackageInfo returns the KV key for package metadata (persistent storage).
-// Key: v2/pkg/info/{zone}/{pkg_id}
-func NsPackageInfo(zone, pkgId string) []byte {
-	return []byte(fmt.Sprintf("v2/pkg/info/%s/%s", zone, pkgId))
+// NsPackageFileChunkPrefix returns the KV key prefix for all chunks of a package.
+// Key: v2/pkg/chunk/{pkg_id}/
+func NsPackageFileChunkPrefix(pkgId string) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/", pkgId))
 }

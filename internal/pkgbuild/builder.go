@@ -225,7 +225,7 @@ func (b *Builder) resolveVersion() {
 			Version: version,
 			Os:      os,
 			Arch:    arch,
-			BuiltAt: time.Now().Unix(),
+			Built:   time.Now().Unix(),
 		},
 	}
 }

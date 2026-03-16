@@ -26,6 +26,8 @@ var (
 	Hostlet kvapi.Client
 
 	Zonelet kvapi.Client
+
+	Package kvapi.Client
 )
 
 func Setup() error {
@@ -46,11 +48,20 @@ func Setup() error {
 		Zonelet = c
 	}
 
+	if c, err := kvrep.NewReplica(&storage.Options{
+		DataDirectory: config.Prefix + "/var/package_db",
+	}); err != nil {
+		return err
+	} else {
+		Package = c
+	}
+
 	return nil
 }
 
 func Close() error {
 	Hostlet.Close()
 	Zonelet.Close()
+	Package.Close()
 	return nil
 }
