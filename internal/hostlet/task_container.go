@@ -92,7 +92,7 @@ var (
 //	- stopping  + fail    → failed
 //	- destroying+ success → destroyed
 //	- destroying+ fail    → failed
-func init() {
+func taskContainerInit() {
 	// User action: start
 	hoststatus.AppWorkflow.Register(
 		inapi.OpStateEmpty, inapi.OpActionStart, inapi.OpStateStarting,
@@ -646,6 +646,15 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 		cancel2()
 	}
 
+	// Download and prepare packages
+	pkgMounts, err := EnsurePackages(rep.App)
+	if err != nil {
+		slog.Warn("package preparation failed",
+			"app", rep.App.Id,
+			"error", err)
+		return fmt.Errorf("package preparation failed: %w", err)
+	}
+
 	opts := &hostapi.ContainerCreateOptions{
 		Name:          containerName,
 		Image:         image,
@@ -695,6 +704,15 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 		if err := os.MkdirAll(homePath, 0755); err == nil {
 			opts.Mounts = append(opts.Mounts, hostapi.MountBind{
 				HostPath: homePath, ContainerPath: "/home", ReadOnly: false,
+			})
+		}
+
+		// Mount packages as read-only
+		for pkgName, installDir := range pkgMounts {
+			opts.Mounts = append(opts.Mounts, hostapi.MountBind{
+				HostPath:      installDir,
+				ContainerPath: fmt.Sprintf("/usr/instack/ipk/%s", pkgName),
+				ReadOnly:      true,
 			})
 		}
 
@@ -748,7 +766,7 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
-	_, err := ctrDriver.ContainerCreate(ctx, opts)
+	_, err = ctrDriver.ContainerCreate(ctx, opts)
 	cancel()
 	if err != nil {
 		slog.Warn("container create failed", "container", containerName, "error", err)

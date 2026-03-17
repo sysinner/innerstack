@@ -16,8 +16,6 @@ package zonelet
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -27,6 +25,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/mod/semver"
 
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
@@ -538,30 +538,8 @@ func (s *zoneServer) PackagePush(
 		return nil, errors.New("chunk data is required")
 	}
 
-	// Validate chunk size
-	chunkSize := int64(len(req.Chunk.Data))
-	if chunkSize > inapi.PackageFileChunkSizeDefault {
-		return nil, fmt.Errorf("chunk size %d exceeds maximum %d", chunkSize, inapi.PackageFileChunkSizeDefault)
-	}
-
-	// Get or create per-package mutex
-	muI, _ := uploadMutex.LoadOrStore(req.Id, &sync.Mutex{})
-	mu := muI.(*sync.Mutex)
-	mu.Lock()
-	defer mu.Unlock()
-
-	var (
-		infoKey = inapi.NsPackageInfo(req.Id)
-
-		// Load or create upload session
-		pkg inapi.Package
-	)
-
-	if rs := data.Package.NewReader(infoKey).Exec(); rs.OK() {
-		if err := rs.Item().JsonDecode(&pkg); err != nil {
-			return nil, fmt.Errorf("failed to decode upload info: %w", err)
-		}
-	} else if rs.NotFound() {
+	// chunk index == 0 必须首次 reqeust
+	if req.Chunk.Index == 0 {
 		// Create new session
 		if req.Package == nil {
 			return nil, errors.New("package is required for first chunk")
@@ -592,27 +570,54 @@ func (s *zoneServer) PackagePush(
 			return nil, err
 		}
 
-		// Store total size in Release.Size
-		req.Package.Release.Size = req.TotalSize
+		// File.Size is the entire IPK file size (set by client)
+		// Used for chunk count calculation and validation
+		if req.Package.File == nil || req.Package.File.Size <= 0 {
+			return nil, errors.New("package file size is required")
+		}
+
+		if req.ChunkSize != inapi.PackageFileChunkSizeDefault {
+			return nil, fmt.Errorf("invalid chunk size %d ", req.ChunkSize)
+		}
+	}
+
+	// Get or create per-package mutex
+	muI, _ := uploadMutex.LoadOrStore(req.Id, &sync.Mutex{})
+	mu := muI.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
+	var (
+		infoKey = inapi.NsPackageInfo(req.Id)
+
+		pkg inapi.Package
+	)
+
+	if rs := data.Package.NewReader(infoKey).Exec(); rs.OK() {
+		if err := rs.Item().JsonDecode(&pkg); err != nil {
+			return nil, fmt.Errorf("failed to decode upload info: %w", err)
+		}
+	} else if rs.NotFound() {
+
+		if req.Chunk.Index != 0 {
+			return nil, fmt.Errorf("package meta not found")
+		}
 
 		pkg = inapi.Package{
 			Metadata: req.Package.Metadata,
 			Release:  req.Package.Release,
 			File: &inapi.PackageFile{
 				State:          inapi.PackageFileStateUploading,
-				ChunkSize:      inapi.PackageFileChunkSizeDefault,
+				Size:           req.Package.File.Size,
+				ChunkSize:      req.ChunkSize,
 				UploadedChunks: []int64{},
 				Created:        time.Now().Unix(),
-				Updated:        time.Now().Unix(),
 			},
 		}
 
 	} else {
 		return nil, rs.Error()
 	}
-
-	// Calculate total chunks dynamically
-	totalChunks := calcTotalChunks(pkg.Release.Size, pkg.File.ChunkSize)
 
 	// Check if already complete
 	if pkg.File.State == inapi.PackageFileStateComplete {
@@ -622,12 +627,34 @@ func (s *zoneServer) PackagePush(
 				File: pkg.File,
 			}, nil
 		}
-		// Overwrite: reset session
-		pkg.File.State = inapi.PackageFileStateUploading
-		pkg.File.UploadedChunks = []int64{}
-		pkg.Release.Checksum = ""
-		pkg.File.Updated = time.Now().Unix()
+
+		if req.Chunk.Index != 0 {
+			return nil, fmt.Errorf("package meta not found")
+		}
+
+		// Delete old chunks
+		oldTotalChunks := calcTotalChunks(pkg.File.Size, pkg.File.ChunkSize)
+		for i := int64(0); i < oldTotalChunks; i++ {
+			chunkKey := inapi.NsPackageFileChunk(req.Id, i)
+			data.Package.NewDeleter(chunkKey).Exec()
+		}
+
+		// Replace with new package info
+		pkg = inapi.Package{
+			Metadata: req.Package.Metadata,
+			Release:  req.Package.Release,
+			File: &inapi.PackageFile{
+				State:          inapi.PackageFileStateUploading,
+				Size:           req.Package.File.Size,
+				ChunkSize:      req.ChunkSize,
+				UploadedChunks: []int64{},
+				Created:        time.Now().Unix(),
+			},
+		}
 	}
+
+	// Calculate total chunks dynamically using File.Size (entire IPK file size)
+	totalChunks := calcTotalChunks(pkg.File.Size, pkg.File.ChunkSize)
 
 	// Validate chunk index
 	if req.Chunk.Index < 0 || req.Chunk.Index >= totalChunks {
@@ -636,13 +663,13 @@ func (s *zoneServer) PackagePush(
 
 	// Validate chunk size
 	// - For non-last chunks: size must equal ChunkSize
-	// - For last chunk: size can be <= ChunkSize (depends on TotalSize % ChunkSize)
+	// - For last chunk: size can be <= ChunkSize (depends on File.Size % ChunkSize)
 	if req.Chunk.Index != totalChunks-1 {
 		if int64(len(req.Chunk.Data)) != pkg.File.ChunkSize {
 			return nil, fmt.Errorf("invalid chunk size %d, expected %d", len(req.Chunk.Data), pkg.File.ChunkSize)
 		}
 	} else {
-		expectedLastChunkSize := pkg.Release.Size % pkg.File.ChunkSize
+		expectedLastChunkSize := pkg.File.Size % pkg.File.ChunkSize
 		if expectedLastChunkSize == 0 {
 			expectedLastChunkSize = pkg.File.ChunkSize
 		}
@@ -682,32 +709,26 @@ func (s *zoneServer) PackagePush(
 	sort.Slice(pkg.File.UploadedChunks, func(i, j int) bool {
 		return pkg.File.UploadedChunks[i] < pkg.File.UploadedChunks[j]
 	})
-	pkg.File.Updated = time.Now().Unix()
 
 	// Check if upload complete
 	complete := int64(len(pkg.File.UploadedChunks)) == totalChunks
 
 	if complete {
-		// Finalize package
-		checksum, err := s.finalizePackage(req.Id, totalChunks)
-		if err != nil {
-			pkg.File.State = inapi.PackageFileStateFailed
-			data.Package.NewWriter(infoKey, &pkg).Exec()
-			return nil, fmt.Errorf("failed to finalize package: %w", err)
-		}
 
 		pkg.File.State = inapi.PackageFileStateComplete
-		pkg.Release.Checksum = checksum
-		// pkg.Release.Size is already set during first chunk upload
 
 		pkg.File.UploadedChunks = nil
 
+		// Clean up upload mutex since upload is complete
+		uploadMutex.Delete(req.Id)
+
 		slog.Warn("zonelet package-push complete",
 			"package_id", req.Id,
-			"size", pkg.Release.Size,
-			"checksum", checksum,
+			"size", pkg.File.Size,
 		)
 	}
+
+	pkg.File.Updated = time.Now().Unix()
 
 	if rs := data.Package.NewWriter(infoKey, &pkg).Exec(); !rs.OK() {
 		return nil, fmt.Errorf("failed to store package info: %w", rs.Error())
@@ -734,39 +755,272 @@ func (s *zoneServer) PackageList(
 	rs := data.Package.NewRanger(offset, append(offset, 0xff)).Exec()
 	for _, item := range rs.Items {
 		var pkg inapi.Package
-		if err := item.JsonDecode(&pkg); err == nil {
-			if req.All || pkg.File.State == inapi.PackageFileStateComplete {
-				resp.Packages = append(resp.Packages, &pkg)
+		if err := item.JsonDecode(&pkg); err != nil {
+			continue
+		}
+		// Filter by upload status
+		if !req.All && pkg.File.State != inapi.PackageFileStateComplete {
+			continue
+		}
+
+		// Filter by name (exact match)
+		if req.Name != "" && (pkg.Metadata == nil || pkg.Metadata.Name != req.Name) {
+			continue
+		}
+
+		// Filter by version (fuzzy match)
+		if req.Version != "" {
+			if pkg.Release == nil || !versionMatch(req.Version, pkg.Release.Version) {
+				continue
 			}
 		}
+
+		// Filter by OS (exact match)
+		if req.Os != "" && (pkg.Release == nil || pkg.Release.Os != req.Os) {
+			continue
+		}
+
+		// Filter by arch (exact match)
+		if req.Arch != "" && (pkg.Release == nil || pkg.Release.Arch != req.Arch) {
+			continue
+		}
+
+		resp.Packages = append(resp.Packages, &pkg)
+	}
+
+	// If latest_only is true, keep only the latest version for each (name, os, arch) combination
+	if req.LatestOnly && len(resp.Packages) > 0 {
+		resp.Packages = filterLatestPackages(resp.Packages)
 	}
 
 	return resp, nil
 }
 
-// finalizePackage assembles all chunks and calculates SHA-256 checksum
-func (s *zoneServer) finalizePackage(pkgId string, totalChunks int64) (string, error) {
-	hash := sha256.New()
+// versionMatch checks if a version matches the filter with fuzzy matching support.
+// If filter has 2 parts (e.g., "2.0"), it matches any 2.0.x version.
+// If filter has 3 parts (e.g., "2.0.0"), it matches exactly.
+func versionMatch(filter, version string) bool {
+	if filter == "" {
+		return true
+	}
+	if version == "" {
+		return false
+	}
 
-	// Read chunks in order and compute hash
-	for i := int64(0); i < totalChunks; i++ {
-		chunkKey := inapi.NsPackageFileChunk(pkgId, i)
+	filterParts := strings.Split(filter, ".")
+	versionParts := strings.Split(version, ".")
 
-		var chunk inapi.PackageFileChunk
-		if rs := data.Package.NewReader(chunkKey).Exec(); !rs.OK() {
-			if rs.NotFound() {
-				return "", fmt.Errorf("chunk %d not found", i)
-			}
-			return "", fmt.Errorf("failed to read chunk %d: %w", i, rs.Error())
-		} else if err := rs.Item().JsonDecode(&chunk); err != nil {
-			return "", fmt.Errorf("failed to decode chunk %d: %w", i, err)
+	// Exact match if filter has 3 or more parts
+	if len(filterParts) >= 3 {
+		return filter == version
+	}
+
+	// Fuzzy match for 1 or 2 part filters (e.g., "2" or "2.0")
+	// Match the prefix parts exactly
+	for i := 0; i < len(filterParts); i++ {
+		if i >= len(versionParts) {
+			return false
 		}
-
-		if _, err := hash.Write(chunk.Data); err != nil {
-			return "", fmt.Errorf("failed to hash chunk %d: %w", i, err)
+		if filterParts[i] != versionParts[i] {
+			return false
 		}
 	}
 
-	checksum := hex.EncodeToString(hash.Sum(nil))
-	return checksum, nil
+	return true
+}
+
+// filterLatestPackages returns only the latest version for each (name, os, arch) combination.
+// It uses golang.org/x/mod/semver for semantic version comparison.
+func filterLatestPackages(packages []*inapi.Package) []*inapi.Package {
+	// Group packages by (name, os, arch)
+	type groupKey struct {
+		name string
+		os   string
+		arch string
+	}
+
+	latestMap := make(map[groupKey]*inapi.Package)
+
+	for _, pkg := range packages {
+		if pkg.Metadata == nil || pkg.Release == nil {
+			continue
+		}
+
+		key := groupKey{
+			name: pkg.Metadata.Name,
+			os:   pkg.Release.Os,
+			arch: pkg.Release.Arch,
+		}
+
+		existing, exists := latestMap[key]
+		if !exists {
+			latestMap[key] = pkg
+			continue
+		}
+
+		// Compare versions using semver, keep the newer one
+		if semverCompare(pkg.Release.Version, existing.Release.Version) > 0 {
+			latestMap[key] = pkg
+		}
+	}
+
+	// Convert map to slice
+	result := make([]*inapi.Package, 0, len(latestMap))
+	for _, pkg := range latestMap {
+		result = append(result, pkg)
+	}
+
+	// Sort by name for consistent output
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Metadata.Name != result[j].Metadata.Name {
+			return result[i].Metadata.Name < result[j].Metadata.Name
+		}
+		if result[i].Release.Os != result[j].Release.Os {
+			return result[i].Release.Os < result[j].Release.Os
+		}
+		return result[i].Release.Arch < result[j].Release.Arch
+	})
+
+	return result
+}
+
+// semverCompare compares two version strings
+//
+//	-1 if v1 < v2
+//	 0 if v1 == v2
+//	 1 if v1 > v2
+func semverCompare(v1, v2 string) int {
+
+	// semver requires "v" prefix, add it if not present
+	canonicalSemver := func(v string) string {
+		if v == "" {
+			return "v0.0.0"
+		}
+		if !strings.HasPrefix(v, "v") {
+			return "v" + v
+		}
+		return v
+	}
+
+	return semver.Compare(canonicalSemver(v1), canonicalSemver(v2))
+}
+
+func (s *zoneServer) PackageDelete(
+	ctx context.Context, req *inapi.PackageDeleteRequest,
+) (*inapi.PackageDeleteResponse, error) {
+
+	if !status.IsZoneletLeader() {
+		return nil, errors.New("zonelet leader")
+	}
+
+	if req.Id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	// Check if there's an ongoing upload for this package
+	if _, ok := uploadMutex.Load(req.Id); ok {
+		return nil, errors.New("package is being uploaded, please retry later")
+	}
+
+	infoKey := inapi.NsPackageInfo(req.Id)
+
+	// Check if package exists
+	var pkg inapi.Package
+	if rs := data.Package.NewReader(infoKey).Exec(); !rs.OK() {
+		if rs.NotFound() {
+			return nil, errors.New("package not found")
+		}
+		return nil, rs.Error()
+	} else if err := rs.Item().JsonDecode(&pkg); err != nil {
+		return nil, fmt.Errorf("failed to decode package info: %w", err)
+	}
+
+	// Calculate total chunks
+	var totalChunks int64
+	if pkg.File != nil && pkg.File.ChunkSize > 0 && pkg.File.Size > 0 {
+		totalChunks = calcTotalChunks(pkg.File.Size, pkg.File.ChunkSize)
+	}
+
+	// Delete all chunks
+	chunksDeleted := int32(0)
+	for i := int64(0); i < totalChunks; i++ {
+		chunkKey := inapi.NsPackageFileChunk(req.Id, i)
+		if rs := data.Package.NewDeleter(chunkKey).Exec(); rs.OK() {
+			chunksDeleted++
+		}
+	}
+
+	// Delete package info
+	if rs := data.Package.NewDeleter(infoKey).Exec(); !rs.OK() {
+		if !rs.NotFound() {
+			return nil, fmt.Errorf("failed to delete package info: %w", rs.Error())
+		}
+	}
+
+	slog.Warn("zonelet package-delete",
+		"package_id", req.Id,
+		"chunks_deleted", chunksDeleted,
+	)
+
+	return &inapi.PackageDeleteResponse{
+		Id:            req.Id,
+		ChunksDeleted: chunksDeleted,
+	}, nil
+}
+
+func (s *zoneServer) PackageChunk(
+	ctx context.Context, req *inapi.PackageChunkRequest,
+) (*inapi.PackageChunkResponse, error) {
+
+	if !status.IsZoneletLeader() {
+		return nil, errors.New("zonelet leader")
+	}
+
+	if req.Id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	if req.Index < 0 {
+		return nil, errors.New("index must be non-negative")
+	}
+
+	// Read package metadata
+	infoKey := inapi.NsPackageInfo(req.Id)
+	var pkg inapi.Package
+	if rs := data.Package.NewReader(infoKey).Exec(); !rs.OK() {
+		if rs.NotFound() {
+			return nil, errors.New("package not found")
+		}
+		return nil, rs.Error()
+	} else if err := rs.Item().JsonDecode(&pkg); err != nil {
+		return nil, fmt.Errorf("failed to decode package info: %w", err)
+	}
+
+	// Validate package state is complete
+	if pkg.File == nil || pkg.File.State != inapi.PackageFileStateComplete {
+		return nil, errors.New("package is not ready for download")
+	}
+
+	// Validate chunk index
+	totalChunks := calcTotalChunks(pkg.File.Size, pkg.File.ChunkSize)
+	if req.Index >= totalChunks {
+		return nil, fmt.Errorf("chunk index %d out of range (total: %d)", req.Index, totalChunks)
+	}
+
+	// Read chunk data
+	chunkKey := inapi.NsPackageFileChunk(req.Id, req.Index)
+	var chunk inapi.PackageFileChunk
+	if rs := data.Package.NewReader(chunkKey).Exec(); !rs.OK() {
+		if rs.NotFound() {
+			return nil, fmt.Errorf("chunk %d not found", req.Index)
+		}
+		return nil, rs.Error()
+	} else if err := rs.Item().JsonDecode(&chunk); err != nil {
+		return nil, fmt.Errorf("failed to decode chunk data: %w", err)
+	}
+
+	return &inapi.PackageChunkResponse{
+		Chunk: &chunk,
+		File:  pkg.File,
+	}, nil
 }

@@ -17,6 +17,7 @@ package hostlet
 import (
 	"log/slog"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sysinner/incore/v2/internal/config"
@@ -33,7 +34,11 @@ func TryRun() error {
 	return nil
 }
 
+var once sync.Once
+
 func Run() {
+
+	once.Do(taskContainerInit)
 
 	if err := statusRefresh(); err != nil {
 		slog.Error("hostlet", "err", err.Error())

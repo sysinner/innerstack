@@ -15,37 +15,28 @@
 package cli
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/internal/pkgbuild"
 )
 
-const (
-	metaDir      = ".ipk"
-	metaFileName = "metadata.json"
-)
-
+// NewPkgPushCommand creates the "pkg-push" command for uploading packages.
+// Supports chunked upload with progress tracking and CRC32 checksum verification.
 func NewPkgPushCommand() *cobra.Command {
 
 	var (
 		addr      string
-		chunkSize int
 		overwrite bool
 	)
 
@@ -56,15 +47,16 @@ func NewPkgPushCommand() *cobra.Command {
 
 		packagePath := args[0]
 
-		// Validate package file exists
-		if _, err := os.Stat(packagePath); err != nil {
+		// Check if package file exists
+		fileInfo, err := os.Stat(packagePath)
+		if err != nil {
 			return fmt.Errorf("package file not found: %s", packagePath)
 		}
 
-		// Read package metadata from archive
-		pkg, err := readPackageMetadata(packagePath)
+		// Read package metadata from .ipk file header
+		pkg, err := readIPKPackage(packagePath)
 		if err != nil {
-			return fmt.Errorf("failed to read package metadata: %w", err)
+			return fmt.Errorf("failed to read package: %w", err)
 		}
 
 		pkgId := inapi.PackageId(pkg)
@@ -72,29 +64,22 @@ func NewPkgPushCommand() *cobra.Command {
 			return fmt.Errorf("invalid package metadata")
 		}
 
-		// Get file info
-		fileInfo, err := os.Stat(packagePath)
-		if err != nil {
-			return fmt.Errorf("failed to get file info: %w", err)
-		}
+		// Get total file size (entire IPK file)
 		totalSize := fileInfo.Size()
 
-		// Calculate local SHA-256 checksum
-		localChecksum, err := calculateFileChecksum(packagePath)
-		if err != nil {
-			return fmt.Errorf("failed to calculate checksum: %w", err)
+		// Set file size for server-side chunk tracking
+		pkg.File = &inapi.PackageFile{
+			Size: totalSize,
 		}
 
 		fmt.Printf("Package: %s\n", pkgId)
-		fmt.Printf("Size: %d bytes (%.2f MB)\n", totalSize, float64(totalSize)/1024/1024)
-		fmt.Printf("Checksum: %s\n", localChecksum)
+		fmt.Printf("Compress: %s\n", pkg.Release.Compress)
+		fmt.Printf("Data Size: %d bytes (%.2f MB)\n", pkg.Release.Size, float64(pkg.Release.Size)/1024/1024)
+		fmt.Printf("Total Size: %d bytes (%.2f MB)\n", totalSize, float64(totalSize)/1024/1024)
 
-		// Validate chunk size
-		if chunkSize <= 0 || chunkSize > int(inapi.PackageFileChunkSizeDefault) {
-			chunkSize = int(inapi.PackageFileChunkSizeDefault)
-		}
+		chunkSize := inapi.PackageFileChunkSizeDefault
 
-		// Connect to server
+		// Connect to zonelet server
 		conn, err := client.Connect(addr, nil, false)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server %s: %w", addr, err)
@@ -102,63 +87,66 @@ func NewPkgPushCommand() *cobra.Command {
 
 		zc := inapi.NewZoneletClient(conn)
 
-		// Open package file
+		// Open package file for reading
 		file, err := os.Open(packagePath)
 		if err != nil {
 			return fmt.Errorf("failed to open package file: %w", err)
 		}
 		defer file.Close()
 
-		// Calculate total chunks
-		totalChunks := (totalSize + int64(chunkSize) - 1) / int64(chunkSize)
+		// Calculate total number of chunks
+		totalChunks := (totalSize + chunkSize - 1) / chunkSize
 
 		fmt.Printf("Uploading to %s (chunk size: %d bytes, total chunks: %d)\n\n",
 			addr, chunkSize, totalChunks)
 
-		// Upload chunks
+		// Upload chunks sequentially
 		uploadedChunks := 0
 		uploadedBytes := int64(0)
 		buffer := make([]byte, chunkSize)
 
 		for chunkIndex := int64(0); chunkIndex < totalChunks; chunkIndex++ {
-			// Read chunk
-			offset := int64(chunkIndex) * int64(chunkSize)
+			// Calculate file offset for this chunk
+			offset := chunkIndex * chunkSize
+
+			// Seek to the correct position
 			_, err := file.Seek(offset, io.SeekStart)
 			if err != nil {
 				return fmt.Errorf("seek failed: %w", err)
 			}
 
+			// Read chunk data
 			chunkDataSize, err := file.Read(buffer)
 			if err != nil && err != io.EOF {
 				return fmt.Errorf("read failed: %w", err)
 			}
 
-			// Calculate CRC32
+			// Calculate CRC32 checksum for integrity verification
 			crc32Val := crc32.ChecksumIEEE(buffer[:chunkDataSize])
 
-			// Create chunk (Offset and Size are calculated from Index and len(Data))
+			// Build chunk message
 			chunk := &inapi.PackageFileChunk{
 				Index: chunkIndex,
 				Crc32: crc32Val,
 				Data:  buffer[:chunkDataSize],
 			}
 
-			// Create request
+			// Build upload request
 			req := &inapi.PackagePushRequest{
 				Id:        pkgId,
 				Package:   pkg,
 				TotalSize: totalSize,
+				ChunkSize: chunkSize,
 				Chunk:     chunk,
 				Overwrite: overwrite,
 			}
 
-			// Only send package on first chunk
+			// Only include package metadata in first chunk
 			if chunkIndex > 0 {
 				req.Package = nil
-				req.TotalSize = 0
 			}
 
-			// Send chunk
+			// Send chunk to server
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			resp, err := zc.PackagePush(ctx, req)
 			cancel()
@@ -170,15 +158,14 @@ func NewPkgPushCommand() *cobra.Command {
 			uploadedChunks++
 			uploadedBytes += int64(chunkDataSize)
 
-			// Show progress
+			// Display progress
 			progress := float64(uploadedBytes) / float64(totalSize) * 100
 			fmt.Printf("\rUploading: %.1f%% (%d/%d chunks, %d/%d bytes)",
 				progress, uploadedChunks, totalChunks, uploadedBytes, totalSize)
 
-			// Check if complete
+			// Check if upload is complete
 			if resp.File != nil && resp.File.State == inapi.PackageFileStateComplete {
 				fmt.Printf("\nUpload complete!\n")
-				fmt.Printf("Total size: %d bytes\n", totalSize)
 				return nil
 			}
 		}
@@ -188,147 +175,67 @@ func NewPkgPushCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "pkg-push <package-file>",
-		Short: "Push a package to zonelet server",
-		Long: `Upload a package built by pkg-build to the zonelet server.
-Support chunked upload with progress tracking and checksum verification.
+		Short: "Upload a package to zonelet server",
+		Long: `Upload a .ipk package (built by pkg-build) to the zonelet server.
 
-The package file should be a .txz or .tgz archive created by pkg-build.`,
+Supports chunked upload with progress display and CRC32 checksum verification.
+
+File Format: .ipk archive file (generated by pkg-build command)`,
 		Args: cobra.ExactArgs(1),
 		RunE: runE,
-		Example: `  # Push a package to local server
-  cli pkg-push ./myapp_1.0.0_linux_amd64.txz
+		Example: `  # Upload to local server
+  cli pkg-push ./myapp_1.0.0_linux_amd64.ipk
 
-  # Push to remote server
-  cli pkg-push ./myapp_1.0.0_linux_amd64.txz --addr 192.168.1.100:9533
+  # Upload to remote server
+  cli pkg-push ./myapp_1.0.0_linux_amd64.ipk --addr 192.168.1.100:9533
 
   # Overwrite existing package
-  cli pkg-push ./myapp_1.0.0_linux_amd64.txz --overwrite
-
-  # Custom chunk size (1MB)
-  cli pkg-push ./myapp_1.0.0_linux_amd64.txz --chunk-size 1048576`,
+  cli pkg-push ./myapp_1.0.0_linux_amd64.ipk --overwrite`,
 	}
 
 	cmd.Flags().StringVarP(&addr, "addr", "a", "127.0.0.1:9533", "Zonelet server address")
-	cmd.Flags().IntVar(&chunkSize, "chunk-size", int(inapi.PackageFileChunkSizeDefault), "Chunk size in bytes")
 	cmd.Flags().BoolVarP(&overwrite, "overwrite", "o", false, "Overwrite existing package")
 
 	return cmd
 }
 
-// readPackageMetadata extracts package metadata from the archive
-func readPackageMetadata(packagePath string) (*inapi.Package, error) {
-	// Open the archive
-	file, err := os.Open(packagePath)
+// readIPKPackage reads and parses the header from an IPK file.
+// Returns the Package struct containing metadata and release information.
+func readIPKPackage(path string) (*inapi.Package, error) {
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	var tarReader *tar.Reader
-	var gzipReader *gzip.Reader
-
-	// Detect compression type
-	ext := filepath.Ext(packagePath)
-	switch ext {
-	case ".tgz":
-		gzipReader, err = gzip.NewReader(file)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
-		}
-		tarReader = tar.NewReader(gzipReader)
-	case ".txz":
-		// For xz, use xz command to decompress
-		return readPackageMetadataXz(packagePath)
-	default:
-		tarReader = tar.NewReader(file)
+	// Read magic number (4 bytes) - should be "IPK1"
+	magic := make([]byte, 4)
+	if _, err := io.ReadFull(file, magic); err != nil {
+		return nil, fmt.Errorf("failed to read magic: %w", err)
 	}
 
-	return readMetadataFromTar(tarReader)
-}
-
-// readPackageMetadataXz reads metadata from xz-compressed archive
-func readPackageMetadataXz(packagePath string) (*inapi.Package, error) {
-	// Use xz command to decompress to stdout
-	// First, list the contents to find metadata.json
-	cmd := exec.Command("tar", "-tf", packagePath)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list archive contents: %w", err)
+	if string(magic) != pkgbuild.PackageMagic {
+		return nil, fmt.Errorf("invalid ipk file: magic mismatch (expected %q, got %q)",
+			pkgbuild.PackageMagic, string(magic))
 	}
 
-	// Find metadata.json path
-	var metaPath string
-	for _, line := range strings.Split(string(output), "\n") {
-		if strings.Contains(line, "/"+metaFileName) {
-			parts := strings.Fields(line)
-			if len(parts) >= 1 {
-				metaPath = parts[len(parts)-1]
-				break
-			}
-		}
+	// Read header length (4 bytes, little-endian)
+	var headerLen uint32
+	if err := binary.Read(file, binary.LittleEndian, &headerLen); err != nil {
+		return nil, fmt.Errorf("failed to read header length: %w", err)
 	}
 
-	if metaPath == "" {
-		return nil, fmt.Errorf("metadata.json not found in archive")
+	// Read header block (JSON format)
+	headerBytes := make([]byte, headerLen)
+	if _, err := io.ReadFull(file, headerBytes); err != nil {
+		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 
-	// Extract metadata.json
-	cmd = exec.Command("tar", "-xOf", packagePath, metaPath)
-	output, err = cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract metadata: %w", err)
-	}
-
+	// Parse JSON header into Package struct
 	var pkg inapi.Package
-	if err := json.Unmarshal(output, &pkg); err != nil {
-		return nil, fmt.Errorf("failed to parse metadata: %w", err)
+	if err := json.Unmarshal(headerBytes, &pkg); err != nil {
+		return nil, fmt.Errorf("failed to parse header: %w", err)
 	}
 
 	return &pkg, nil
-}
-
-// readMetadataFromTar reads metadata from tar reader
-func readMetadataFromTar(tarReader *tar.Reader) (*inapi.Package, error) {
-	for {
-		header, err := tarReader.Next()
-		if err != nil {
-			return nil, err
-		}
-		if header == nil {
-			break
-		}
-
-		if strings.HasSuffix(header.Name, metaFileName) {
-			// Read file content
-			content, err := io.ReadAll(tarReader)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read metadata: %w", err)
-			}
-
-			var pkg inapi.Package
-			if err := json.Unmarshal(content, &pkg); err != nil {
-				return nil, fmt.Errorf("failed to parse metadata: %w", err)
-			}
-
-			return &pkg, nil
-		}
-	}
-
-	return nil, fmt.Errorf("metadata.json not found in archive")
-}
-
-// calculateFileChecksum calculates SHA-256 checksum of a file
-func calculateFileChecksum(filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(hash.Sum(nil)), nil
 }

@@ -71,6 +71,12 @@ service Zonelet {
 
   // PackageList retrieves all packages in the zone.
   rpc PackageList(PackageListRequest) returns (PackageListResponse) {}
+
+  // PackageDelete deletes a package and all its chunks from the zone.
+  rpc PackageDelete(PackageDeleteRequest) returns (PackageDeleteResponse) {}
+
+  // PackageChunk retrieves a single chunk of a package for download.
+  rpc PackageChunk(PackageChunkRequest) returns (PackageChunkResponse) {}
 }
 
 // CommonResponse is a generic empty response message.
@@ -221,11 +227,13 @@ message PackagePushRequest {
   // total_size is the total size of the package file in bytes (required on first chunk).
   int64 total_size = 3;
 
+  int64 chunk_size = 4;
+
   // chunk contains the chunk data.
-  PackageFileChunk chunk = 4;
+  PackageFileChunk chunk = 5;
 
   // overwrite allows overwriting an existing package.
-  bool overwrite = 5;
+  bool overwrite = 6;
 }
 
 // PackagePushResponse is the response message after uploading a package chunk.
@@ -242,10 +250,65 @@ message PackageListRequest {
   // all returns all packages regardless of status when set to true.
   // Default is false, which returns only complete packages.
   bool all = 1;
+
+  // name filters packages by exact name match (optional).
+  string name = 2;
+
+  // version filters packages by version with fuzzy matching support (optional).
+  // Examples:
+  //   "2.0" matches "2.0.0", "2.0.1", "2.0.2", etc. (equivalent to "~2.0.x")
+  //   "2.0.0" matches only "2.0.0" exactly
+  string version = 3;
+
+  // os filters packages by target operating system (optional).
+  // Common values: "linux", "freebsd", "darwin"
+  string os = 4;
+
+  // arch filters packages by target CPU architecture (optional).
+  // Common values: "amd64", "arm64"
+  string arch = 5;
+
+  // latest_only returns only the latest version for each (name, os, arch) combination
+  // when set to true. Requires name to be specified.
+  // Default is false, which returns all matching packages.
+  bool latest_only = 6;
 }
 
 // PackageListResponse is the response message containing the list of packages.
 message PackageListResponse {
   // packages is the list of packages.
   repeated Package packages = 1;
+}
+
+// PackageDeleteRequest is the request message for deleting a package.
+message PackageDeleteRequest {
+  // id is the package ID ({name}_{version}_{os}_{arch}) to delete.
+  string id = 1;
+}
+
+// PackageDeleteResponse is the response message after deleting a package.
+message PackageDeleteResponse {
+  // id is the package ID that was deleted.
+  string id = 1;
+
+  // chunks_deleted is the number of chunks that were deleted.
+  int32 chunks_deleted = 2;
+}
+
+// PackageChunkRequest is the request message for downloading a package chunk.
+message PackageChunkRequest {
+  // id is the package ID ({name}_{version}_{os}_{arch}).
+  string id = 1;
+
+  // index is the 0-based chunk index to retrieve.
+  int64 index = 2;
+}
+
+// PackageChunkResponse is the response message containing the package chunk.
+message PackageChunkResponse {
+  // chunk contains the chunk data and metadata.
+  PackageFileChunk chunk = 1;
+
+  // file contains the file metadata (size, chunk_size) for calculating progress.
+  PackageFile file = 2;
 }

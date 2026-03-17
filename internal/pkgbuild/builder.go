@@ -17,6 +17,8 @@ package pkgbuild
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,6 +36,9 @@ import (
 const (
 	metaDir      = ".ipk"
 	metaFileName = "metadata.json"
+
+	// PackageMagic is the magic number for .ipk files (4 bytes: "IPK1")
+	PackageMagic = "\x49\x50\x4b\x31" // "IPK1"
 )
 
 // Config holds the build configuration
@@ -219,13 +224,13 @@ func (b *Builder) resolveVersion() {
 	// Create metadata
 	// Note: Metadata.Version keeps the core version from spec
 	// Release.Version contains the full version (with optional pre-release/build metadata)
+	// Built timestamp will be set in createArchive() when the build is complete
 	b.meta = &inapi.Package{
 		Metadata: b.spec.Metadata,
 		Release: &inapi.PackageRelease{
 			Version: version,
 			Os:      os,
 			Arch:    arch,
-			Built:   time.Now().Unix(),
 		},
 	}
 }
@@ -235,12 +240,7 @@ func (b *Builder) checkExisting() error {
 		return nil
 	}
 
-	targetPath := b.targetPath()
-	ext := "txz"
-	if b.config.Compress == "gzip" {
-		ext = "tgz"
-	}
-	archivePath := targetPath + "." + ext
+	archivePath := b.targetPath() + ".ipk"
 
 	if _, err := os.Stat(archivePath); err == nil {
 		return fmt.Errorf("target package already exists: %s", archivePath)
@@ -559,41 +559,108 @@ func (b *Builder) writeMetadata() error {
 
 func (b *Builder) createArchive() error {
 	targetPath := b.targetPath()
-	ext := "txz"
-	if b.config.Compress == "gzip" {
-		ext = "tgz"
-	}
-	archivePath := targetPath + "." + ext
+	archivePath := targetPath + ".ipk"
 
 	if b.verbose {
 		fmt.Printf("\n  Creating archive: %s\n", archivePath)
 	}
 
 	// Create tar archive
-	tarPath := targetPath + ".tar"
+	tarPath := filepath.Join(os.TempDir(), fmt.Sprintf("ipk-tar-%d", time.Now().UnixNano()))
 	if err := b.createTar(tarPath); err != nil {
 		return err
 	}
 	defer os.Remove(tarPath)
 
-	// Compress
+	// Compress tar
+	compressedPath := filepath.Join(os.TempDir(), fmt.Sprintf("ipk-compressed-%d", time.Now().UnixNano()))
+	var compressAlgo string
 	switch b.config.Compress {
 	case "gzip":
-		if err := b.compressGzip(tarPath, archivePath); err != nil {
+		if err := b.compressGzip(tarPath, compressedPath); err != nil {
 			return err
 		}
+		compressAlgo = "gzip"
 	default:
 		// Use xz by default
-		if err := b.compressXz(tarPath, archivePath); err != nil {
+		if err := b.compressXz(tarPath, compressedPath); err != nil {
 			return err
 		}
+		compressAlgo = "xz"
+	}
+	defer os.Remove(compressedPath)
+
+	// Read compressed data
+	dataBytes, err := os.ReadFile(compressedPath)
+	if err != nil {
+		return fmt.Errorf("failed to read compressed data: %w", err)
+	}
+
+	// Calculate SHA-256 checksum of compressed data (format: algorithm:hash)
+	checksum := "sha256:" + fmt.Sprintf("%x", sha256.Sum256(dataBytes))
+
+	// Prepare header JSON (inapi.Package)
+	pkg := &inapi.Package{
+		Metadata: b.meta.Metadata,
+		Release:  b.meta.Release,
+	}
+	pkg.Release.Size = int64(len(dataBytes))
+	pkg.Release.Checksum = checksum
+	pkg.Release.Compress = compressAlgo
+	pkg.Release.Built = time.Now().Unix()
+
+	headerBytes, err := json.MarshalIndent(pkg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal header: %w", err)
+	}
+
+	// Create IPK file with new format
+	if err := b.writeIPK(archivePath, headerBytes, dataBytes); err != nil {
+		return err
 	}
 
 	// Get file size for info
 	if info, err := os.Stat(archivePath); err == nil {
 		if b.verbose {
 			fmt.Printf("  OK: %s (%.2f MB)\n", archivePath, float64(info.Size())/1024/1024)
+			fmt.Printf("  Checksum: %s\n", checksum)
 		}
+	}
+
+	return nil
+}
+
+// writeIPK writes the IPK file with Header + Metadata + Data format
+// Format:
+//   - Magic Number (4 bytes): "IPK1"
+//   - Header Length (4 bytes): uint32, little-endian
+//   - Header Block (JSON): inapi.Package
+//   - Data Block: compressed tar archive
+func (b *Builder) writeIPK(path string, header, data []byte) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write magic number (4 bytes)
+	if _, err := file.Write([]byte(PackageMagic)); err != nil {
+		return fmt.Errorf("failed to write magic: %w", err)
+	}
+
+	// Write header length (4 bytes, little-endian)
+	if err := binary.Write(file, binary.LittleEndian, uint32(len(header))); err != nil {
+		return fmt.Errorf("failed to write header length: %w", err)
+	}
+
+	// Write header block (JSON)
+	if _, err := file.Write(header); err != nil {
+		return fmt.Errorf("failed to write header: %w", err)
+	}
+
+	// Write data block
+	if _, err := file.Write(data); err != nil {
+		return fmt.Errorf("failed to write data: %w", err)
 	}
 
 	return nil

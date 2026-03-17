@@ -115,6 +115,10 @@ message PackageRelease {
 
   // checksum is the SHA-256 checksum of the package archive.
   string checksum = 13;
+
+  // compress is the compression algorithm used for the package archive.
+  // Valid values: "xz", "gzip", "" (empty for uncompressed)
+  string compress = 14;
 }
 
 // PackageSpecRef is a reference to a package, used for dependencies.
@@ -190,14 +194,18 @@ message PackageSpecBuild {
 
 // PackageFile tracks upload progress for a package.
 // Embedded in Package message during upload process.
-// Note: 
-//   - Use Package.Release.Size for the total package size.
-//   - TotalChunks can be calculated: (Release.Size + ChunkSize - 1) / ChunkSize
+// This represents the entire IPK container file (magic + header + data).
+// Note:
+//   - Size is the entire IPK file size (used for chunk calculation).
+//   - TotalChunks can be calculated: (Size + ChunkSize - 1) / ChunkSize
 //   - Progress can be calculated: len(uploaded_chunks) / total_chunks
 message PackageFile {
   // state is the current upload state.
   // Valid values: "", "uploading", "complete", "failed" (see inapi.PackageFileState* constants)
   string state = 1;
+
+  // size is the entire IPK file size in bytes.
+  int64 size = 2;
 
   // chunk_size is the size of each chunk in bytes (default: 2MB).
   int64 chunk_size = 4;

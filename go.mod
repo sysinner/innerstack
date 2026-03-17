@@ -2,7 +2,7 @@ module github.com/sysinner/incore/v2
 
 go 1.25.6
 
-replace github.com/lynkdb/kvgo/v2 v2.0.14 => /opt/workspace/src/github.com/lynkdb/kvgo
+// replace github.com/lynkdb/kvgo/v2 v2.0.15 => /opt/workspace/src/github.com/lynkdb/kvgo
 
 require (
 	github.com/BurntSushi/toml v1.6.0
@@ -16,7 +16,7 @@ require (
 	github.com/hooto/hflag4g v0.10.1
 	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/htoml4g v0.9.5
-	github.com/lynkdb/kvgo/v2 v2.0.14
+	github.com/lynkdb/kvgo/v2 v2.0.15
 	github.com/lynkdb/lynkapi v0.0.11
 	github.com/olekukonko/tablewriter v1.1.4
 	github.com/pelletier/go-toml/v2 v2.2.4
@@ -94,6 +94,7 @@ require (
 	github.com/tdewolff/parse/v2 v2.8.10 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
+	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect

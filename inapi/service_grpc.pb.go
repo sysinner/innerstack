@@ -136,6 +136,8 @@ const (
 	Zonelet_HostStatusUpdate_FullMethodName  = "/inapi.Zonelet/HostStatusUpdate"
 	Zonelet_PackagePush_FullMethodName       = "/inapi.Zonelet/PackagePush"
 	Zonelet_PackageList_FullMethodName       = "/inapi.Zonelet/PackageList"
+	Zonelet_PackageDelete_FullMethodName     = "/inapi.Zonelet/PackageDelete"
+	Zonelet_PackageChunk_FullMethodName      = "/inapi.Zonelet/PackageChunk"
 )
 
 // ZoneletClient is the client API for Zonelet service.
@@ -164,6 +166,10 @@ type ZoneletClient interface {
 	PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error)
 	// PackageList retrieves all packages in the zone.
 	PackageList(ctx context.Context, in *PackageListRequest, opts ...grpc.CallOption) (*PackageListResponse, error)
+	// PackageDelete deletes a package and all its chunks from the zone.
+	PackageDelete(ctx context.Context, in *PackageDeleteRequest, opts ...grpc.CallOption) (*PackageDeleteResponse, error)
+	// PackageChunk retrieves a single chunk of a package for download.
+	PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error)
 }
 
 type zoneletClient struct {
@@ -273,6 +279,24 @@ func (c *zoneletClient) PackageList(ctx context.Context, in *PackageListRequest,
 	return out, nil
 }
 
+func (c *zoneletClient) PackageDelete(ctx context.Context, in *PackageDeleteRequest, opts ...grpc.CallOption) (*PackageDeleteResponse, error) {
+	out := new(PackageDeleteResponse)
+	err := c.cc.Invoke(ctx, Zonelet_PackageDelete_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneletClient) PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error) {
+	out := new(PackageChunkResponse)
+	err := c.cc.Invoke(ctx, Zonelet_PackageChunk_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ZoneletServer is the server API for Zonelet service.
 // All implementations must embed UnimplementedZoneletServer
 // for forward compatibility
@@ -299,6 +323,10 @@ type ZoneletServer interface {
 	PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error)
 	// PackageList retrieves all packages in the zone.
 	PackageList(context.Context, *PackageListRequest) (*PackageListResponse, error)
+	// PackageDelete deletes a package and all its chunks from the zone.
+	PackageDelete(context.Context, *PackageDeleteRequest) (*PackageDeleteResponse, error)
+	// PackageChunk retrieves a single chunk of a package for download.
+	PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error)
 	mustEmbedUnimplementedZoneletServer()
 }
 
@@ -338,6 +366,12 @@ func (UnimplementedZoneletServer) PackagePush(context.Context, *PackagePushReque
 }
 func (UnimplementedZoneletServer) PackageList(context.Context, *PackageListRequest) (*PackageListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackageList not implemented")
+}
+func (UnimplementedZoneletServer) PackageDelete(context.Context, *PackageDeleteRequest) (*PackageDeleteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PackageDelete not implemented")
+}
+func (UnimplementedZoneletServer) PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PackageChunk not implemented")
 }
 func (UnimplementedZoneletServer) mustEmbedUnimplementedZoneletServer() {}
 
@@ -550,6 +584,42 @@ func _Zonelet_PackageList_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Zonelet_PackageDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PackageDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneletServer).PackageDelete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Zonelet_PackageDelete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneletServer).PackageDelete(ctx, req.(*PackageDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Zonelet_PackageChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PackageChunkRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneletServer).PackageChunk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Zonelet_PackageChunk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneletServer).PackageChunk(ctx, req.(*PackageChunkRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Zonelet_ServiceDesc is the grpc.ServiceDesc for Zonelet service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -600,6 +670,14 @@ var Zonelet_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PackageList",
 			Handler:    _Zonelet_PackageList_Handler,
+		},
+		{
+			MethodName: "PackageDelete",
+			Handler:    _Zonelet_PackageDelete_Handler,
+		},
+		{
+			MethodName: "PackageChunk",
+			Handler:    _Zonelet_PackageChunk_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
