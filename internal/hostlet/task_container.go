@@ -272,15 +272,15 @@ func containerControlRefresh() error {
 		app, ok := value.(*inapi.AppInstance)
 		if !ok || app.Spec == nil ||
 			app.Spec.Resources == nil ||
-			app.Operate == nil || len(app.Operate.Replicas) == 0 {
+			app.Deploy == nil || len(app.Deploy.Replicas) == 0 {
 			return true
 		}
 
-		if app.Operate.Action == "" {
-			app.Operate.Action = inapi.OpActionStart
+		if app.Deploy.Action == "" {
+			app.Deploy.Action = inapi.OpActionStart
 		}
 
-		for _, rep := range app.Operate.Replicas {
+		for _, rep := range app.Deploy.Replicas {
 			//
 			if rep.HostId == "" || rep.HostId != config.Config.Hostlet.HostId {
 				continue
@@ -311,7 +311,7 @@ func containerControlRefresh() error {
 			}
 
 			// Get next command from workflow state machine
-			cmd, ok := hoststatus.AppWorkflow.NextCommand(currentState, app.Operate.Action)
+			cmd, ok := hoststatus.AppWorkflow.NextCommand(currentState, app.Deploy.Action)
 			if !ok || cmd == nil {
 				continue
 			}
@@ -331,7 +331,7 @@ func containerControlRefresh() error {
 					"app", app.Id,
 					"replica", rep.Id,
 					"state", currentState,
-					"action", app.Operate.Action,
+					"action", app.Deploy.Action,
 					"next_state", nextState,
 					"error", err)
 			} else {
@@ -339,7 +339,7 @@ func containerControlRefresh() error {
 					"app", app.Id,
 					"replica", rep.Id,
 					"state", currentState,
-					"action", app.Operate.Action,
+					"action", app.Deploy.Action,
 					"next_state", nextState)
 			}
 			if nextState != "" {
@@ -376,7 +376,7 @@ func containerStateSync(rep *hostapi.AppReplicaInstance) string {
 // Returns true if container needs to be recreated.
 //
 // Checked specs:
-//   - RuntimeImage: must match exactly
+//   - Image: must match exactly
 //   - CpuLimit: tolerance 1% (millicores)
 //   - MemoryLimit: tolerance 1% (bytes)
 //   - ServicePorts: port mappings must match
@@ -415,26 +415,26 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 	}
 
 	if rep.App.Spec.Resources != nil &&
-		rep.App.Spec.Resources.RuntimeImage != "" &&
-		rep.App.Spec.Resources.RuntimeImage != info.Image {
+		rep.App.Spec.Image != "" &&
+		rep.App.Spec.Image != info.Image {
 		slog.Debug("container spec reset: image mismatch",
-			"desired", rep.App.Spec.Resources.RuntimeImage,
+			"desired", rep.App.Spec.Image,
 			"current", info.Image)
 		return true
 	}
 
 	// Check 2: CpuLimit with 1% tolerance
-	if relDiff(rep.App.Operate.CpuLimit, info.CpuLimit) > 0.01 {
+	if relDiff(rep.App.Deploy.CpuLimit, info.CpuLimit) > 0.01 {
 		slog.Debug("container spec reset: cpu limit mismatch",
-			"desired", rep.App.Operate.CpuLimit,
+			"desired", rep.App.Deploy.CpuLimit,
 			"current", info.CpuLimit)
 		return true
 	}
 
 	// Check 3: MemoryLimit with 1% tolerance
-	if relDiff(rep.App.Operate.MemoryLimit, info.MemoryLimit) > 0.01 {
+	if relDiff(rep.App.Deploy.MemoryLimit, info.MemoryLimit) > 0.01 {
 		slog.Debug("container spec reset: memory limit mismatch",
-			"desired", rep.App.Operate.MemoryLimit,
+			"desired", rep.App.Deploy.MemoryLimit,
 			"current", info.MemoryLimit)
 		return true
 	}
@@ -622,7 +622,7 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 		return fmt.Errorf("app spec resources is nil")
 	}
 
-	image := rep.App.Spec.Resources.RuntimeImage
+	image := rep.App.Spec.Image
 
 	// Pull image if not exists
 	if _, exists := hoststatus.ImageList.Load(image); !exists {
@@ -670,9 +670,9 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 		},
 	}
 
-	if rep.App.Operate != nil {
-		opts.CpuLimit = rep.App.Operate.CpuLimit
-		opts.MemoryLimit = rep.App.Operate.MemoryLimit
+	if rep.App.Deploy != nil {
+		opts.CpuLimit = rep.App.Deploy.CpuLimit
+		opts.MemoryLimit = rep.App.Deploy.MemoryLimit
 	}
 
 	// Setup port bindings for all service ports
@@ -711,7 +711,7 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 		for pkgName, installDir := range pkgMounts {
 			opts.Mounts = append(opts.Mounts, hostapi.MountBind{
 				HostPath:      installDir,
-				ContainerPath: fmt.Sprintf("/usr/instack/ipk/%s", pkgName),
+				ContainerPath: fmt.Sprintf("/usr/instack/%s", pkgName),
 				ReadOnly:      true,
 			})
 		}

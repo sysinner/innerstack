@@ -69,6 +69,10 @@ func Done() <-chan int {
 	return doneQueue
 }
 
+func Quit() bool {
+	return done
+}
+
 func Wait() {
 	quit := make(chan os.Signal, 2)
 

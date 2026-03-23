@@ -16,6 +16,7 @@ package inlog
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -23,7 +24,7 @@ import (
 	"time"
 )
 
-func Setup() {
+func Setup(args ...any) {
 
 	opts := &slog.HandlerOptions{
 		AddSource: true,
@@ -43,7 +44,18 @@ func Setup() {
 		},
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	var wr io.Writer = os.Stdout
+	for _, arg := range args {
+		if arg == nil {
+			continue
+		}
+		switch argv := arg.(type) {
+		case io.Writer:
+			wr = argv
+		}
+	}
+
+	logger := slog.New(slog.NewJSONHandler(wr, opts))
 	slog.SetDefault(logger)
 
 	host, _ := os.Hostname()

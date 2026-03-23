@@ -29,8 +29,8 @@ func (x *AppOption) ValueOK(name string) (string, bool) {
 	return "", false
 }
 
-// Field returns the AppOperateOptionField with the given name, or nil if not found
-func (x *AppOperateOption) Field(name string) *AppOperateOptionField {
+// Field returns the AppDeployOptionField with the given name, or nil if not found
+func (x *AppDeployOption) Field(name string) *AppDeployOptionField {
 	if x == nil || x.Items == nil {
 		return nil
 	}
@@ -43,7 +43,7 @@ func (x *AppOperateOption) Field(name string) *AppOperateOptionField {
 }
 
 // Value returns the value of the field with the given name
-func (x *AppOperateOption) Value(name string) string {
+func (x *AppDeployOption) Value(name string) string {
 	if field := x.Field(name); field != nil {
 		return field.Value
 	}
@@ -51,7 +51,7 @@ func (x *AppOperateOption) Value(name string) string {
 }
 
 // ValueOK returns the value of the field with the given name and a boolean indicating if it was found
-func (x *AppOperateOption) ValueOK(name string) (string, bool) {
+func (x *AppDeployOption) ValueOK(name string) (string, bool) {
 	if field := x.Field(name); field != nil {
 		return field.Value, true
 	}

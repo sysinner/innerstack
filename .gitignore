@@ -3,6 +3,9 @@ etc/
 var/
 test/
 pod/
+example/
+misc/
+
 history-v1/
 
 batch-*.sh

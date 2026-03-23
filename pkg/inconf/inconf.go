@@ -33,11 +33,11 @@ type AppConfigHelper struct {
 	updated int64
 }
 
-type AppConfigGroup = inapi.AppOperateOption
+type AppConfigGroup = inapi.AppDeployOption
 
 type AppReplicaInstance struct {
-	App     *inapi.AppInstance       `json:"app"`
-	Replica *inapi.AppOperateReplica `json:"replica"`
+	App     *inapi.AppInstance      `json:"app"`
+	Replica *inapi.AppDeployReplica `json:"replica"`
 }
 
 func NewAppConfigHelper() (*AppConfigHelper, error) {
@@ -54,7 +54,7 @@ func NewAppConfigHelper() (*AppConfigHelper, error) {
 	}
 
 	if app.App == nil || app.App.Spec == nil ||
-		app.App.Operate == nil || app.Replica == nil {
+		app.App.Deploy == nil || app.Replica == nil {
 		return nil, errors.New("Not App Instance Setup")
 	}
 
@@ -88,7 +88,7 @@ func (it *AppConfigHelper) ConfigQuery(cfgGroupNames ...string) *AppConfigGroup 
 }
 
 func (it *AppConfigHelper) Config(cfgGroupName string) *AppConfigGroup {
-	for _, opt := range it.App.Operate.Options {
+	for _, opt := range it.App.Deploy.Options {
 		if prefixMatch(opt.Name, cfgGroupName) {
 			return (*AppConfigGroup)(opt)
 		}
@@ -96,7 +96,7 @@ func (it *AppConfigHelper) Config(cfgGroupName string) *AppConfigGroup {
 	return nil
 }
 
-func (it *AppConfigHelper) ConfigField(cfgGroupName, cfgItemName string) *inapi.AppOperateOptionField {
+func (it *AppConfigHelper) ConfigField(cfgGroupName, cfgItemName string) *inapi.AppDeployOptionField {
 	if opt := it.Config(cfgGroupName); opt != nil {
 		return opt.Field(cfgItemName)
 	}
@@ -154,9 +154,9 @@ func (it *AppConfigHelper) ServiceQuery(qs ...string) *inapi.AppServicePort {
 
 func (it *AppConfigHelper) Service(name string, port uint32) *inapi.AppServicePort {
 
-	if len(it.App.Operate.Services) > 0 {
+	if len(it.App.Deploy.Services) > 0 {
 
-		for _, v := range it.App.Operate.Services {
+		for _, v := range it.App.Deploy.Services {
 
 			if port > 0 && v.Port != port {
 				continue

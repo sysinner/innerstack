@@ -35,8 +35,8 @@ var (
 // AppReplicaInstance represents an app replica instance with its configuration.
 // This type is moved from inapi package to hostapi for better separation of concerns.
 type AppReplicaInstance struct {
-	App     *inapi.AppInstance       `json:"app"`
-	Replica *inapi.AppOperateReplica `json:"replica"`
+	App     *inapi.AppInstance      `json:"app"`
+	Replica *inapi.AppDeployReplica `json:"replica"`
 }
 
 // ContainerName returns the container name for the app replica instance.

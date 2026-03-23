@@ -14,12 +14,8 @@
 
 package status
 
-import (
-	"github.com/sysinner/incore/v2/inapi"
-)
-
 var (
-	Executors     = inapi.AppExecutors{}
-	ExecStatusSet = inapi.ExecutorStatuses{}
-	// HealthStatus inapi.HealthStatus
+// Executors = []*inapi.AppSpecExecutor{}
+// ExecStatusSet = inapi.ExecutorStatuses{}
+// HealthStatus inapi.HealthStatus
 )

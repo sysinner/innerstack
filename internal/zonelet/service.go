@@ -263,8 +263,8 @@ func (s *zoneServer) HostStatusUpdate(
 	for _, item := range rs.Items {
 		var instance inapi.AppInstance
 		if err := item.JsonDecode(&instance); err == nil {
-			if instance.Operate != nil {
-				for _, rep := range instance.Operate.Replicas {
+			if instance.Deploy != nil {
+				for _, rep := range instance.Deploy.Replicas {
 					if rep.HostId == req.Host.Id {
 						resp.AppInstances = append(resp.AppInstances, &instance)
 						break
@@ -272,7 +272,7 @@ func (s *zoneServer) HostStatusUpdate(
 				}
 			}
 		} else {
-			slog.Warn("app decode err "+err.Error(), "value", string(item.Value))
+			slog.Warn(fmt.Sprintf("app decode err %s, value %s", err.Error(), string(item.Value)))
 		}
 	}
 
@@ -340,6 +340,16 @@ func (s *zoneServer) AppInstanceDeploy(
 			return nil, fmt.Errorf("spec.volume_limit must be between %d and %d",
 				inapi.VolumeMin, inapi.VolumeMax)
 		}
+
+		// Validate task trigger fields uniqueness (mutually exclusive)
+		for _, task := range req.Spec.Tasks {
+			if task == nil {
+				continue
+			}
+			if err := inapi.ValidateTaskTrigger(task); err != nil {
+				return nil, fmt.Errorf("task %q: %w", task.Name, err)
+			}
+		}
 	}
 
 	var instance *inapi.AppInstance
@@ -365,29 +375,29 @@ func (s *zoneServer) AppInstanceDeploy(
 			instance.Spec = req.Spec
 		}
 
-		if instance.Operate == nil {
-			instance.Operate = &inapi.AppOperate{}
+		if instance.Deploy == nil {
+			instance.Deploy = &inapi.AppDeploy{}
 		}
 
 		// Update resource limits only if spec is provided
 		if req.Spec != nil {
-			instance.Operate.CpuLimit = cpuLimit
-			instance.Operate.MemoryLimit = memoryLimit
-			instance.Operate.VolumeLimit = volumeLimit
+			instance.Deploy.CpuLimit = cpuLimit
+			instance.Deploy.MemoryLimit = memoryLimit
+			instance.Deploy.VolumeLimit = volumeLimit
 		}
 
 		if req.ReplicaCap > 0 {
-			instance.Operate.ReplicaCap = min(128, req.ReplicaCap)
+			instance.Deploy.ReplicaCap = min(128, req.ReplicaCap)
 		}
 
-		// Update operate options if provided
-		if req.Operate != nil && len(req.Operate.Options) > 0 {
-			instance.Operate.Options = req.Operate.Options
+		// Update deploy options if provided
+		if req.Deploy != nil && len(req.Deploy.Options) > 0 {
+			instance.Deploy.Options = req.Deploy.Options
 		}
 
-		// Update operate action if provided
-		if req.Operate != nil && req.Operate.Action != "" {
-			instance.Operate.Action = req.Operate.Action
+		// Update deploy action if provided
+		if req.Deploy != nil && req.Deploy.Action != "" {
+			instance.Deploy.Action = req.Deploy.Action
 		}
 
 		if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {
@@ -397,13 +407,13 @@ func (s *zoneServer) AppInstanceDeploy(
 		slog.Warn("zonelet app-instance-update",
 			"instance_id", req.Id,
 			"instance_name", instance.Name,
-			"replica_cap", instance.Operate.ReplicaCap,
-			"action", instance.Operate.Action,
+			"replica_cap", instance.Deploy.ReplicaCap,
+			"action", instance.Deploy.Action,
 		)
 	} else {
 		// 创建新实例
 
-		operate := &inapi.AppOperate{
+		deploy := &inapi.AppDeploy{
 			Action:      inapi.OpActionStart,
 			CpuLimit:    cpuLimit,
 			MemoryLimit: memoryLimit,
@@ -411,16 +421,16 @@ func (s *zoneServer) AppInstanceDeploy(
 			ReplicaCap:  max(1, min(128, req.ReplicaCap)),
 		}
 
-		// Set operate options if provided
-		if req.Operate != nil && len(req.Operate.Options) > 0 {
-			operate.Options = req.Operate.Options
+		// Set deploy options if provided
+		if req.Deploy != nil && len(req.Deploy.Options) > 0 {
+			deploy.Options = req.Deploy.Options
 		}
 
 		instance = &inapi.AppInstance{
-			Id:      inutil.SeqRandHexString(4, 8),
-			Name:    req.Spec.Name,
-			Operate: operate,
-			Spec:    req.Spec,
+			Id:     inutil.SeqRandHexString(4, 8),
+			Name:   req.Spec.Name,
+			Deploy: deploy,
+			Spec:   req.Spec,
 		}
 
 		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, instance.Id)
@@ -433,7 +443,7 @@ func (s *zoneServer) AppInstanceDeploy(
 		slog.Warn("zonelet app-instance-deploy",
 			"instance_id", instance.Id,
 			"instance_name", instance.Name,
-			"replica_cap", instance.Operate.ReplicaCap,
+			"replica_cap", instance.Deploy.ReplicaCap,
 		)
 	}
 

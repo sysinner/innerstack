@@ -65,3 +65,37 @@ func newValidator(rule string) Validator {
 		return nil
 	}
 }
+
+// ValidateTaskTrigger validates that exactly one trigger field is set in a task.
+// Trigger fields are mutually exclusive: on_startup, on_shutdown, interval_seconds, cron.
+// Each task must have exactly one trigger field set.
+func ValidateTaskTrigger(task *AppSpecTask) error {
+	if task == nil {
+		return errors.New("task is nil")
+	}
+
+	triggers := 0
+
+	if task.OnStartup {
+		triggers++
+	}
+	if task.OnShutdown {
+		triggers++
+	}
+	if task.IntervalSeconds > 0 {
+		triggers++
+	}
+	if task.Cron != "" {
+		triggers++
+	}
+
+	if triggers == 0 {
+		return errors.New("exactly one trigger field is required (on_startup, on_shutdown, interval_seconds, or cron)")
+	}
+
+	if triggers > 1 {
+		return errors.New("trigger fields are mutually exclusive (on_startup, on_shutdown, interval_seconds, cron), only one can be set")
+	}
+
+	return nil
+}

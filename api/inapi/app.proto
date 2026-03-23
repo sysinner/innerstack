@@ -36,13 +36,13 @@ message AppInstance {
   // map<string, string> annotations = 7;
 
   // spec defines the desired state and configuration of the application.
-  AppSpec spec = 90;
+  AppSpec spec = 10;
 
-  // operate specifies the operational parameters and desired actions.
-  AppOperate operate = 100;
+  // deploy specifies the deployment parameters and desired actions.
+  AppDeploy deploy = 20;
 
   // status reflects the current observed state of the application instance.
-  AppStatus status = 101;
+  AppStatus status = 30;
 }
 
 // AppSpec defines the specification of an application, including its resources,
@@ -57,37 +57,40 @@ message AppSpec {
   // description provides a human-readable description of the application.
   string description = 3;
 
+  // image specifies the container image to use (e.g., docker image).
+  string image = 5;
+
   // resources defines the compute resource requirements and limits.
-  AppSpecResources resources = 5;
+  AppSpecResources resources = 10;
+
+  // depends is a list of application-level dependencies.
+  repeated AppSpecDepend depends = 11;
+
+  // service_depends is a list of service-level dependencies.
+  repeated AppSpecDepend service_depends = 12;
 
   // service_ports is a list of service ports exposed by the application.
   repeated AppServicePort service_ports = 13;
 
-  // executors is a list of executors (commands/scripts) that run within the application.
-  repeated AppExecutor executors = 19;
-
   // packages is a list of software packages required by the application.
   repeated AppSpecPackage packages = 20;
 
-  // depends is a list of application-level dependencies.
-  repeated AppSpecDepend depends = 21;
-
-  // service_depends is a list of service-level dependencies.
-  repeated AppSpecDepend service_depends = 22;
-
   // config defines the configuration schema for the application.
-  AppSpecConfig config = 23;
+  AppSpecConfig config = 21;
+
+  // tasks is a list of tasks (commands/scripts) that run within the
+  // application.
+  repeated AppSpecTask tasks = 30;
 }
 
 // AppSpecResources defines the resource allocation for an application.
 message AppSpecResources {
-  // runtime_image specifies the container runtime image to use (e.g., docker image).
-  string runtime_image = 1;
-
-  // cpu_limit specifies the maximum CPU resources allowed (e.g., "500m" for 0.5 cores).
+  // cpu_limit specifies the maximum CPU resources allowed (e.g., "500m" for 0.5
+  // cores).
   string cpu_limit = 2;
 
-  // memory_limit specifies the maximum memory resources allowed (e.g., "512Mi").
+  // memory_limit specifies the maximum memory resources allowed (e.g.,
+  // "512Mi").
   string memory_limit = 3;
 
   // volume_limit specifies the maximum storage volume allowed (e.g., "10Gi").
@@ -139,101 +142,47 @@ message AppServiceReplica {
   string vpc_ipv4 = 4;
 }
 
-// AppExecutor defines an executor that runs commands or scripts within the application.
-message AppExecutor {
-  // name is the unique name of the executor.
+// AppSpecTask defines a task execution entity with trigger logic and fault
+// tolerance strategies.
+message AppSpecTask {
+  // name is the unique identifier of the task.
   string name = 1;
 
-  // updated is the Unix timestamp of the last update.
-  int64 updated = 2;
+  // working_dir specifies the working directory for command execution.
+  string working_dir = 2;
 
-  // vendor specifies the vendor or provider of the executor.
-  string vendor = 3;
+  // run_user specifies the user identity for command execution.
+  string run_user = 3;
 
-  // dir specifies the working directory for the executor.
-  string dir = 4;
+  // depends_on is a list of task names that must complete successfully
+  // before this task can run (used with trigger).
+  repeated string depends_on = 6;
 
-  // user specifies the user under which the executor runs.
-  string user = 5;
+  // script is the command or script to execute (split command and args to
+  // prevent shell injection).
+  string script = 7;
 
-  // group specifies the group under which the executor runs.
-  string group = 6;
+  // max_attempts is the maximum number of execution attempts (1 means no
+  // retry).
+  uint32 max_attempts = 20;
 
-  // start_script is the script or command to start the executor.
-  string start_script = 10;
+  // retry_backoff_seconds is the interval/backoff time between retries.
+  uint32 retry_backoff_seconds = 21;
 
-  // stop_script is the script or command to stop the executor.
-  string stop_script = 11;
-
-  // priority specifies the execution priority (higher values = higher priority).
-  uint32 priority = 12;
-
-  // plan defines the execution scheduling plan.
-  AppSpecExecPlanner plan = 13;
-
-  // options is a list of key-value options for the executor.
-  repeated Label options = 14;
-
-  // status reflects the current status of the executor.
-  AppExecutorStatus status = 15;
+  // Trigger fields (mutually exclusive: only one should be set at a time):
+  // - on_startup: triggers immediately when the application starts.
+  // - on_shutdown: triggers before the application shuts down.
+  // - interval_seconds: triggers periodically (every N seconds).
+  // - cron: triggers on a schedule (standard cron expression).
+  bool on_startup = 30;
+  bool on_shutdown = 31;
+  int64 interval_seconds = 32;
+  string cron = 33;
 }
 
-// AppSpecExecPlanner defines the scheduling plan for an executor.
-message AppSpecExecPlanner {
-  // on_boot indicates whether to execute on system boot.
-  bool on_boot = 1;
-
-  // on_tick specifies the interval in seconds for periodic execution (0 = disabled).
-  uint32 on_tick = 2;
-
-  // on_calendar specifies a cron-like schedule for execution (e.g., "0 * * * *").
-  string on_calendar = 3;
-
-  // on_failed defines the behavior when execution fails.
-  AppExecPlanOnFailed on_failed = 4;
-}
-
-// AppExecPlanOnFailed defines the retry behavior for failed executions.
-message AppExecPlanOnFailed {
-  // retry_sec specifies the retry interval in seconds (e.g., "10s", "1m").
-  string retry_sec = 1;
-
-  // retry_max specifies the maximum number of retry attempts.
-  int32 retry_max = 2;
-}
-
-// AppExecutorStatusPlanner tracks the planning status of an executor.
-message AppExecutorStatusPlanner {
-  // updated is the Unix timestamp of the last status update.
-  int64 updated = 1;
-
-  // on_failed_retry_num is the current retry count after failures.
-  int32 on_failed_retry_num = 2;
-}
-
-// AppExecutorStatus represents the current status of an executor.
-message AppExecutorStatus {
-  // name is the name of the executor.
-  string name = 1;
-
-  // created is the Unix timestamp when the executor was created.
-  int64 created = 2;
-
-  // updated is the Unix timestamp of the last status change.
-  int64 updated = 3;
-
-  // vendor specifies the vendor or provider of the executor.
-  string vendor = 4;
-
-  // action indicates the current or last action being performed.
-  uint64 action = 5;
-
-  // plan contains the planning status information.
-  AppExecutorStatusPlanner plan = 6;
-}
-
-// AppOperate defines the operational parameters and desired actions for an application.
-message AppOperate {
+// AppDeploy defines the deployment parameters and desired actions for an
+// application.
+message AppDeploy {
   // action specifies the desired operation (manually set by user).
   // Valid values: start, stop, destroy.
   string action = 1;
@@ -250,8 +199,8 @@ message AppOperate {
   // volume_limit specifies the volume limit in bytes.
   int64 volume_limit = 12;
 
-  // options is a list of operational options.
-  repeated AppOperateOption options = 13;
+  // options is a list of deployment options.
+  repeated AppDeployOption options = 13;
 
   // services is a list of service port configurations.
   repeated AppServicePort services = 14;
@@ -259,21 +208,21 @@ message AppOperate {
   // replica_cap specifies the desired number of replicas.
   uint32 replica_cap = 19;
 
-  // replicas is a list of replica operational states.
-  repeated AppOperateReplica replicas = 20;
+  // replicas is a list of replica deployment states.
+  repeated AppDeployReplica replicas = 20;
 }
 
-// AppOperateOption represents a named group of operational options.
-message AppOperateOption {
+// AppDeployOption represents a named group of deployment options.
+message AppDeployOption {
   // name is the name of the option group.
   string name = 1;
 
   // items is a list of fields within this option group.
-  repeated AppOperateOptionField items = 3;
+  repeated AppDeployOptionField items = 3;
 }
 
-// AppOperateOptionField represents a single field in an operational option.
-message AppOperateOptionField {
+// AppDeployOptionField represents a single field in a deployment option.
+message AppDeployOptionField {
   // name is the name of the field.
   string name = 1;
 
@@ -281,8 +230,8 @@ message AppOperateOptionField {
   string value = 2;
 }
 
-// AppOperateReplica represents the operational state of a replica.
-message AppOperateReplica {
+// AppDeployReplica represents the deployment state of a replica.
+message AppDeployReplica {
   // id is the unique identifier of the replica.
   uint32 id = 1;
 
@@ -311,7 +260,8 @@ message AppReplicaStatus {
   string host_id = 2;
 
   // state represents the current status of the replica.
-  // Valid values: starting, running, stopping, stopped, destroying, destroyed, failed.
+  // Valid values: starting, running, stopping, stopped, destroying, destroyed,
+  // failed.
   string state = 3;
 
   // attrs is a list of additional attributes describing the replica state.
@@ -366,7 +316,8 @@ message AppOptionRef {
   int64 updated = 4;
 }
 
-// AppSpecConfig defines the configuration schema for an application specification.
+// AppSpecConfig defines the configuration schema for an application
+// specification.
 message AppSpecConfig {
   // name is the name of the configuration schema.
   string name = 1;
@@ -386,7 +337,8 @@ message AppSpecConfigField {
   // prompt is a hint or placeholder text for the field.
   string prompt = 3;
 
-  // type specifies the data type of the field (e.g., "string", "number", "bool").
+  // type specifies the data type of the field (e.g., "string", "number",
+  // "bool").
   string type = 4;
 
   // default is the default value of the field.

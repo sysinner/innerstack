@@ -73,14 +73,14 @@ func NewAppListCommand() *cobra.Command {
 			}...)
 
 			for _, v := range resp.Items {
-				if v.Operate == nil {
-					v.Operate = &inapi.AppOperate{}
+				if v.Deploy == nil {
+					v.Deploy = &inapi.AppDeploy{}
 				}
 				if v.Spec == nil {
 					v.Spec = &inapi.AppSpec{}
 				}
 				hostId := ""
-				for _, rep := range v.Operate.Replicas {
+				for _, rep := range v.Deploy.Replicas {
 					if rep.HostId != "" {
 						if hostId != "" {
 							hostId += ", "
@@ -91,10 +91,10 @@ func NewAppListCommand() *cobra.Command {
 
 				values := []any{
 					v.Id, v.Name,
-					inutil.PrettyCPUs(v.Operate.CpuLimit),
-					inutil.PrettyBytes(v.Operate.MemoryLimit, 1024),
-					inutil.PrettyBytes(v.Operate.VolumeLimit, 1024),
-					v.Operate.ReplicaCap,
+					inutil.PrettyCPUs(v.Deploy.CpuLimit),
+					inutil.PrettyBytes(v.Deploy.MemoryLimit, 1024),
+					inutil.PrettyBytes(v.Deploy.VolumeLimit, 1024),
+					v.Deploy.ReplicaCap,
 					hostId,
 				}
 

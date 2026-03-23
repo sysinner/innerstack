@@ -71,6 +71,17 @@ func NewAppDeployCommand() *cobra.Command {
 			if s.Resources.VolumeLimit == "" {
 				return fmt.Errorf("resources.volume_limit is required")
 			}
+
+			// Validate task trigger fields uniqueness
+			for _, task := range s.Tasks {
+				if task == nil {
+					continue
+				}
+				if err := inapi.ValidateTaskTrigger(task); err != nil {
+					return fmt.Errorf("task %q: %w", task.Name, err)
+				}
+			}
+
 			spec = &s
 		}
 
@@ -78,7 +89,7 @@ func NewAppDeployCommand() *cobra.Command {
 			Id:         instanceId,
 			Spec:       spec,
 			ReplicaCap: replicaCap,
-			Operate:    &inapi.AppOperate{},
+			Deploy:     &inapi.AppDeploy{},
 		}
 
 		conn, err := client.Connect(zoneAddr, nil, false)
@@ -93,7 +104,7 @@ func NewAppDeployCommand() *cobra.Command {
 		defer cancel()
 
 		// Fetch existing instance options if updating
-		var existingOptions []*inapi.AppOperateOption
+		var existingOptions []*inapi.AppDeployOption
 		if instanceReq.Id != "" {
 			infoResp, err := zc.AppInstanceInfo(ctx, &inapi.AppInstanceInfoRequest{
 				Id: instanceReq.Id,
@@ -101,13 +112,13 @@ func NewAppDeployCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get existing instance info: %w", err)
 			}
-			if infoResp.Instance != nil && infoResp.Instance.Operate != nil {
-				existingOptions = infoResp.Instance.Operate.Options
+			if infoResp.Instance != nil && infoResp.Instance.Deploy != nil {
+				existingOptions = infoResp.Instance.Deploy.Options
 			}
 		}
 
 		// Interactive config input
-		var options []*inapi.AppOperateOption
+		var options []*inapi.AppDeployOption
 		if !skipConfig && spec != nil && spec.Config != nil && len(spec.Config.Fields) > 0 {
 			fmt.Printf("\nConfig: %s\n", spec.Config.Name)
 			fmt.Println(strings.Repeat("-", 60))
@@ -117,7 +128,7 @@ func NewAppDeployCommand() *cobra.Command {
 				return fmt.Errorf("config input failed: %w", err)
 			}
 
-			options = append(options, &inapi.AppOperateOption{
+			options = append(options, &inapi.AppDeployOption{
 				Name:  spec.Config.Name,
 				Items: cfgValues,
 			})
@@ -133,14 +144,14 @@ func NewAppDeployCommand() *cobra.Command {
 			options = existingOptions
 		}
 
-		// Set operate options if config was provided
+		// Set deploy options if config was provided
 		if len(options) > 0 {
-			instanceReq.Operate.Options = options
+			instanceReq.Deploy.Options = options
 		}
 
-		// Set operate action if provided
+		// Set deploy action if provided
 		if action != "" {
-			instanceReq.Operate.Action = action
+			instanceReq.Deploy.Action = action
 		}
 
 		instanceResp, err := zc.AppInstanceDeploy(ctx, instanceReq)
@@ -194,7 +205,7 @@ If --id is provided, the existing app instance will be updated.`,
 	cmd.Flags().BoolVarP(&skipConfig, "skip-config", "k",
 		false, "Skip interactive config input")
 	cmd.Flags().StringVarP(&action, "action", "",
-		"", "Operate action (start, stop, destroy)")
+		"", "Deploy action (start, stop, destroy)")
 
 	return cmd
 }
@@ -202,10 +213,10 @@ If --id is provided, the existing app instance will be updated.`,
 // promptConfigFields interactively prompts user for each config field
 // existingOptions is used to provide current values when updating an existing instance
 func promptConfigFields(fields []*inapi.AppSpecConfigField,
-	existingOptions []*inapi.AppOperateOption) ([]*inapi.AppOperateOptionField, error) {
+	existingOptions []*inapi.AppDeployOption) ([]*inapi.AppDeployOptionField, error) {
 	var (
 		reader  = bufio.NewReader(os.Stdin)
-		results []*inapi.AppOperateOptionField
+		results []*inapi.AppDeployOptionField
 	)
 
 	for _, field := range fields {
@@ -282,7 +293,7 @@ func promptConfigFields(fields []*inapi.AppSpecConfigField,
 			return nil, fmt.Errorf("field %s is required", field.Name)
 		}
 
-		results = append(results, &inapi.AppOperateOptionField{
+		results = append(results, &inapi.AppDeployOptionField{
 			Name:  field.Name,
 			Value: value,
 		})

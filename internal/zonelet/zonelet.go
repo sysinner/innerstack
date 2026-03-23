@@ -15,6 +15,7 @@
 package zonelet
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -36,10 +37,10 @@ func Run() {
 			forceRefresh := false
 			var err error
 			if forceRefresh, err = leaderRefresh(); err != nil {
-				slog.Error("zonelet leader refresh", "err", err.Error())
+				slog.Error(fmt.Sprintf("zonelet leader refresh, err %s", err.Error()))
 			}
 			if err = schedulerRefresh(forceRefresh); err != nil {
-				slog.Error("zonelet scheduler refresh", "err", err.Error())
+				slog.Error(fmt.Sprintf("zonelet scheduler refresh, err %s", err.Error()))
 			}
 		}
 		tr.Reset(1e9)

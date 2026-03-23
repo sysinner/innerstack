@@ -17,10 +17,9 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
-	"os/user"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,10 +28,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/incore/v2/inapi"
-	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
-	"github.com/sysinner/incore/v2/internal/inagent/executor"
+	"github.com/sysinner/incore/v2/internal/inagent/task"
 	"github.com/sysinner/incore/v2/pkg/inlog"
+	"github.com/sysinner/incore/v2/pkg/signals"
 )
 
 var (
@@ -64,7 +63,15 @@ func NewAgentDaemonCommand() *cobra.Command {
 
 func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 
-	inlog.Setup()
+	{
+		fp, err := os.OpenFile("/home/action/inagent.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			panic(err)
+		}
+		defer fp.Close()
+
+		inlog.Setup(fp)
+	}
 
 	hostId = strings.TrimSpace(os.Getenv("APP_HOST_ID"))
 	if !inapi.ObjectIdValid.MatchString(hostId) {
@@ -94,63 +101,83 @@ func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if false {
-		//
-		if _, err := user.Lookup(config.User.Username); err != nil {
-			if _, err = exec.Command(
-				"/usr/sbin/useradd",
-				"-d", "/home/action",
-				"-s", "/bin/bash",
-				"-u", config.User.Uid, config.User.Username,
-			).Output(); err != nil {
-				return err
-			}
-		}
+	// if false {
+	// 	//
+	// 	if _, err := user.Lookup(config.User.Username); err != nil {
+	// 		if _, err = exec.Command(
+	// 			"/usr/sbin/useradd",
+	// 			"-d", "/home/action",
+	// 			"-s", "/bin/bash",
+	// 			"-u", config.User.Uid, config.User.Username,
+	// 		).Output(); err != nil {
+	// 			return err
+	// 		}
+	// 	}
 
-		//
-		syscall.Setgid(config.DefaultGroupID)
-		syscall.Setuid(config.DefaultUserID)
-	}
+	// 	//
+	// 	syscall.Setgid(config.DefaultGroupID)
+	// 	syscall.Setuid(config.DefaultUserID)
+	// }
 	syscall.Chdir("/home/action")
 
-	slog.Info("inagent/daemon started")
+	slog.Info("inagent daemon started")
 
-	worker()
+	signals.Go(func() {
+		tr := time.NewTimer(10e6)
+		defer tr.Stop()
+		for {
+			select {
+			case <-signals.Done():
+				if err := task.Kill(); err != nil {
+					slog.Warn(fmt.Sprintf("task [*] kill failed, err %s", err.Error()))
+				}
+
+			case <-tr.C:
+				if app, dur, ok := specRefresh(); ok {
+					if err := task.Run(app); err != nil {
+						slog.Error(fmt.Sprintf("task [*] run failed, err %s", err.Error()))
+					}
+					tr.Reset(dur)
+				} else {
+					tr.Reset(10e9)
+				}
+			}
+		}
+	}, nil)
+
+	signals.Wait()
+
 	return nil
 }
 
-func worker() {
+var (
+	app hostapi.AppReplicaInstance
+)
 
-	for {
-		workerEntry()
-		time.Sleep(10 * time.Second)
-	}
-}
+func specRefresh() (*hostapi.AppReplicaInstance, time.Duration, bool) {
 
-func workerEntry() {
+	dur := time.Duration(10e9)
 
-	var app hostapi.AppReplicaInstance
-
-	f, err := os.Open(hostapi.AppInstanceFile)
+	fp, err := os.Open(hostapi.AppInstanceFile)
 	if err != nil {
-		slog.Error("failed to open app instance file", "error", err)
-		return
+		slog.Error(fmt.Sprintf("failed to open app instance file, err %s", err.Error()))
+		return nil, dur, false
 	}
-	defer f.Close()
+	defer fp.Close()
 
-	if err = json.NewDecoder(f).Decode(&app); err != nil {
-		slog.Error("failed to decode app instance", "error", err)
-		return
+	if err = json.NewDecoder(fp).Decode(&app); err != nil {
+		slog.Error(fmt.Sprintf("failed to decode app instance, err %s", err.Error()))
+		return nil, dur, false
 	}
 
 	if app.App == nil || app.App.Spec == nil ||
 		app.App.Spec.Resources == nil ||
-		app.App.Operate == nil {
+		app.App.Deploy == nil {
 		slog.Error("app or spec/operate is nil in app instance config")
-		return
+		return nil, dur, false
 	}
 
-	for _, v := range app.App.Operate.Replicas {
+	for _, v := range app.App.Deploy.Replicas {
 		if v.HostId != hostId || v.Id != repId {
 			continue
 		}
@@ -160,12 +187,16 @@ func workerEntry() {
 
 	if app.Replica == nil {
 		slog.Error("replica not found in app instance config")
-		return
+		return nil, dur, false
 	}
 
-	if err = executor.Runner(&app, hostapi.HomeDir); err != nil {
-		slog.Error("executor runner failed", "error", err)
-		return
+	for _, t := range app.App.Spec.Tasks {
+		if t.Cron != "" {
+			if sched, err := task.CronParse(t.Cron); err == nil {
+				dur = max(1e9, time.Since(sched.Next(time.Now())).Abs()/2)
+			}
+		}
 	}
 
+	return &app, dur, true
 }

@@ -176,8 +176,8 @@ message AppInstanceDeployRequest {
   // replica_cap specifies the desired number of replicas for the application.
   uint32 replica_cap = 3;
 
-  // operate specifies the operational parameters and desired action.
-  AppOperate operate = 4;
+  // deploy specifies the deployment parameters and desired action.
+  AppDeploy deploy = 4;
 }
 
 // AppInstanceDeployResponse is the response message after deploying an application instance.

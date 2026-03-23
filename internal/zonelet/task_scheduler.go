@@ -48,17 +48,17 @@ func schedulerRefresh(forceRefresh bool) error {
 			if err := item.JsonDecode(&instance); err != nil {
 				continue
 			}
-			if instance.Operate == nil || instance.Spec == nil ||
+			if instance.Deploy == nil || instance.Spec == nil ||
 				instance.Spec.Resources == nil {
 				slog.Warn("scheduler skip instance with invalid operate or spec",
 					"instance_id", instance.Id)
 				continue
 			}
 			if activeInstance == nil {
-				if len(instance.Operate.Replicas) < int(instance.Operate.ReplicaCap) {
+				if len(instance.Deploy.Replicas) < int(instance.Deploy.ReplicaCap) {
 					activeInstance = &instance
 				} else {
-					for _, rep := range instance.Operate.Replicas {
+					for _, rep := range instance.Deploy.Replicas {
 						if rep.HostId == "" {
 							activeInstance = &instance
 							break
@@ -138,14 +138,14 @@ func schedulerRefresh(forceRefresh bool) error {
 
 	// Calculate already allocated resources from existing replicas
 	for _, instance := range instances {
-		for _, rep := range instance.Operate.Replicas {
+		for _, rep := range instance.Deploy.Replicas {
 			if rep.HostId == "" {
 				continue
 			}
 			if host, ok := schedHosts[rep.HostId]; ok {
-				host.CpuAlloc += instance.Operate.CpuLimit
-				host.MemAlloc += instance.Operate.MemoryLimit
-				host.Volumes[0].Alloc += instance.Operate.VolumeLimit
+				host.CpuAlloc += instance.Deploy.CpuLimit
+				host.MemAlloc += instance.Deploy.MemoryLimit
+				host.Volumes[0].Alloc += instance.Deploy.VolumeLimit
 			}
 		}
 	}
@@ -167,31 +167,31 @@ func schedulerRefresh(forceRefresh bool) error {
 	// Schedule replicas for each instance
 	for _, instance := range []*inapi.AppInstance{activeInstance} {
 		// Determine replica capacity (default 1, max 128)
-		rc := instance.Operate.ReplicaCap
-		instance.Operate.ReplicaCap = max(1, min(128, rc))
+		rc := instance.Deploy.ReplicaCap
+		instance.Deploy.ReplicaCap = max(1, min(128, rc))
 
-		sort.Slice(instance.Operate.Replicas, func(i, j int) bool {
-			return instance.Operate.Replicas[i].Id < instance.Operate.Replicas[j].Id
+		sort.Slice(instance.Deploy.Replicas, func(i, j int) bool {
+			return instance.Deploy.Replicas[i].Id < instance.Deploy.Replicas[j].Id
 		})
 
-		repLen := uint32(len(instance.Operate.Replicas))
-		for repId := repLen; repId < instance.Operate.ReplicaCap; repId++ {
-			newReplica := &inapi.AppOperateReplica{
+		repLen := uint32(len(instance.Deploy.Replicas))
+		for repId := repLen; repId < instance.Deploy.ReplicaCap; repId++ {
+			newReplica := &inapi.AppDeployReplica{
 				Id: repId,
 			}
-			instance.Operate.Replicas = append(instance.Operate.Replicas, newReplica)
+			instance.Deploy.Replicas = append(instance.Deploy.Replicas, newReplica)
 		}
 
 		// Schedule replicas
-		for _, rep := range instance.Operate.Replicas {
+		for _, rep := range instance.Deploy.Replicas {
 			if rep.HostId != "" {
 				continue
 			}
 			srep := &typeScheduler.SchedulePodReplica{
 				RepId: uint64(rep.Id),
-				Cpu:   instance.Operate.CpuLimit,
-				Mem:   instance.Operate.MemoryLimit,
-				Vol:   instance.Operate.VolumeLimit,
+				Cpu:   instance.Deploy.CpuLimit,
+				Mem:   instance.Deploy.MemoryLimit,
+				Vol:   instance.Deploy.VolumeLimit,
 			}
 
 			hit, err := sched.ScheduleHost(srep, schedResources, nil)
@@ -210,6 +210,8 @@ func schedulerRefresh(forceRefresh bool) error {
 				break
 			}
 
+			rep.HostId = hit.HostId
+
 			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, instance.Id)
 			if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {
 				slog.Warn("scheduler update instance fail",
@@ -223,16 +225,16 @@ func schedulerRefresh(forceRefresh bool) error {
 					"host_id", hit.HostId)
 
 				if host, ok := schedHosts[hit.HostId]; ok {
-					host.CpuAlloc += instance.Operate.CpuLimit
-					host.MemAlloc += instance.Operate.MemoryLimit
-					host.Volumes[0].Alloc += instance.Operate.VolumeLimit
+					host.CpuAlloc += instance.Deploy.CpuLimit
+					host.MemAlloc += instance.Deploy.MemoryLimit
+					host.Volumes[0].Alloc += instance.Deploy.VolumeLimit
 				}
 
 				if val, ok := status.Zonelet_HostOperateSet.Load(hit.HostId); ok {
 					op := val.Value.(*inapi.HostOperate)
-					op.CpuAlloc += instance.Operate.CpuLimit
-					op.MemAlloc += instance.Operate.MemoryLimit
-					op.StorageAlloc += instance.Operate.VolumeLimit
+					op.CpuAlloc += instance.Deploy.CpuLimit
+					op.MemAlloc += instance.Deploy.MemoryLimit
+					op.StorageAlloc += instance.Deploy.VolumeLimit
 				}
 			}
 

@@ -81,9 +81,9 @@ func NewAppInfoCommand() *cobra.Command {
 
 			values := []any{
 				resp.Instance.Id, resp.Instance.Name,
-				inutil.PrettyCPUs(resp.Instance.Operate.CpuLimit),
-				inutil.PrettyBytes(resp.Instance.Operate.MemoryLimit, 1024),
-				inutil.PrettyBytes(resp.Instance.Operate.VolumeLimit, 1024),
+				inutil.PrettyCPUs(resp.Instance.Deploy.CpuLimit),
+				inutil.PrettyBytes(resp.Instance.Deploy.MemoryLimit, 1024),
+				inutil.PrettyBytes(resp.Instance.Deploy.VolumeLimit, 1024),
 			}
 
 			tableBase.Append(values...)

@@ -150,7 +150,7 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 
 	// Check if already extracted (idempotent)
 	if _, err := os.Stat(installPath); err == nil {
-		slog.Debug("package already downloaded and extracted",
+		slog.Info("package already downloaded and extracted",
 			"package_id", pkgId,
 			"install_path", installPath)
 		return installPath, nil
