@@ -34,16 +34,19 @@ func NewZoneInfoCommand() *cobra.Command {
 
 	var run = func(cmd *cobra.Command, args []string) error {
 
-		// Connect to gRPC server
-		conn, err := client.Connect(addr, nil, false)
+		zone, err := Config.Zone(addr)
 		if err != nil {
-			return fmt.Errorf("failed to connect to server %s: %w", addr, err)
+			return err
 		}
 
-		fmt.Println("addr", addr)
+		// Connect to gRPC server
+		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to server %s: %w", zone.Addr, err)
+		}
 
 		// Create Zonelet client
-		zc := inapi.NewZoneletClient(conn)
+		zc := inapi.NewZoneServiceClient(conn)
 
 		// Set timeout context
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -68,7 +71,7 @@ func NewZoneInfoCommand() *cobra.Command {
 		RunE:  run,
 	}
 
-	cmd.Flags().StringVarP(&addr, "addr", "a", "127.0.0.1:9533", "Zonelet server address")
+	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 
 	return cmd
 }

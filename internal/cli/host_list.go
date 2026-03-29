@@ -40,12 +40,17 @@ func NewHostListCommand() *cobra.Command {
 
 	run := func(cmd *cobra.Command, args []string) error {
 
-		conn, err := client.Connect(zoneAddr, nil, false)
+		zone, err := Config.Zone(zoneAddr)
 		if err != nil {
-			return fmt.Errorf("failed to connect to zone server %s: %w", zoneAddr, err)
+			return err
 		}
 
-		zc := inapi.NewZoneletClient(conn)
+		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to zone server %s: %w", zone.Addr, err)
+		}
+
+		zc := inapi.NewZoneServiceClient(conn)
 
 		req := &inapi.HostListRequest{}
 
@@ -131,7 +136,7 @@ func NewHostListCommand() *cobra.Command {
 
 			tableBase.Render()
 		} else {
-			tbuf.WriteString(fmt.Sprintf("List host '%s' successfully\n", zoneAddr))
+			tbuf.WriteString(fmt.Sprintf("List host '%s' successfully\n", zone.Addr))
 
 			js, _ := json.MarshalIndent(resp, "", "  ")
 			tbuf.Write(js)
@@ -148,7 +153,7 @@ func NewHostListCommand() *cobra.Command {
 		RunE:  run,
 	}
 
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "127.0.0.1:9533", "Zone server address")
+	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "", "Zone server address")
 	cmd.Flags().BoolVarP(&showJson, "show-json", "j", false, "show raw response with json")
 
 	return cmd

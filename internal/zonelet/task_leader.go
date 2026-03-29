@@ -17,7 +17,8 @@ package zonelet
 import (
 	"log/slog"
 
-	inapi2 "github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/internal/auth"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
@@ -31,7 +32,7 @@ func leaderRefresh() (forceRefresh bool, err error) {
 	}
 
 	var (
-		zmLeaderKey = inapi2.NsZoneletLeader(config.Config.Zonelet.ZoneId)
+		zmLeaderKey = inapi.NsZoneletLeader(config.Config.Zonelet.ZoneId)
 	)
 
 	if status.IsZoneletLeader() {
@@ -52,7 +53,6 @@ func leaderRefresh() (forceRefresh bool, err error) {
 		} else {
 			slog.Warn("zonelet/leader refresh",
 				"err", rs.ErrorMessage())
-
 		}
 
 		return false, nil
@@ -84,7 +84,7 @@ func leaderRefresh() (forceRefresh bool, err error) {
 	} else if rs.OK() && len(rs.Items) > 0 {
 
 		hostId := rs.Item().StringValue()
-		if inapi2.ObjectIdValid.MatchString(hostId) &&
+		if inapi.ObjectIdValid.MatchString(hostId) &&
 			(hostId != status.ZoneletLeader ||
 				rs.Items[0].Meta.Version > status.ZoneletLeaderVersion) {
 
@@ -102,6 +102,12 @@ func leaderRefresh() (forceRefresh bool, err error) {
 	} else {
 		slog.Warn("zonelet leader refresh fail",
 			"err", rs.ErrorMessage())
+	}
+
+	if forceRefresh {
+		if err := auth.AuthMgr.RefreshAccessKeysFromDB(); err != nil {
+			slog.Error("zonelet failed to load access keys from db", "error", err)
+		}
 	}
 
 	return forceRefresh, nil

@@ -40,6 +40,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -56,6 +57,23 @@ func main() {
 	var rootCmd = &cobra.Command{
 		Use: "instack",
 		// SilenceUsage: true,
+	}
+
+	{
+		initConfig := func() {
+
+			if err := cli.Setup(); err != nil {
+				fmt.Fprintf(os.Stderr, "Init Config Fail : %s\n", err.Error())
+				os.Exit(1)
+			}
+
+			if _, err := cli.Config.Zone(""); err != nil {
+				fmt.Fprintf(os.Stderr, "Init Config Fail : no zone setup\n")
+				os.Exit(1)
+			}
+		}
+
+		cobra.OnInitialize(initConfig)
 	}
 
 	// Register zone management commands

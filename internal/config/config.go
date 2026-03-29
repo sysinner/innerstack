@@ -16,6 +16,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"net/netip"
 	"os"
 	"os/user"
@@ -25,6 +26,7 @@ import (
 	"github.com/hooto/htoml4g/htoml"
 
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inlog"
 )
 
@@ -54,15 +56,21 @@ type ServerConfig struct {
 }
 
 type HostletConfig struct {
-	HostId    string `json:"host_id" toml:"host_id"`
-	LanAddr   string `json:"lan_addr" toml:"lan_addr"`
-	SecretKey string `json:"secret_key" toml:"secret_key"`
-	PodPath   string `json:"pod_path" toml:"pod_path"`
+	HostId  string `json:"host_id" toml:"host_id"`
+	LanAddr string `json:"lan_addr" toml:"lan_addr"`
+
+	AccessKey string `json:"access_key" toml:"access_key"`
+	ak        *inauth.AccessKey
+
+	PodPath string `json:"pod_path" toml:"pod_path"`
 }
 
 type ZoneletConfig struct {
 	ZoneId string `json:"zone_id" toml:"zone_id"`
+
 	// ZoneName string `json:"zone_name" toml:"zone_name"`
+
+	AccessKeys []*inauth.AccessKey `json:"access_keys,omitempty" toml:"access_keys,omitempty"`
 }
 
 var (
@@ -104,11 +112,43 @@ func Setup(ver, rel string) error {
 		}
 	}
 
+	// Auto-create default sysadmin access key if not configured
+	{
+		if len(Config.Zonelet.AccessKeys) == 0 {
+			secret, _ := inutil.GenerateSecretKeyBase62(48)
+			Config.Zonelet.AccessKeys = []*inauth.AccessKey{
+				{
+					Id:          inutil.SeqRandHexString(4, 8),
+					Secret:      secret,
+					User:        "sysadmin",
+					Description: "System Access Key",
+				},
+			}
+		}
+	}
+
 	{
 		Config.Hostlet.PodPath = Prefix + "/pod"
 
-		if len(Config.Hostlet.HostId) < 12 {
+		if Config.Hostlet.HostId == "" {
 			Config.Hostlet.HostId = inutil.SeqRandHexString(4, 8)
+		}
+
+		if Config.Hostlet.AccessKey == "" {
+			ak := inauth.NewAccessKey()
+			ak.Id = Config.Hostlet.HostId
+			Config.Hostlet.AccessKey = ak.Export()
+		}
+
+		if Config.Hostlet.ak == nil {
+			if ak, err := inauth.ParseAccessKey(Config.Hostlet.AccessKey); err != nil {
+				return fmt.Errorf("hostlet access_key parse error: %w", err)
+			} else {
+				ak.Scopes = []string{
+					fmt.Sprintf("host:rw:%s", Config.Hostlet.HostId),
+				}
+				Config.Hostlet.ak = ak
+			}
 		}
 
 		if Config.Hostlet.LanAddr == "" {
@@ -129,9 +169,6 @@ func Setup(ver, rel string) error {
 			}
 		}
 
-		if Config.Hostlet.SecretKey == "" {
-			Config.Hostlet.SecretKey, _ = inutil.GenerateSecretKeyBase62(32)
-		}
 	}
 
 	return Config.Flush()
@@ -146,4 +183,8 @@ func (cfg *ConfigCommon) Flush() error {
 		return htoml.EncodeToFile(Config, cfg.filepath, nil)
 	}
 	return nil
+}
+
+func (it *HostletConfig) AuthKey() *inauth.AccessKey {
+	return it.ak
 }

@@ -34,8 +34,8 @@ message Host {
   // peer_addr is the network address used for peer-to-peer communication.
   string peer_addr = 3;
 
-  // secret_key is the authentication key for secure communication.
-  string secret_key = 8;
+  // access_key is the exported access key for secure communication.
+  string access_key = 8;
 
   // operate specifies the operational parameters for the host.
   HostOperate operate = 10;

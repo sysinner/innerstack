@@ -37,13 +37,18 @@ func NewAppDeleteCommand() *cobra.Command {
 			return fmt.Errorf("instance id is required")
 		}
 
-		conn, err := client.Connect(zoneAddr, nil, false)
+		zone, err := Config.Zone("")
 		if err != nil {
-			return fmt.Errorf("failed to connect to zone leader %s: %w", zoneAddr, err)
+			return err
+		}
+
+		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to zone leader %s: %s", zone.Addr, err.Error())
 		}
 		defer conn.Close()
 
-		zc := inapi.NewZoneletClient(conn)
+		zc := inapi.NewZoneServiceClient(conn)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -72,7 +77,7 @@ This action cannot be undone.`,
   app delete --id <instance-id>`,
 	}
 
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "127.0.0.1:9533", "Zone server address")
+	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "", "Zone server address")
 	cmd.Flags().StringVarP(&instanceId, "id", "i", "", "App instance ID (required)")
 
 	cmd.MarkFlagRequired("id")

@@ -22,7 +22,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/incore/v2/inapi"
-	inapi2 "github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 )
 
@@ -35,22 +34,23 @@ func NewZoneInitCommand() *cobra.Command {
 
 	var initZoneRun = func(cmd *cobra.Command, args []string) error {
 		// Validate parameters
-		if err := inapi2.NameValid(name); err != nil {
+		if err := inapi.NameValid(name); err != nil {
 			return fmt.Errorf("zone name : %s", err.Error())
 		}
 
-		if addr == "" {
-			addr = "127.0.0.1:9533"
+		zone, err := Config.Zone(addr)
+		if err != nil {
+			return err
 		}
 
-		// Connect to gRPC server
-		conn, err := client.Connect(addr, nil, false)
+		// Connect to gRPC server (no auth needed for zone-init)
+		conn, err := client.Connect(zone.Addr, nil, false)
 		if err != nil {
-			return fmt.Errorf("failed to connect to server %s: %w", addr, err)
+			return fmt.Errorf("failed to connect to server %s: %w", zone.Addr, err)
 		}
 
 		// Create Zonelet client
-		zc := inapi.NewZoneletClient(conn)
+		zc := inapi.NewZoneServiceClient(conn)
 
 		// Prepare request
 		req := &inapi.ZoneInitRequest{
@@ -87,7 +87,7 @@ This command connects to the zonelet server and creates a new zone configuration
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Zone name (required)")
-	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address (default: 127.0.0.1:9533)")
+	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 
 	// Mark name as required parameter
 	cmd.MarkFlagRequired("name")

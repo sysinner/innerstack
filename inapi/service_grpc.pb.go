@@ -33,117 +33,23 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Hostlet_HostInit_FullMethodName = "/inapi.Hostlet/HostInit"
+	ZoneService_ZoneInit_FullMethodName          = "/inapi.ZoneService/ZoneInit"
+	ZoneService_ZoneInfo_FullMethodName          = "/inapi.ZoneService/ZoneInfo"
+	ZoneService_HostJoin_FullMethodName          = "/inapi.ZoneService/HostJoin"
+	ZoneService_HostList_FullMethodName          = "/inapi.ZoneService/HostList"
+	ZoneService_AppInstanceDeploy_FullMethodName = "/inapi.ZoneService/AppInstanceDeploy"
+	ZoneService_AppInstanceInfo_FullMethodName   = "/inapi.ZoneService/AppInstanceInfo"
+	ZoneService_AppInstanceList_FullMethodName   = "/inapi.ZoneService/AppInstanceList"
+	ZoneService_AppInstanceDelete_FullMethodName = "/inapi.ZoneService/AppInstanceDelete"
+	ZoneService_PackagePush_FullMethodName       = "/inapi.ZoneService/PackagePush"
+	ZoneService_PackageList_FullMethodName       = "/inapi.ZoneService/PackageList"
+	ZoneService_PackageDelete_FullMethodName     = "/inapi.ZoneService/PackageDelete"
 )
 
-// HostletClient is the client API for Hostlet service.
+// ZoneServiceClient is the client API for ZoneService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type HostletClient interface {
-	// HostInit initializes a new host and registers it with the specified zone.
-	HostInit(ctx context.Context, in *HostInitRequest, opts ...grpc.CallOption) (*HostInitResponse, error)
-}
-
-type hostletClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewHostletClient(cc grpc.ClientConnInterface) HostletClient {
-	return &hostletClient{cc}
-}
-
-func (c *hostletClient) HostInit(ctx context.Context, in *HostInitRequest, opts ...grpc.CallOption) (*HostInitResponse, error) {
-	out := new(HostInitResponse)
-	err := c.cc.Invoke(ctx, Hostlet_HostInit_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// HostletServer is the server API for Hostlet service.
-// All implementations must embed UnimplementedHostletServer
-// for forward compatibility
-type HostletServer interface {
-	// HostInit initializes a new host and registers it with the specified zone.
-	HostInit(context.Context, *HostInitRequest) (*HostInitResponse, error)
-	mustEmbedUnimplementedHostletServer()
-}
-
-// UnimplementedHostletServer must be embedded to have forward compatible implementations.
-type UnimplementedHostletServer struct {
-}
-
-func (UnimplementedHostletServer) HostInit(context.Context, *HostInitRequest) (*HostInitResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method HostInit not implemented")
-}
-func (UnimplementedHostletServer) mustEmbedUnimplementedHostletServer() {}
-
-// UnsafeHostletServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to HostletServer will
-// result in compilation errors.
-type UnsafeHostletServer interface {
-	mustEmbedUnimplementedHostletServer()
-}
-
-func RegisterHostletServer(s grpc.ServiceRegistrar, srv HostletServer) {
-	s.RegisterService(&Hostlet_ServiceDesc, srv)
-}
-
-func _Hostlet_HostInit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HostInitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(HostletServer).HostInit(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Hostlet_HostInit_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HostletServer).HostInit(ctx, req.(*HostInitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// Hostlet_ServiceDesc is the grpc.ServiceDesc for Hostlet service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Hostlet_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "inapi.Hostlet",
-	HandlerType: (*HostletServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "HostInit",
-			Handler:    _Hostlet_HostInit_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "service.proto",
-}
-
-const (
-	Zonelet_ZoneInit_FullMethodName          = "/inapi.Zonelet/ZoneInit"
-	Zonelet_ZoneInfo_FullMethodName          = "/inapi.Zonelet/ZoneInfo"
-	Zonelet_HostJoin_FullMethodName          = "/inapi.Zonelet/HostJoin"
-	Zonelet_HostList_FullMethodName          = "/inapi.Zonelet/HostList"
-	Zonelet_AppInstanceDeploy_FullMethodName = "/inapi.Zonelet/AppInstanceDeploy"
-	Zonelet_AppInstanceInfo_FullMethodName   = "/inapi.Zonelet/AppInstanceInfo"
-	Zonelet_AppInstanceList_FullMethodName   = "/inapi.Zonelet/AppInstanceList"
-	Zonelet_AppInstanceDelete_FullMethodName = "/inapi.Zonelet/AppInstanceDelete"
-	Zonelet_HostStatusUpdate_FullMethodName  = "/inapi.Zonelet/HostStatusUpdate"
-	Zonelet_PackagePush_FullMethodName       = "/inapi.Zonelet/PackagePush"
-	Zonelet_PackageList_FullMethodName       = "/inapi.Zonelet/PackageList"
-	Zonelet_PackageDelete_FullMethodName     = "/inapi.Zonelet/PackageDelete"
-	Zonelet_PackageChunk_FullMethodName      = "/inapi.Zonelet/PackageChunk"
-)
-
-// ZoneletClient is the client API for Zonelet service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ZoneletClient interface {
+type ZoneServiceClient interface {
 	// ZoneInit initializes a new zone with the specified name.
 	ZoneInit(ctx context.Context, in *ZoneInitRequest, opts ...grpc.CallOption) (*ZoneInitResponse, error)
 	// ZoneInfo retrieves information about the current zone.
@@ -160,147 +66,125 @@ type ZoneletClient interface {
 	AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error)
-	// HostStatusUpdate updates the status of a host and receives updated app instances.
-	HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error)
 	// PackageList retrieves all packages in the zone.
 	PackageList(ctx context.Context, in *PackageListRequest, opts ...grpc.CallOption) (*PackageListResponse, error)
 	// PackageDelete deletes a package and all its chunks from the zone.
 	PackageDelete(ctx context.Context, in *PackageDeleteRequest, opts ...grpc.CallOption) (*PackageDeleteResponse, error)
-	// PackageChunk retrieves a single chunk of a package for download.
-	PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error)
 }
 
-type zoneletClient struct {
+type zoneServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewZoneletClient(cc grpc.ClientConnInterface) ZoneletClient {
-	return &zoneletClient{cc}
+func NewZoneServiceClient(cc grpc.ClientConnInterface) ZoneServiceClient {
+	return &zoneServiceClient{cc}
 }
 
-func (c *zoneletClient) ZoneInit(ctx context.Context, in *ZoneInitRequest, opts ...grpc.CallOption) (*ZoneInitResponse, error) {
+func (c *zoneServiceClient) ZoneInit(ctx context.Context, in *ZoneInitRequest, opts ...grpc.CallOption) (*ZoneInitResponse, error) {
 	out := new(ZoneInitResponse)
-	err := c.cc.Invoke(ctx, Zonelet_ZoneInit_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_ZoneInit_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) ZoneInfo(ctx context.Context, in *ZoneInfoRequest, opts ...grpc.CallOption) (*ZoneInfoResponse, error) {
+func (c *zoneServiceClient) ZoneInfo(ctx context.Context, in *ZoneInfoRequest, opts ...grpc.CallOption) (*ZoneInfoResponse, error) {
 	out := new(ZoneInfoResponse)
-	err := c.cc.Invoke(ctx, Zonelet_ZoneInfo_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_ZoneInfo_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) HostJoin(ctx context.Context, in *HostJoinRequest, opts ...grpc.CallOption) (*HostJoinResponse, error) {
+func (c *zoneServiceClient) HostJoin(ctx context.Context, in *HostJoinRequest, opts ...grpc.CallOption) (*HostJoinResponse, error) {
 	out := new(HostJoinResponse)
-	err := c.cc.Invoke(ctx, Zonelet_HostJoin_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_HostJoin_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) HostList(ctx context.Context, in *HostListRequest, opts ...grpc.CallOption) (*HostListResponse, error) {
+func (c *zoneServiceClient) HostList(ctx context.Context, in *HostListRequest, opts ...grpc.CallOption) (*HostListResponse, error) {
 	out := new(HostListResponse)
-	err := c.cc.Invoke(ctx, Zonelet_HostList_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_HostList_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) AppInstanceDeploy(ctx context.Context, in *AppInstanceDeployRequest, opts ...grpc.CallOption) (*AppInstanceDeployResponse, error) {
+func (c *zoneServiceClient) AppInstanceDeploy(ctx context.Context, in *AppInstanceDeployRequest, opts ...grpc.CallOption) (*AppInstanceDeployResponse, error) {
 	out := new(AppInstanceDeployResponse)
-	err := c.cc.Invoke(ctx, Zonelet_AppInstanceDeploy_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_AppInstanceDeploy_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) AppInstanceInfo(ctx context.Context, in *AppInstanceInfoRequest, opts ...grpc.CallOption) (*AppInstanceInfoResponse, error) {
+func (c *zoneServiceClient) AppInstanceInfo(ctx context.Context, in *AppInstanceInfoRequest, opts ...grpc.CallOption) (*AppInstanceInfoResponse, error) {
 	out := new(AppInstanceInfoResponse)
-	err := c.cc.Invoke(ctx, Zonelet_AppInstanceInfo_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_AppInstanceInfo_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error) {
+func (c *zoneServiceClient) AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error) {
 	out := new(AppInstanceListResponse)
-	err := c.cc.Invoke(ctx, Zonelet_AppInstanceList_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_AppInstanceList_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error) {
+func (c *zoneServiceClient) AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error) {
 	out := new(AppInstanceDeleteResponse)
-	err := c.cc.Invoke(ctx, Zonelet_AppInstanceDelete_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_AppInstanceDelete_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error) {
-	out := new(HostStatusUpdateResponse)
-	err := c.cc.Invoke(ctx, Zonelet_HostStatusUpdate_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *zoneletClient) PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error) {
+func (c *zoneServiceClient) PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error) {
 	out := new(PackagePushResponse)
-	err := c.cc.Invoke(ctx, Zonelet_PackagePush_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_PackagePush_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) PackageList(ctx context.Context, in *PackageListRequest, opts ...grpc.CallOption) (*PackageListResponse, error) {
+func (c *zoneServiceClient) PackageList(ctx context.Context, in *PackageListRequest, opts ...grpc.CallOption) (*PackageListResponse, error) {
 	out := new(PackageListResponse)
-	err := c.cc.Invoke(ctx, Zonelet_PackageList_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_PackageList_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) PackageDelete(ctx context.Context, in *PackageDeleteRequest, opts ...grpc.CallOption) (*PackageDeleteResponse, error) {
+func (c *zoneServiceClient) PackageDelete(ctx context.Context, in *PackageDeleteRequest, opts ...grpc.CallOption) (*PackageDeleteResponse, error) {
 	out := new(PackageDeleteResponse)
-	err := c.cc.Invoke(ctx, Zonelet_PackageDelete_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ZoneService_PackageDelete_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *zoneletClient) PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error) {
-	out := new(PackageChunkResponse)
-	err := c.cc.Invoke(ctx, Zonelet_PackageChunk_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// ZoneletServer is the server API for Zonelet service.
-// All implementations must embed UnimplementedZoneletServer
+// ZoneServiceServer is the server API for ZoneService service.
+// All implementations must embed UnimplementedZoneServiceServer
 // for forward compatibility
-type ZoneletServer interface {
+type ZoneServiceServer interface {
 	// ZoneInit initializes a new zone with the specified name.
 	ZoneInit(context.Context, *ZoneInitRequest) (*ZoneInitResponse, error)
 	// ZoneInfo retrieves information about the current zone.
@@ -317,367 +201,536 @@ type ZoneletServer interface {
 	AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error)
-	// HostStatusUpdate updates the status of a host and receives updated app instances.
-	HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error)
 	// PackageList retrieves all packages in the zone.
 	PackageList(context.Context, *PackageListRequest) (*PackageListResponse, error)
 	// PackageDelete deletes a package and all its chunks from the zone.
 	PackageDelete(context.Context, *PackageDeleteRequest) (*PackageDeleteResponse, error)
-	// PackageChunk retrieves a single chunk of a package for download.
-	PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error)
-	mustEmbedUnimplementedZoneletServer()
+	mustEmbedUnimplementedZoneServiceServer()
 }
 
-// UnimplementedZoneletServer must be embedded to have forward compatible implementations.
-type UnimplementedZoneletServer struct {
+// UnimplementedZoneServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedZoneServiceServer struct {
 }
 
-func (UnimplementedZoneletServer) ZoneInit(context.Context, *ZoneInitRequest) (*ZoneInitResponse, error) {
+func (UnimplementedZoneServiceServer) ZoneInit(context.Context, *ZoneInitRequest) (*ZoneInitResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ZoneInit not implemented")
 }
-func (UnimplementedZoneletServer) ZoneInfo(context.Context, *ZoneInfoRequest) (*ZoneInfoResponse, error) {
+func (UnimplementedZoneServiceServer) ZoneInfo(context.Context, *ZoneInfoRequest) (*ZoneInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ZoneInfo not implemented")
 }
-func (UnimplementedZoneletServer) HostJoin(context.Context, *HostJoinRequest) (*HostJoinResponse, error) {
+func (UnimplementedZoneServiceServer) HostJoin(context.Context, *HostJoinRequest) (*HostJoinResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HostJoin not implemented")
 }
-func (UnimplementedZoneletServer) HostList(context.Context, *HostListRequest) (*HostListResponse, error) {
+func (UnimplementedZoneServiceServer) HostList(context.Context, *HostListRequest) (*HostListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HostList not implemented")
 }
-func (UnimplementedZoneletServer) AppInstanceDeploy(context.Context, *AppInstanceDeployRequest) (*AppInstanceDeployResponse, error) {
+func (UnimplementedZoneServiceServer) AppInstanceDeploy(context.Context, *AppInstanceDeployRequest) (*AppInstanceDeployResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppInstanceDeploy not implemented")
 }
-func (UnimplementedZoneletServer) AppInstanceInfo(context.Context, *AppInstanceInfoRequest) (*AppInstanceInfoResponse, error) {
+func (UnimplementedZoneServiceServer) AppInstanceInfo(context.Context, *AppInstanceInfoRequest) (*AppInstanceInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppInstanceInfo not implemented")
 }
-func (UnimplementedZoneletServer) AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error) {
+func (UnimplementedZoneServiceServer) AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppInstanceList not implemented")
 }
-func (UnimplementedZoneletServer) AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error) {
+func (UnimplementedZoneServiceServer) AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppInstanceDelete not implemented")
 }
-func (UnimplementedZoneletServer) HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method HostStatusUpdate not implemented")
-}
-func (UnimplementedZoneletServer) PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error) {
+func (UnimplementedZoneServiceServer) PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackagePush not implemented")
 }
-func (UnimplementedZoneletServer) PackageList(context.Context, *PackageListRequest) (*PackageListResponse, error) {
+func (UnimplementedZoneServiceServer) PackageList(context.Context, *PackageListRequest) (*PackageListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackageList not implemented")
 }
-func (UnimplementedZoneletServer) PackageDelete(context.Context, *PackageDeleteRequest) (*PackageDeleteResponse, error) {
+func (UnimplementedZoneServiceServer) PackageDelete(context.Context, *PackageDeleteRequest) (*PackageDeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackageDelete not implemented")
 }
-func (UnimplementedZoneletServer) PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PackageChunk not implemented")
-}
-func (UnimplementedZoneletServer) mustEmbedUnimplementedZoneletServer() {}
+func (UnimplementedZoneServiceServer) mustEmbedUnimplementedZoneServiceServer() {}
 
-// UnsafeZoneletServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ZoneletServer will
+// UnsafeZoneServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ZoneServiceServer will
 // result in compilation errors.
-type UnsafeZoneletServer interface {
-	mustEmbedUnimplementedZoneletServer()
+type UnsafeZoneServiceServer interface {
+	mustEmbedUnimplementedZoneServiceServer()
 }
 
-func RegisterZoneletServer(s grpc.ServiceRegistrar, srv ZoneletServer) {
-	s.RegisterService(&Zonelet_ServiceDesc, srv)
+func RegisterZoneServiceServer(s grpc.ServiceRegistrar, srv ZoneServiceServer) {
+	s.RegisterService(&ZoneService_ServiceDesc, srv)
 }
 
-func _Zonelet_ZoneInit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_ZoneInit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ZoneInitRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).ZoneInit(ctx, in)
+		return srv.(ZoneServiceServer).ZoneInit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_ZoneInit_FullMethodName,
+		FullMethod: ZoneService_ZoneInit_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).ZoneInit(ctx, req.(*ZoneInitRequest))
+		return srv.(ZoneServiceServer).ZoneInit(ctx, req.(*ZoneInitRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_ZoneInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_ZoneInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ZoneInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).ZoneInfo(ctx, in)
+		return srv.(ZoneServiceServer).ZoneInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_ZoneInfo_FullMethodName,
+		FullMethod: ZoneService_ZoneInfo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).ZoneInfo(ctx, req.(*ZoneInfoRequest))
+		return srv.(ZoneServiceServer).ZoneInfo(ctx, req.(*ZoneInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_HostJoin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_HostJoin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HostJoinRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).HostJoin(ctx, in)
+		return srv.(ZoneServiceServer).HostJoin(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_HostJoin_FullMethodName,
+		FullMethod: ZoneService_HostJoin_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).HostJoin(ctx, req.(*HostJoinRequest))
+		return srv.(ZoneServiceServer).HostJoin(ctx, req.(*HostJoinRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_HostList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_HostList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HostListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).HostList(ctx, in)
+		return srv.(ZoneServiceServer).HostList(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_HostList_FullMethodName,
+		FullMethod: ZoneService_HostList_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).HostList(ctx, req.(*HostListRequest))
+		return srv.(ZoneServiceServer).HostList(ctx, req.(*HostListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_AppInstanceDeploy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_AppInstanceDeploy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AppInstanceDeployRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).AppInstanceDeploy(ctx, in)
+		return srv.(ZoneServiceServer).AppInstanceDeploy(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_AppInstanceDeploy_FullMethodName,
+		FullMethod: ZoneService_AppInstanceDeploy_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).AppInstanceDeploy(ctx, req.(*AppInstanceDeployRequest))
+		return srv.(ZoneServiceServer).AppInstanceDeploy(ctx, req.(*AppInstanceDeployRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_AppInstanceInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_AppInstanceInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AppInstanceInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).AppInstanceInfo(ctx, in)
+		return srv.(ZoneServiceServer).AppInstanceInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_AppInstanceInfo_FullMethodName,
+		FullMethod: ZoneService_AppInstanceInfo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).AppInstanceInfo(ctx, req.(*AppInstanceInfoRequest))
+		return srv.(ZoneServiceServer).AppInstanceInfo(ctx, req.(*AppInstanceInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_AppInstanceList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_AppInstanceList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AppInstanceListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).AppInstanceList(ctx, in)
+		return srv.(ZoneServiceServer).AppInstanceList(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_AppInstanceList_FullMethodName,
+		FullMethod: ZoneService_AppInstanceList_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).AppInstanceList(ctx, req.(*AppInstanceListRequest))
+		return srv.(ZoneServiceServer).AppInstanceList(ctx, req.(*AppInstanceListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_AppInstanceDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_AppInstanceDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AppInstanceDeleteRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).AppInstanceDelete(ctx, in)
+		return srv.(ZoneServiceServer).AppInstanceDelete(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_AppInstanceDelete_FullMethodName,
+		FullMethod: ZoneService_AppInstanceDelete_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).AppInstanceDelete(ctx, req.(*AppInstanceDeleteRequest))
+		return srv.(ZoneServiceServer).AppInstanceDelete(ctx, req.(*AppInstanceDeleteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_HostStatusUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HostStatusUpdateRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ZoneletServer).HostStatusUpdate(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Zonelet_HostStatusUpdate_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).HostStatusUpdate(ctx, req.(*HostStatusUpdateRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Zonelet_PackagePush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_PackagePush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackagePushRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).PackagePush(ctx, in)
+		return srv.(ZoneServiceServer).PackagePush(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_PackagePush_FullMethodName,
+		FullMethod: ZoneService_PackagePush_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).PackagePush(ctx, req.(*PackagePushRequest))
+		return srv.(ZoneServiceServer).PackagePush(ctx, req.(*PackagePushRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_PackageList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_PackageList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackageListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).PackageList(ctx, in)
+		return srv.(ZoneServiceServer).PackageList(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_PackageList_FullMethodName,
+		FullMethod: ZoneService_PackageList_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).PackageList(ctx, req.(*PackageListRequest))
+		return srv.(ZoneServiceServer).PackageList(ctx, req.(*PackageListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_PackageDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ZoneService_PackageDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackageDeleteRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).PackageDelete(ctx, in)
+		return srv.(ZoneServiceServer).PackageDelete(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_PackageDelete_FullMethodName,
+		FullMethod: ZoneService_PackageDelete_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).PackageDelete(ctx, req.(*PackageDeleteRequest))
+		return srv.(ZoneServiceServer).PackageDelete(ctx, req.(*PackageDeleteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Zonelet_PackageChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+// ZoneService_ServiceDesc is the grpc.ServiceDesc for ZoneService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var ZoneService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "inapi.ZoneService",
+	HandlerType: (*ZoneServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ZoneInit",
+			Handler:    _ZoneService_ZoneInit_Handler,
+		},
+		{
+			MethodName: "ZoneInfo",
+			Handler:    _ZoneService_ZoneInfo_Handler,
+		},
+		{
+			MethodName: "HostJoin",
+			Handler:    _ZoneService_HostJoin_Handler,
+		},
+		{
+			MethodName: "HostList",
+			Handler:    _ZoneService_HostList_Handler,
+		},
+		{
+			MethodName: "AppInstanceDeploy",
+			Handler:    _ZoneService_AppInstanceDeploy_Handler,
+		},
+		{
+			MethodName: "AppInstanceInfo",
+			Handler:    _ZoneService_AppInstanceInfo_Handler,
+		},
+		{
+			MethodName: "AppInstanceList",
+			Handler:    _ZoneService_AppInstanceList_Handler,
+		},
+		{
+			MethodName: "AppInstanceDelete",
+			Handler:    _ZoneService_AppInstanceDelete_Handler,
+		},
+		{
+			MethodName: "PackagePush",
+			Handler:    _ZoneService_PackagePush_Handler,
+		},
+		{
+			MethodName: "PackageList",
+			Handler:    _ZoneService_PackageList_Handler,
+		},
+		{
+			MethodName: "PackageDelete",
+			Handler:    _ZoneService_PackageDelete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "service.proto",
+}
+
+const (
+	ZoneInternalService_HostStatusUpdate_FullMethodName = "/inapi.ZoneInternalService/HostStatusUpdate"
+	ZoneInternalService_PackageChunk_FullMethodName     = "/inapi.ZoneInternalService/PackageChunk"
+)
+
+// ZoneInternalServiceClient is the client API for ZoneInternalService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type ZoneInternalServiceClient interface {
+	// HostStatusUpdate updates the status of a host and receives updated app instances.
+	HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error)
+	// PackageChunk retrieves a single chunk of a package for download.
+	PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error)
+}
+
+type zoneInternalServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewZoneInternalServiceClient(cc grpc.ClientConnInterface) ZoneInternalServiceClient {
+	return &zoneInternalServiceClient{cc}
+}
+
+func (c *zoneInternalServiceClient) HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error) {
+	out := new(HostStatusUpdateResponse)
+	err := c.cc.Invoke(ctx, ZoneInternalService_HostStatusUpdate_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneInternalServiceClient) PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error) {
+	out := new(PackageChunkResponse)
+	err := c.cc.Invoke(ctx, ZoneInternalService_PackageChunk_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ZoneInternalServiceServer is the server API for ZoneInternalService service.
+// All implementations must embed UnimplementedZoneInternalServiceServer
+// for forward compatibility
+type ZoneInternalServiceServer interface {
+	// HostStatusUpdate updates the status of a host and receives updated app instances.
+	HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error)
+	// PackageChunk retrieves a single chunk of a package for download.
+	PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error)
+	mustEmbedUnimplementedZoneInternalServiceServer()
+}
+
+// UnimplementedZoneInternalServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedZoneInternalServiceServer struct {
+}
+
+func (UnimplementedZoneInternalServiceServer) HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HostStatusUpdate not implemented")
+}
+func (UnimplementedZoneInternalServiceServer) PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PackageChunk not implemented")
+}
+func (UnimplementedZoneInternalServiceServer) mustEmbedUnimplementedZoneInternalServiceServer() {}
+
+// UnsafeZoneInternalServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ZoneInternalServiceServer will
+// result in compilation errors.
+type UnsafeZoneInternalServiceServer interface {
+	mustEmbedUnimplementedZoneInternalServiceServer()
+}
+
+func RegisterZoneInternalServiceServer(s grpc.ServiceRegistrar, srv ZoneInternalServiceServer) {
+	s.RegisterService(&ZoneInternalService_ServiceDesc, srv)
+}
+
+func _ZoneInternalService_HostStatusUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostStatusUpdateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneInternalServiceServer).HostStatusUpdate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneInternalService_HostStatusUpdate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneInternalServiceServer).HostStatusUpdate(ctx, req.(*HostStatusUpdateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneInternalService_PackageChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackageChunkRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ZoneletServer).PackageChunk(ctx, in)
+		return srv.(ZoneInternalServiceServer).PackageChunk(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Zonelet_PackageChunk_FullMethodName,
+		FullMethod: ZoneInternalService_PackageChunk_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZoneletServer).PackageChunk(ctx, req.(*PackageChunkRequest))
+		return srv.(ZoneInternalServiceServer).PackageChunk(ctx, req.(*PackageChunkRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Zonelet_ServiceDesc is the grpc.ServiceDesc for Zonelet service.
+// ZoneInternalService_ServiceDesc is the grpc.ServiceDesc for ZoneInternalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Zonelet_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "inapi.Zonelet",
-	HandlerType: (*ZoneletServer)(nil),
+var ZoneInternalService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "inapi.ZoneInternalService",
+	HandlerType: (*ZoneInternalServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ZoneInit",
-			Handler:    _Zonelet_ZoneInit_Handler,
-		},
-		{
-			MethodName: "ZoneInfo",
-			Handler:    _Zonelet_ZoneInfo_Handler,
-		},
-		{
-			MethodName: "HostJoin",
-			Handler:    _Zonelet_HostJoin_Handler,
-		},
-		{
-			MethodName: "HostList",
-			Handler:    _Zonelet_HostList_Handler,
-		},
-		{
-			MethodName: "AppInstanceDeploy",
-			Handler:    _Zonelet_AppInstanceDeploy_Handler,
-		},
-		{
-			MethodName: "AppInstanceInfo",
-			Handler:    _Zonelet_AppInstanceInfo_Handler,
-		},
-		{
-			MethodName: "AppInstanceList",
-			Handler:    _Zonelet_AppInstanceList_Handler,
-		},
-		{
-			MethodName: "AppInstanceDelete",
-			Handler:    _Zonelet_AppInstanceDelete_Handler,
-		},
-		{
 			MethodName: "HostStatusUpdate",
-			Handler:    _Zonelet_HostStatusUpdate_Handler,
-		},
-		{
-			MethodName: "PackagePush",
-			Handler:    _Zonelet_PackagePush_Handler,
-		},
-		{
-			MethodName: "PackageList",
-			Handler:    _Zonelet_PackageList_Handler,
-		},
-		{
-			MethodName: "PackageDelete",
-			Handler:    _Zonelet_PackageDelete_Handler,
+			Handler:    _ZoneInternalService_HostStatusUpdate_Handler,
 		},
 		{
 			MethodName: "PackageChunk",
-			Handler:    _Zonelet_PackageChunk_Handler,
+			Handler:    _ZoneInternalService_PackageChunk_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "service.proto",
+}
+
+const (
+	HostInternalService_HostInit_FullMethodName = "/inapi.HostInternalService/HostInit"
+)
+
+// HostInternalServiceClient is the client API for HostInternalService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type HostInternalServiceClient interface {
+	// HostInit initializes a new host and registers it with the specified zone.
+	HostInit(ctx context.Context, in *HostInitRequest, opts ...grpc.CallOption) (*HostInitResponse, error)
+}
+
+type hostInternalServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewHostInternalServiceClient(cc grpc.ClientConnInterface) HostInternalServiceClient {
+	return &hostInternalServiceClient{cc}
+}
+
+func (c *hostInternalServiceClient) HostInit(ctx context.Context, in *HostInitRequest, opts ...grpc.CallOption) (*HostInitResponse, error) {
+	out := new(HostInitResponse)
+	err := c.cc.Invoke(ctx, HostInternalService_HostInit_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// HostInternalServiceServer is the server API for HostInternalService service.
+// All implementations must embed UnimplementedHostInternalServiceServer
+// for forward compatibility
+type HostInternalServiceServer interface {
+	// HostInit initializes a new host and registers it with the specified zone.
+	HostInit(context.Context, *HostInitRequest) (*HostInitResponse, error)
+	mustEmbedUnimplementedHostInternalServiceServer()
+}
+
+// UnimplementedHostInternalServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedHostInternalServiceServer struct {
+}
+
+func (UnimplementedHostInternalServiceServer) HostInit(context.Context, *HostInitRequest) (*HostInitResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HostInit not implemented")
+}
+func (UnimplementedHostInternalServiceServer) mustEmbedUnimplementedHostInternalServiceServer() {}
+
+// UnsafeHostInternalServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to HostInternalServiceServer will
+// result in compilation errors.
+type UnsafeHostInternalServiceServer interface {
+	mustEmbedUnimplementedHostInternalServiceServer()
+}
+
+func RegisterHostInternalServiceServer(s grpc.ServiceRegistrar, srv HostInternalServiceServer) {
+	s.RegisterService(&HostInternalService_ServiceDesc, srv)
+}
+
+func _HostInternalService_HostInit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostInitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostInternalServiceServer).HostInit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostInternalService_HostInit_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostInternalServiceServer).HostInit(ctx, req.(*HostInitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// HostInternalService_ServiceDesc is the grpc.ServiceDesc for HostInternalService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var HostInternalService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "inapi.HostInternalService",
+	HandlerType: (*HostInternalServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "HostInit",
+			Handler:    _HostInternalService_HostInit_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

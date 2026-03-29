@@ -18,6 +18,7 @@ import (
 	"log"
 
 	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/internal/auth"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/hostlet"
@@ -40,21 +41,27 @@ func main() {
 		log.Fatalf("incore/config init error %s", err.Error())
 	}
 
+	if err := auth.Setup(); err != nil {
+		log.Fatalf("auth/setup init error %s", err.Error())
+	}
+
 	if err := data.Setup(); err != nil {
 		log.Fatalf("incore/data init error %s", err.Error())
 	}
 	defer data.Close()
 
+	if err := server.Setup(); err != nil {
+		log.Fatalf("incore/server setup error %s", err.Error())
+	}
+
 	if err := server.RegisterServer(func(s *server.RpcServer) {
-		inapi.RegisterHostletServer(s, hostlet.NewServer())
-		inapi.RegisterZoneletServer(s, zonelet.NewServer())
+		inapi.RegisterHostInternalServiceServer(s, hostlet.NewInternalServer())
+		inapi.RegisterZoneServiceServer(s, zonelet.NewServer())
+		inapi.RegisterZoneInternalServiceServer(s, zonelet.NewInternalServer())
 	}); err != nil {
 		log.Fatalf("incore/server start error %s", err.Error())
 	}
 
-	if err := server.TryRun(); err != nil {
-		log.Fatalf("incore/server start error %s", err.Error())
-	}
 	signals.Go(server.Run, server.Close)
 
 	if err := hostlet.TryRun(); err != nil {

@@ -19,9 +19,8 @@ import (
 	"sync"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
-	hauth1 "github.com/hooto/hauth/go"
+	"github.com/sysinner/incore/v2/pkg/inauth"
 )
 
 const (
@@ -34,12 +33,12 @@ var (
 )
 
 func Connect(addr string,
-	key *hauth1.AccessKey,
+	ak *inauth.AccessKey,
 	forceNew bool) (*grpc.ClientConn, error) {
 
 	ck := fmt.Sprintf("%s", addr)
-	if key != nil {
-		ck += "." + key.Id
+	if ak != nil {
+		ck += "." + ak.Id
 	}
 
 	rpcClientMu.Lock()
@@ -56,14 +55,13 @@ func Connect(addr string,
 	}
 
 	dialOptions := []grpc.DialOption{
-		grpc.WithMaxMsgSize(grpcMsgByteMax * 2),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMsgByteMax * 2)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMsgByteMax * 2)),
 	}
 
-	if key != nil {
+	if ak != nil {
 		dialOptions = append(dialOptions,
-			grpc.WithPerRPCCredentials(newAppCredential(key)))
+			grpc.WithPerRPCCredentials(inauth.NewGrpcAppCredential(ak)))
 	}
 
 	dialOptions = append(dialOptions, grpc.WithInsecure())
@@ -76,8 +74,4 @@ func Connect(addr string,
 	rpcClientConns[ck] = c
 
 	return c, nil
-}
-
-func newAppCredential(key *hauth1.AccessKey) credentials.PerRPCCredentials {
-	return hauth1.NewGrpcAppCredential(key)
 }

@@ -46,13 +46,18 @@ func NewPkgListCommand() *cobra.Command {
 	)
 
 	runE := func(cmd *cobra.Command, args []string) error {
-		// Connect to zonelet server
-		conn, err := client.Connect(addr, nil, false)
+		zone, err := Config.Zone(addr)
 		if err != nil {
-			return fmt.Errorf("failed to connect to server %s: %w", addr, err)
+			return err
 		}
 
-		zc := inapi.NewZoneletClient(conn)
+		// Connect to zonelet server
+		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to server %s: %w", zone.Addr, err)
+		}
+
+		zc := inapi.NewZoneServiceClient(conn)
 
 		// Build list request with filters
 		req := &inapi.PackageListRequest{
@@ -198,7 +203,7 @@ Filter options:
   cli pkg-list --json`,
 	}
 
-	cmd.Flags().StringVarP(&addr, "addr", "a", "127.0.0.1:9533", "Zonelet server address")
+	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 	cmd.Flags().BoolVarP(&showJson, "json", "j", false, "Output in JSON format")
 	cmd.Flags().BoolVarP(&showAll, "all", "", false, "Show all packages including incomplete uploads")
 	cmd.Flags().StringVar(&filterName, "name", "", "Filter by package name (exact match)")

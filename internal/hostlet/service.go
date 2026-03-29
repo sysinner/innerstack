@@ -16,28 +16,23 @@ package hostlet
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 )
 
-type hostServer struct {
-	inapi.UnimplementedHostletServer
+type hostInternalServer struct {
+	inapi.UnimplementedHostInternalServiceServer
 }
 
-func NewServer() inapi.HostletServer {
-	return &hostServer{}
+func NewInternalServer() inapi.HostInternalServiceServer {
+	return &hostInternalServer{}
 }
 
-func (s *hostServer) HostInit(
+func (s *hostInternalServer) HostInit(
 	ctx context.Context, req *inapi.HostInitRequest,
 ) (*inapi.HostInitResponse, error) {
-
-	if req.Token != config.Config.Hostlet.SecretKey {
-		return nil, errors.New("access denied")
-	}
 
 	if len(req.ZoneHosts) > 0 {
 		config.Config.Server.ZoneHosts = req.ZoneHosts

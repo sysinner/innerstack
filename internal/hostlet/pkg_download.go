@@ -107,7 +107,7 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 	}
 
 	// Query zonelet for matching package
-	conn, err := client.Connect(zoneLeaderAddr, nil, false)
+	conn, err := client.Connect(zoneLeaderAddr, config.Config.Hostlet.AuthKey(), false)
 	if err != nil {
 		return "", fmt.Errorf("[PackageDownload] failed to connect to zonelet: %w", err)
 	}
@@ -115,7 +115,9 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	zc := inapi.NewZoneletClient(conn)
+	zc := inapi.NewZoneServiceClient(conn)
+	zic := inapi.NewZoneInternalServiceClient(conn)
+
 	listResp, err := zc.PackageList(ctx, &inapi.PackageListRequest{
 		Name:       pkgRef.Name,
 		Version:    pkgRef.Version,
@@ -184,7 +186,7 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 	for i := int64(0); i < totalChunks; i++ {
 		ctx2, cancel2 := context.WithTimeout(context.Background(), 60*time.Second)
 
-		chunkResp, err := zc.PackageChunk(ctx2, &inapi.PackageChunkRequest{
+		chunkResp, err := zic.PackageChunk(ctx2, &inapi.PackageChunkRequest{
 			Id:    pkgId,
 			Index: i,
 		})

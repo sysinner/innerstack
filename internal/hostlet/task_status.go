@@ -184,7 +184,7 @@ func statusRefresh() error {
 		return nil
 	}
 
-	conn, err := client.Connect(zoneLeaderAddr, nil, false)
+	conn, err := client.Connect(zoneLeaderAddr, config.Config.Hostlet.AuthKey(), false)
 	if err != nil {
 		slog.Warn("zone leader connection failed", "err", err)
 		return err
@@ -193,7 +193,7 @@ func statusRefresh() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	zc := inapi.NewZoneletClient(conn)
+	zc := inapi.NewZoneInternalServiceClient(conn)
 	resp, err := zc.HostStatusUpdate(ctx, &inapi.HostStatusUpdateRequest{
 		Host:   &inapi.Host{Id: config.Config.Hostlet.HostId},
 		Status: hs,

@@ -36,13 +36,18 @@ func NewHostJoinCommand() *cobra.Command {
 
 	run := func(cmd *cobra.Command, args []string) error {
 
-		// Connect to gRPC server
-		conn, err := client.Connect(zoneAddr, nil, false)
+		zone, err := Config.Zone(zoneAddr)
 		if err != nil {
-			return fmt.Errorf("failed to connect to zone server %s: %w", zoneAddr, err)
+			return err
 		}
 
-		zc := inapi.NewZoneletClient(conn)
+		// Connect to gRPC server
+		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to zone server %s: %w", zone.Addr, err)
+		}
+
+		zc := inapi.NewZoneServiceClient(conn)
 
 		req := &inapi.HostJoinRequest{
 			Addr:  hostAddr,
@@ -74,7 +79,7 @@ func NewHostJoinCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&hostAddr, "addr", "a", "", "Host address (required)")
 	cmd.Flags().StringVarP(&hostToken, "token", "t", "", "Host Access Token (required)")
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "z", "127.0.0.1:9533", "Zone server address")
+	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "z", "", "Zone server address")
 
 	cmd.MarkFlagRequired("addr")
 	cmd.MarkFlagRequired("token")

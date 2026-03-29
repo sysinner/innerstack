@@ -1,0 +1,168 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package auth
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/internal/config"
+	"github.com/sysinner/incore/v2/internal/data"
+	"github.com/sysinner/incore/v2/pkg/inauth"
+)
+
+var AuthMgr = &AuthManager{
+	keyMgr: inauth.NewAccessKeyManager(),
+}
+
+// AuthManager manages access keys and provides gRPC authentication
+type AuthManager struct {
+	keyMgr *inauth.AccessKeyManager
+}
+
+func Setup() error {
+
+	// Load access keys from config (newly created or existing)
+	for _, ak := range config.Config.Zonelet.AccessKeys {
+		if ak.Id != "" && ak.Secret != "" {
+			AuthMgr.keyMgr.Set(ak)
+			slog.Info("zonelet load access-key from config",
+				"key_id", ak.Id,
+				"user", ak.User,
+			)
+		}
+	}
+
+	if ak := config.Config.Hostlet.AuthKey(); ak != nil {
+		AuthMgr.keyMgr.Set(ak)
+		slog.Info("zonelet load access-key from config",
+			"host_id", ak.Id,
+		)
+	}
+
+	return nil
+}
+
+// GrpcAuthInterceptor returns a gRPC unary interceptor for authentication
+func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// Skip auth for certain methods (e.g., ZoneInit when system is not initialized)
+		if info.FullMethod == "/inapi.ZoneService/ZoneInit" {
+			return handler(ctx, req)
+		}
+
+		// Validate the gRPC credential
+		if av, err := inauth.NewGrpcAppValidator(ctx, am.keyMgr); err != nil {
+			slog.Warn("auth failed",
+				"method", info.FullMethod,
+				"error", err,
+			)
+			return nil, status.Errorf(codes.Unauthenticated, "authentication failed: %s", err.Error())
+		} else {
+			ctx = inauth.NewAppContext(ctx, av)
+		}
+
+		return handler(ctx, req)
+	}
+}
+
+// RefreshAccessKeysFromDB loads access keys from the database
+func (am *AuthManager) RefreshAccessKeysFromDB() error {
+
+	if data.Zonelet == nil {
+		return errors.New("data:zonelet not setup")
+	}
+
+	offset := inapi.NsZoneSysAccessKey(config.Config.Zonelet.ZoneId, "")
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+
+	for _, item := range rs.Items {
+		var key inauth.AccessKey
+		if err := item.JsonDecode(&key); err != nil {
+			slog.Warn("failed to decode access key", "error", err)
+			continue
+		}
+		if key.Id != "" && key.Secret != "" {
+			am.keyMgr.Set(&key)
+			slog.Debug("auth key loaded from db", "key_id", key.Id)
+		}
+	}
+
+	return nil
+}
+
+// SaveAccessKey saves an access key to the database
+func (am *AuthManager) SaveAccessKey(key *inauth.AccessKey) error {
+
+	if data.Zonelet == nil {
+		return errors.New("data:zonelet not setup")
+	}
+
+	if key.Id == "" || key.Secret == "" {
+		return errors.New("access key id and secret are required")
+	}
+
+	dbKey := inapi.NsZoneSysAccessKey(config.Config.Zonelet.ZoneId, key.Id)
+
+	if rs := data.Zonelet.NewWriter(dbKey, key).Exec(); !rs.OK() {
+		return errors.New("failed to save access key: " + rs.ErrorMessage())
+	}
+
+	// Update in-memory key manager
+	am.keyMgr.Set(key)
+
+	slog.Info("access key saved",
+		"key_id", key.Id,
+		"user", key.User,
+	)
+
+	return nil
+}
+
+// DeleteAccessKey deletes an access key from the database
+func (am *AuthManager) DeleteAccessKey(keyId string) error {
+
+	if data.Zonelet == nil {
+		return errors.New("data:zonelet not setup")
+	}
+
+	if keyId == "" {
+		return status.Error(codes.InvalidArgument, "access key id is required")
+	}
+
+	dbKey := inapi.NsZoneSysAccessKey(config.Config.Zonelet.ZoneId, keyId)
+
+	if rs := data.Zonelet.NewDeleter(dbKey).Exec(); !rs.OK() {
+		if !rs.NotFound() {
+			return status.Errorf(codes.Internal, "failed to delete access key: %s", rs.Error())
+		}
+	}
+
+	am.keyMgr.Del(keyId)
+
+	slog.Info("zonelet access key deleted", "key_id", keyId)
+
+	return nil
+}
+
+func (it *AuthManager) KeyMgr() *inauth.AccessKeyManager {
+	return it.keyMgr
+}

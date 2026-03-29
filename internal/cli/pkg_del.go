@@ -29,7 +29,9 @@ import (
 // Removes a package and all its associated data chunks from the server.
 func NewPkgDelCommand() *cobra.Command {
 
-	var addr string
+	var (
+		addr string
+	)
 
 	var runE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -42,20 +44,25 @@ func NewPkgDelCommand() *cobra.Command {
 			return fmt.Errorf("package ID cannot be empty")
 		}
 
-		// Connect to zonelet server
-		conn, err := client.Connect(addr, nil, false)
+		zone, err := Config.Zone(addr)
 		if err != nil {
-			return fmt.Errorf("failed to connect to server %s: %w", addr, err)
+			return err
 		}
 
-		zc := inapi.NewZoneletClient(conn)
+		// Connect to zonelet server
+		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to server %s: %w", zone.Addr, err)
+		}
+
+		zc := inapi.NewZoneServiceClient(conn)
 
 		// Build delete request
 		req := &inapi.PackageDeleteRequest{
 			Id: pkgId,
 		}
 
-		fmt.Printf("Deleting package %s from %s...\n", pkgId, addr)
+		fmt.Printf("Deleting package %s from %s...\n", pkgId, zone.Addr)
 
 		// Send delete request to server
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -92,7 +99,7 @@ WARNING: This operation is irreversible. All package data will be permanently re
   cli pkg-del myapp_1.0.0_linux_amd64 --addr 192.168.1.100:9533`,
 	}
 
-	cmd.Flags().StringVarP(&addr, "addr", "a", "127.0.0.1:9533", "Zonelet server address")
+	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 
 	return cmd
 }

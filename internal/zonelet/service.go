@@ -46,10 +46,10 @@ func calcTotalChunks(totalSize, chunkSize int64) int64 {
 }
 
 type zoneServer struct {
-	inapi.UnimplementedZoneletServer
+	inapi.UnimplementedZoneServiceServer
 }
 
-func NewServer() inapi.ZoneletServer {
+func NewServer() inapi.ZoneServiceServer {
 	return &zoneServer{}
 }
 
@@ -97,7 +97,7 @@ func (s *zoneServer) ZoneInit(
 		host := &inapi.Host{
 			Id:        config.Config.Hostlet.HostId,
 			PeerAddr:  fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
-			SecretKey: config.Config.Hostlet.SecretKey,
+			AccessKey: config.Config.Hostlet.AccessKey,
 		}
 
 		if rs := data.Zonelet.NewWriter(
@@ -157,7 +157,7 @@ func (s *zoneServer) HostJoin(
 		return nil, err
 	}
 
-	hc := inapi.NewHostletClient(conn)
+	hc := inapi.NewHostInternalServiceClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -176,7 +176,7 @@ func (s *zoneServer) HostJoin(
 	host := &inapi.Host{
 		Id:        resp.HostId,
 		PeerAddr:  req.Addr,
-		SecretKey: req.Token,
+		AccessKey: req.Token,
 	}
 
 	if rs := data.Zonelet.NewWriter(
@@ -214,7 +214,7 @@ func (s *zoneServer) HostList(
 	for _, item := range rs.Items {
 		var host inapi.Host
 		if err := item.JsonDecode(&host); err == nil {
-			host.SecretKey = ""
+			host.AccessKey = ""
 			if val, ok := status.Zonelet_HostStatusSet.Load(host.Id); ok {
 				host.Status = val.(*inapi.HostStatus)
 			}
@@ -222,57 +222,6 @@ func (s *zoneServer) HostList(
 				host.Operate = val.Value.(*inapi.HostOperate)
 			}
 			resp.Hosts = append(resp.Hosts, &host)
-		}
-	}
-
-	return resp, nil
-}
-
-func (s *zoneServer) HostStatusUpdate(
-	ctx context.Context, req *inapi.HostStatusUpdateRequest,
-) (*inapi.HostStatusUpdateResponse, error) {
-	if !status.IsZoneletLeader() {
-		return nil, errors.New("zonelet leader")
-	}
-
-	if req.Host == nil ||
-		req.Status == nil {
-		return nil, errors.New("bad request")
-	}
-
-	if !inapi.ObjectIdValid.MatchString(req.Host.Id) {
-		return nil, errors.New("invalid host_id")
-	}
-
-	resp := &inapi.HostStatusUpdateResponse{}
-
-	key := inapi.NsHostStatus(config.Config.Zonelet.ZoneId,
-		req.Host.Id)
-
-	if rs := data.Zonelet.NewWriter(key, req.Status).Exec(); !rs.OK() {
-		return nil, rs.Error()
-	}
-
-	status.Zonelet_HostStatusSet.Store(req.Host.Id, req.Status)
-
-	slog.Debug("zonelist update host status", "host_id", req.Host.Id, "status", req.Status)
-
-	// Query app instances associated with this host_id
-	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, "")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
-	for _, item := range rs.Items {
-		var instance inapi.AppInstance
-		if err := item.JsonDecode(&instance); err == nil {
-			if instance.Deploy != nil {
-				for _, rep := range instance.Deploy.Replicas {
-					if rep.HostId == req.Host.Id {
-						resp.AppInstances = append(resp.AppInstances, &instance)
-						break
-					}
-				}
-			}
-		} else {
-			slog.Warn(fmt.Sprintf("app decode err %s, value %s", err.Error(), string(item.Value)))
 		}
 	}
 
@@ -975,62 +924,5 @@ func (s *zoneServer) PackageDelete(
 	return &inapi.PackageDeleteResponse{
 		Id:            req.Id,
 		ChunksDeleted: chunksDeleted,
-	}, nil
-}
-
-func (s *zoneServer) PackageChunk(
-	ctx context.Context, req *inapi.PackageChunkRequest,
-) (*inapi.PackageChunkResponse, error) {
-
-	if !status.IsZoneletLeader() {
-		return nil, errors.New("zonelet leader")
-	}
-
-	if req.Id == "" {
-		return nil, errors.New("id is required")
-	}
-
-	if req.Index < 0 {
-		return nil, errors.New("index must be non-negative")
-	}
-
-	// Read package metadata
-	infoKey := inapi.NsPackageInfo(req.Id)
-	var pkg inapi.Package
-	if rs := data.Package.NewReader(infoKey).Exec(); !rs.OK() {
-		if rs.NotFound() {
-			return nil, errors.New("package not found")
-		}
-		return nil, rs.Error()
-	} else if err := rs.Item().JsonDecode(&pkg); err != nil {
-		return nil, fmt.Errorf("failed to decode package info: %w", err)
-	}
-
-	// Validate package state is complete
-	if pkg.File == nil || pkg.File.State != inapi.PackageFileStateComplete {
-		return nil, errors.New("package is not ready for download")
-	}
-
-	// Validate chunk index
-	totalChunks := calcTotalChunks(pkg.File.Size, pkg.File.ChunkSize)
-	if req.Index >= totalChunks {
-		return nil, fmt.Errorf("chunk index %d out of range (total: %d)", req.Index, totalChunks)
-	}
-
-	// Read chunk data
-	chunkKey := inapi.NsPackageFileChunk(req.Id, req.Index)
-	var chunk inapi.PackageFileChunk
-	if rs := data.Package.NewReader(chunkKey).Exec(); !rs.OK() {
-		if rs.NotFound() {
-			return nil, fmt.Errorf("chunk %d not found", req.Index)
-		}
-		return nil, rs.Error()
-	} else if err := rs.Item().JsonDecode(&chunk); err != nil {
-		return nil, fmt.Errorf("failed to decode chunk data: %w", err)
-	}
-
-	return &inapi.PackageChunkResponse{
-		Chunk: &chunk,
-		File:  pkg.File,
 	}, nil
 }

@@ -19,8 +19,10 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/sysinner/incore/v2/internal/config"
 	"google.golang.org/grpc"
+
+	"github.com/sysinner/incore/v2/internal/auth"
+	"github.com/sysinner/incore/v2/internal/config"
 )
 
 type RpcServer = grpc.Server
@@ -28,20 +30,19 @@ type RpcServer = grpc.Server
 var (
 	grpcMsgByteMax = 16 * 1024 * 1024
 	lis            net.Listener
-	server         = grpc.NewServer(
-		grpc.MaxMsgSize(grpcMsgByteMax),
-		grpc.MaxSendMsgSize(grpcMsgByteMax),
-		grpc.MaxRecvMsgSize(grpcMsgByteMax),
-	)
-	err error
+	server         *grpc.Server
+	err            error
 )
 
-func TryRun() error {
+// Setup initializes the gRPC server with optional interceptors
+func Setup() error {
+	opts := []grpc.ServerOption{
+		grpc.MaxSendMsgSize(grpcMsgByteMax),
+		grpc.MaxRecvMsgSize(grpcMsgByteMax),
+		grpc.ChainUnaryInterceptor(auth.AuthMgr.GrpcAuthInterceptor()),
+	}
 
-	// addr, err := netip.ParseAddrPort(config.Config.Hostlet.LanAddr)
-	// if err != nil {
-	// 	return err
-	// }
+	server = grpc.NewServer(opts...)
 
 	lis, err = net.Listen("tcp", fmt.Sprintf(":%d", config.Config.Server.PeerPort))
 	if err != nil {

@@ -92,13 +92,18 @@ func NewAppDeployCommand() *cobra.Command {
 			Deploy:     &inapi.AppDeploy{},
 		}
 
-		conn, err := client.Connect(zoneAddr, nil, false)
+		zone, err := Config.Zone(zoneAddr)
 		if err != nil {
-			return fmt.Errorf("failed to connect to zone leader %s: %w", zoneAddr, err)
+			return err
+		}
+
+		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to zone leader %s: %w", zone.Addr, err)
 		}
 		defer conn.Close()
 
-		zc := inapi.NewZoneletClient(conn)
+		zc := inapi.NewZoneServiceClient(conn)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -195,7 +200,7 @@ If --id is provided, the existing app instance will be updated.`,
 	}
 
 	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a",
-		"127.0.0.1:9533", "Zone server address")
+		"", "Zone server address (overrides profile)")
 	cmd.Flags().StringVarP(&specFile, "spec", "s",
 		"", "Path to app spec file (TOML format, required)")
 	cmd.Flags().StringVarP(&instanceId, "id", "i",

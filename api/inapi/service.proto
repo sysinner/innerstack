@@ -24,16 +24,11 @@ import "zone.proto";
 import "app.proto";
 import "package.proto";
 
-// Hostlet is the gRPC service running on each host machine.
-// It handles host-level operations including initialization and status reporting.
-service Hostlet {
-  // HostInit initializes a new host and registers it with the specified zone.
-  rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
-}
 
-// Zonelet is the gRPC service for zone-level management.
+
+// ZoneService is the gRPC service for zone-level management.
 // It handles zone initialization, host management, and application deployment.
-service Zonelet {
+service ZoneService {
   // ZoneInit initializes a new zone with the specified name.
   rpc ZoneInit(ZoneInitRequest) returns (ZoneInitResponse) {}
 
@@ -62,10 +57,6 @@ service Zonelet {
   rpc AppInstanceDelete(AppInstanceDeleteRequest)
       returns (AppInstanceDeleteResponse) {}
 
-  // HostStatusUpdate updates the status of a host and receives updated app instances.
-  rpc HostStatusUpdate(HostStatusUpdateRequest)
-      returns (HostStatusUpdateResponse) {}
-
   // PackagePush uploads a package in chunks.
   rpc PackagePush(PackagePushRequest) returns (PackagePushResponse) {}
 
@@ -74,9 +65,25 @@ service Zonelet {
 
   // PackageDelete deletes a package and all its chunks from the zone.
   rpc PackageDelete(PackageDeleteRequest) returns (PackageDeleteResponse) {}
+}
+
+// ZoneInternalService is the gRPC service for internal zone communication.
+// It handles host status reporting and package chunk transfer between
+// host machines and the zone leader.
+service ZoneInternalService {
+  // HostStatusUpdate updates the status of a host and receives updated app instances.
+  rpc HostStatusUpdate(HostStatusUpdateRequest)
+      returns (HostStatusUpdateResponse) {}
 
   // PackageChunk retrieves a single chunk of a package for download.
   rpc PackageChunk(PackageChunkRequest) returns (PackageChunkResponse) {}
+}
+
+// HostInternalService is the gRPC service running on each host machine.
+// It handles host-level operations including initialization and status reporting.
+service HostInternalService {
+  // HostInit initializes a new host and registers it with the specified zone.
+  rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
 }
 
 // CommonResponse is a generic empty response message.
