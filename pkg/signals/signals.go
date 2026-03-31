@@ -43,7 +43,15 @@ func Go(start, shutdown func()) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if start == nil || done {
+	if (start == nil && shutdown == nil) || done {
+		return
+	}
+
+	if shutdown != nil {
+		shutdowns = append(shutdowns, shutdown)
+	}
+
+	if start == nil {
 		return
 	}
 
@@ -51,10 +59,6 @@ func Go(start, shutdown func()) {
 		panic(fmt.Sprintf("too many signals (limits %d)", maxSignals))
 	}
 	regQueue <- 1
-
-	if shutdown != nil {
-		shutdowns = append(shutdowns, shutdown)
-	}
 
 	go func() {
 		start()

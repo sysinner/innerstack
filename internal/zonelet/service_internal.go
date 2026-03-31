@@ -52,13 +52,13 @@ func (s *zoneInternalServer) HostStatusUpdate(
 		return nil, errors.New("invalid host_id")
 	}
 
-	if !inauth.AppContext(ctx).Allow(fmt.Sprintf("host:rw:%s", req.Host.Id)) {
+	if !inauth.AppContext(ctx).Allow(fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, req.Host.Id)) {
 		return nil, errors.New("auth fail")
 	}
 
 	resp := &inapi.HostStatusUpdateResponse{}
 
-	key := inapi.NsHostStatus(config.Config.Zonelet.ZoneId,
+	key := inapi.NsHostStatus(config.Config.Zonelet.ZoneName,
 		req.Host.Id)
 
 	if rs := data.Zonelet.NewWriter(key, req.Status).Exec(); !rs.OK() {
@@ -70,7 +70,7 @@ func (s *zoneInternalServer) HostStatusUpdate(
 	slog.Debug("zonelist update host status", "host_id", req.Host.Id, "status", req.Status)
 
 	// Query app instances associated with this host_id
-	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, "")
+	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
 	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 	for _, item := range rs.Items {
 		var instance inapi.AppInstance
@@ -99,7 +99,7 @@ func (s *zoneInternalServer) PackageChunk(
 		return nil, errors.New("zonelet leader")
 	}
 
-	if ak := inauth.AppContext(ctx).AccessKey(); !ak.Allow(fmt.Sprintf("host:rw:%s", ak.Id)) {
+	if ak := inauth.AppContext(ctx).AccessKey(); !ak.Allow(fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, ak.Id)) {
 		return nil, errors.New("auth fail")
 	}
 

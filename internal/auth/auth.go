@@ -42,18 +42,21 @@ func Setup() error {
 
 	// Load access keys from config (newly created or existing)
 	for _, ak := range config.Config.Zonelet.AccessKeys {
-		if ak.Id != "" && ak.Secret != "" {
-			AuthMgr.keyMgr.Set(ak)
-			slog.Info("zonelet load access-key from config",
-				"key_id", ak.Id,
-				"user", ak.User,
-			)
+		ak, err := inauth.ParseAccessKey(ak.AccessKey)
+		if err != nil {
+			slog.Warn("load access-key from zone config fail : " + err.Error())
+			continue
 		}
+		ak.Scopes = []string{inapi.AuthScope_Wildcard}
+		AuthMgr.keyMgr.Set(ak)
+		slog.Info("load access-key from zone config",
+			"id", ak.Id,
+		)
 	}
 
 	if ak := config.Config.Hostlet.AuthKey(); ak != nil {
 		AuthMgr.keyMgr.Set(ak)
-		slog.Info("zonelet load access-key from config",
+		slog.Info("load access-key from zone config",
 			"host_id", ak.Id,
 		)
 	}
@@ -64,10 +67,6 @@ func Setup() error {
 // GrpcAuthInterceptor returns a gRPC unary interceptor for authentication
 func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		// Skip auth for certain methods (e.g., ZoneInit when system is not initialized)
-		if info.FullMethod == "/inapi.ZoneService/ZoneInit" {
-			return handler(ctx, req)
-		}
 
 		// Validate the gRPC credential
 		if av, err := inauth.NewGrpcAppValidator(ctx, am.keyMgr); err != nil {
@@ -84,6 +83,34 @@ func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
+// GrpcStreamAuthInterceptor returns a gRPC stream interceptor for authentication
+func (am *AuthManager) GrpcStreamAuthInterceptor() grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+
+		if av, err := inauth.NewGrpcAppValidator(ss.Context(), am.keyMgr); err != nil {
+			slog.Warn("auth failed",
+				"method", info.FullMethod,
+				"error", err,
+			)
+			return status.Errorf(codes.Unauthenticated, "authentication failed: %s", err.Error())
+		} else {
+			ctx := inauth.NewAppContext(ss.Context(), av)
+			wrapped := &grpcServerStreamWithContext{ServerStream: ss, ctx: ctx}
+			return handler(srv, wrapped)
+		}
+	}
+}
+
+// grpcServerStreamWithContext wraps grpc.ServerStream to carry an authenticated context
+type grpcServerStreamWithContext struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s *grpcServerStreamWithContext) Context() context.Context {
+	return s.ctx
+}
+
 // RefreshAccessKeysFromDB loads access keys from the database
 func (am *AuthManager) RefreshAccessKeysFromDB() error {
 
@@ -91,7 +118,7 @@ func (am *AuthManager) RefreshAccessKeysFromDB() error {
 		return errors.New("data:zonelet not setup")
 	}
 
-	offset := inapi.NsZoneSysAccessKey(config.Config.Zonelet.ZoneId, "")
+	offset := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, "")
 	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 
 	for _, item := range rs.Items {
@@ -120,7 +147,7 @@ func (am *AuthManager) SaveAccessKey(key *inauth.AccessKey) error {
 		return errors.New("access key id and secret are required")
 	}
 
-	dbKey := inapi.NsZoneSysAccessKey(config.Config.Zonelet.ZoneId, key.Id)
+	dbKey := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, key.Id)
 
 	if rs := data.Zonelet.NewWriter(dbKey, key).Exec(); !rs.OK() {
 		return errors.New("failed to save access key: " + rs.ErrorMessage())
@@ -148,7 +175,7 @@ func (am *AuthManager) DeleteAccessKey(keyId string) error {
 		return status.Error(codes.InvalidArgument, "access key id is required")
 	}
 
-	dbKey := inapi.NsZoneSysAccessKey(config.Config.Zonelet.ZoneId, keyId)
+	dbKey := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, keyId)
 
 	if rs := data.Zonelet.NewDeleter(dbKey).Exec(); !rs.OK() {
 		if !rs.NotFound() {

@@ -203,7 +203,7 @@ type ConfigServer struct {
 }
 
 type ConfigZone struct {
-	Id     string               `toml:"id"`
+	Name   string               `toml:"name"`
 	Client lynkapi.ClientConfig `toml:"client"`
 }
 
@@ -427,7 +427,7 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 
 	if len(domains) == 0 && cfg.Zone != nil {
 
-		req.ZoneId = cfg.Zone.Id
+		req.ZoneName = cfg.Zone.Name
 
 		if cfg.lastFullUpdated+600 < tn {
 			req.Version = 0

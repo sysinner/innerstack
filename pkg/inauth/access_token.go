@@ -108,11 +108,20 @@ func (it *AccessToken) String() string {
 	return it.raw
 }
 
+const (
+	AccessKeyStateActive   = "active"
+	AccessKeyStateDisabled = "disabled"
+)
+
 func (it *AccessToken) Verify(keyMgr *AccessKeyManager) (*AccessKey, error) {
 
 	ak := keyMgr.Key(it.Header.Kid)
 	if ak == nil {
 		return nil, fmt.Errorf("access-key(%s) not found", it.Header.Kid)
+	}
+
+	if ak.State == AccessKeyStateDisabled {
+		return nil, fmt.Errorf("access-key(%s) is disabled", it.Header.Kid)
 	}
 
 	if it.IsExpired() {

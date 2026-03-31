@@ -35,6 +35,7 @@ import (
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/internal/pkgbuild"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/pkg/inauth"
 )
 
 // uploadMutex provides per-package mutex for concurrent upload protection
@@ -63,29 +64,29 @@ func (s *zoneServer) ZoneInit(
 		return nil, err
 	}
 
-	if config.Config.Zonelet.ZoneId != "" ||
+	if config.Config.Zonelet.ZoneName != "" ||
 		len(config.Config.Server.ZoneHosts) > 0 {
 		return nil, errors.New("System already initialized")
 	}
 
-	config.Config.Zonelet.ZoneId = req.Name
+	config.Config.Zonelet.ZoneName = req.Name
 	config.Config.Server.ZoneHosts = []string{
 		fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
 	}
 
 	zone := &inapi.Zone{
-		Id:    req.Name,
+		Name:  req.Name,
 		Hosts: config.Config.Server.ZoneHosts,
 	}
 
 	if rs := data.Zonelet.NewWriter(
-		inapi.NsZoneletInfo(zone.Id), zone).
+		inapi.NsZoneletInfo(zone.Name), zone).
 		SetCreateOnly(true).Exec(); !rs.OK() {
 		return nil, rs.Error()
 	}
 
 	slog.Warn("zonelet init-zone",
-		"zone_id", zone.Id,
+		"zone_name", zone.Name,
 		"host_id", config.Config.Hostlet.HostId,
 	)
 
@@ -101,7 +102,7 @@ func (s *zoneServer) ZoneInit(
 		}
 
 		if rs := data.Zonelet.NewWriter(
-			inapi.NsHostInfo(config.Config.Zonelet.ZoneId, host.Id), host).
+			inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), host).
 			SetCreateOnly(true).Exec(); !rs.OK() {
 			return nil, rs.Error()
 		}
@@ -118,6 +119,10 @@ func (s *zoneServer) ZoneInfo(
 	ctx context.Context, req *inapi.ZoneInfoRequest,
 ) (*inapi.ZoneInfoResponse, error) {
 
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Zone_Read) {
+		return nil, errors.New("auth fail: missing zone:ro scope")
+	}
+
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
@@ -125,7 +130,7 @@ func (s *zoneServer) ZoneInfo(
 	var zone inapi.Zone
 
 	if rs := data.Zonelet.NewReader(
-		inapi.NsZoneletInfo(config.Config.Zonelet.ZoneId)).
+		inapi.NsZoneletInfo(config.Config.Zonelet.ZoneName)).
 		Exec(); !rs.OK() {
 		if rs.NotFound() {
 			return nil, errors.New("System uninitialized")
@@ -144,15 +149,24 @@ func (s *zoneServer) HostJoin(
 	ctx context.Context, req *inapi.HostJoinRequest,
 ) (*inapi.HostJoinResponse, error) {
 
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Host_Write) {
+		return nil, errors.New("auth fail: missing host:rw scope")
+	}
+
 	if err := inapi.Ip4AddrValid(req.Addr); err != nil {
 		return nil, err
+	}
+
+	ak, err := inauth.ParseAccessKey(req.AccessKey)
+	if err != nil {
+		return nil, fmt.Errorf("invalid access_key: %w", err)
 	}
 
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
 
-	conn, err := client.Connect(req.Addr, nil, false)
+	conn, err := client.Connect(req.Addr, ak, false)
 	if err != nil {
 		return nil, err
 	}
@@ -163,9 +177,8 @@ func (s *zoneServer) HostJoin(
 	defer cancel()
 
 	req2 := &inapi.HostInitRequest{
-		ZoneId:    config.Config.Zonelet.ZoneId,
+		ZoneName:  config.Config.Zonelet.ZoneName,
 		ZoneHosts: config.Config.Server.ZoneHosts,
-		Token:     req.Token,
 	}
 
 	resp, err := hc.HostInit(ctx, req2)
@@ -176,11 +189,11 @@ func (s *zoneServer) HostJoin(
 	host := &inapi.Host{
 		Id:        resp.HostId,
 		PeerAddr:  req.Addr,
-		AccessKey: req.Token,
+		AccessKey: ak.Export(),
 	}
 
 	if rs := data.Zonelet.NewWriter(
-		inapi.NsHostInfo(config.Config.Zonelet.ZoneId, resp.HostId), host).
+		inapi.NsHostInfo(config.Config.Zonelet.ZoneName, resp.HostId), host).
 		SetCreateOnly(true).Exec(); !rs.OK() {
 		return nil, rs.Error()
 	}
@@ -202,13 +215,17 @@ func (s *zoneServer) HostList(
 	ctx context.Context, req *inapi.HostListRequest,
 ) (*inapi.HostListResponse, error) {
 
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Host_Read) {
+		return nil, errors.New("auth fail: missing host:ro scope")
+	}
+
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
 
 	resp := &inapi.HostListResponse{}
 
-	offset := inapi.NsHostInfo(config.Config.Zonelet.ZoneId, "")
+	offset := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
 
 	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 	for _, item := range rs.Items {
@@ -231,6 +248,11 @@ func (s *zoneServer) HostList(
 func (s *zoneServer) AppInstanceDeploy(
 	ctx context.Context, req *inapi.AppInstanceDeployRequest,
 ) (*inapi.AppInstanceDeployResponse, error) {
+
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Write) {
+		return nil, errors.New("auth fail: missing app:rw scope")
+	}
+
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
@@ -305,7 +327,7 @@ func (s *zoneServer) AppInstanceDeploy(
 
 	if req.Id != "" {
 		// Update existing instance
-		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, req.Id)
+		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Id)
 
 		var existingInstance inapi.AppInstance
 		if rs := data.Zonelet.NewReader(key).Exec(); !rs.OK() {
@@ -382,7 +404,7 @@ func (s *zoneServer) AppInstanceDeploy(
 			Spec:   req.Spec,
 		}
 
-		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, instance.Id)
+		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
 
 		if rs := data.Zonelet.NewWriter(key, instance).
 			SetCreateOnly(true).Exec(); !rs.OK() {
@@ -404,6 +426,11 @@ func (s *zoneServer) AppInstanceDeploy(
 func (s *zoneServer) AppInstanceInfo(
 	ctx context.Context, req *inapi.AppInstanceInfoRequest,
 ) (*inapi.AppInstanceInfoResponse, error) {
+
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Read) {
+		return nil, errors.New("auth fail: missing app:ro scope")
+	}
+
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
@@ -415,7 +442,7 @@ func (s *zoneServer) AppInstanceInfo(
 	var instance inapi.AppInstance
 
 	if rs := data.Zonelet.NewReader(
-		inapi.NsAppInstance(config.Config.Zonelet.ZoneId, req.Id)).Exec(); !rs.OK() {
+		inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Id)).Exec(); !rs.OK() {
 		if rs.NotFound() {
 			return nil, errors.New("instance not found")
 		}
@@ -432,13 +459,18 @@ func (s *zoneServer) AppInstanceInfo(
 func (s *zoneServer) AppInstanceList(
 	ctx context.Context, req *inapi.AppInstanceListRequest,
 ) (*inapi.AppInstanceListResponse, error) {
+
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Read) {
+		return nil, errors.New("auth fail: missing app:ro scope")
+	}
+
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
 
 	resp := &inapi.AppInstanceListResponse{}
 
-	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, "")
+	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
 
 	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 	for _, item := range rs.Items {
@@ -454,6 +486,11 @@ func (s *zoneServer) AppInstanceList(
 func (s *zoneServer) AppInstanceDelete(
 	ctx context.Context, req *inapi.AppInstanceDeleteRequest,
 ) (*inapi.AppInstanceDeleteResponse, error) {
+
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Write) {
+		return nil, errors.New("auth fail: missing app:rw scope")
+	}
+
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
@@ -462,7 +499,7 @@ func (s *zoneServer) AppInstanceDelete(
 		return nil, errors.New("id is required")
 	}
 
-	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, req.Id)
+	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Id)
 
 	if rs := data.Zonelet.NewDeleter(key).Exec(); !rs.OK() {
 		if rs.NotFound() {
@@ -481,6 +518,10 @@ func (s *zoneServer) AppInstanceDelete(
 func (s *zoneServer) PackagePush(
 	ctx context.Context, req *inapi.PackagePushRequest,
 ) (*inapi.PackagePushResponse, error) {
+
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Package_Write) {
+		return nil, errors.New("auth fail: missing pkg:rw scope")
+	}
 
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
@@ -529,7 +570,7 @@ func (s *zoneServer) PackagePush(
 			return nil, err
 		}
 
-		// File.Size is the entire IPK file size (set by client)
+		// File.Size is the whole IPK file size (set by client)
 		// Used for chunk count calculation and validation
 		if req.Package.File == nil || req.Package.File.Size <= 0 {
 			return nil, errors.New("package file size is required")
@@ -703,6 +744,10 @@ func (s *zoneServer) PackageList(
 	ctx context.Context, req *inapi.PackageListRequest,
 ) (*inapi.PackageListResponse, error) {
 
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Package_Read) {
+		return nil, errors.New("auth fail: missing pkg:ro scope")
+	}
+
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
@@ -867,6 +912,10 @@ func semverCompare(v1, v2 string) int {
 func (s *zoneServer) PackageDelete(
 	ctx context.Context, req *inapi.PackageDeleteRequest,
 ) (*inapi.PackageDeleteResponse, error) {
+
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Package_Write) {
+		return nil, errors.New("auth fail: missing pkg:rw scope")
+	}
 
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")

@@ -38,7 +38,7 @@ func schedulerRefresh(forceRefresh bool) error {
 	)
 
 	{
-		offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, "")
+		offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
 		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 		if !rs.OK() && !rs.NotFound() {
 			return rs.Error()
@@ -81,7 +81,7 @@ func schedulerRefresh(forceRefresh bool) error {
 
 	{
 		var (
-			offset = inapi.NsHostInfo(config.Config.Zonelet.ZoneId, "")
+			offset = inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
 			rs     = data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 		)
 		if !rs.OK() && !rs.NotFound() {
@@ -212,7 +212,7 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			rep.HostId = hit.HostId
 
-			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneId, instance.Id)
+			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
 			if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {
 				slog.Warn("scheduler update instance fail",
 					"instance_id", instance.Id,

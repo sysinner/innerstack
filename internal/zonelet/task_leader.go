@@ -27,12 +27,12 @@ import (
 // refresh zone-master leader ttl
 func leaderRefresh() (forceRefresh bool, err error) {
 
-	if config.Config.Zonelet.ZoneId == "" {
+	if config.Config.Zonelet.ZoneName == "" {
 		return false, nil
 	}
 
 	var (
-		zmLeaderKey = inapi.NsZoneletLeader(config.Config.Zonelet.ZoneId)
+		zmLeaderKey = inapi.NsZoneletLeader(config.Config.Zonelet.ZoneName)
 	)
 
 	if status.IsZoneletLeader() {

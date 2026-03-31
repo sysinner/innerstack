@@ -33,10 +33,9 @@ type ConfigCommon struct {
 
 // ConfigZone represents a single zone accessKey
 type ConfigZone struct {
-	Name            string `toml:"name"`
-	Addr            string `toml:"addr"`
-	AccessKeyId     string `toml:"access_key_id"`
-	AccessKeySecret string `toml:"access_key_secret"`
+	Name string `toml:"name"`
+	Addr string `toml:"addr"`
+	AK   string `toml:"access_key"`
 }
 
 const configFileName = "instack_config.toml"
@@ -51,15 +50,12 @@ var configPaths = []string{
 
 var defaultConfigPath = configFileName
 
-// GetAccessKey returns an AccessKey for authentication
-func (c *ConfigZone) AccessKey() *inauth.AccessKey {
-	if c.AccessKeyId == "" || c.AccessKeySecret == "" {
-		return nil
+// AccessKey parses the AK string (ak_{id}_{secret}) into an AccessKey
+func (c *ConfigZone) AccessKey() (*inauth.AccessKey, error) {
+	if c.AK == "" {
+		return nil, errors.New("access_key not set")
 	}
-	return &inauth.AccessKey{
-		Id:     c.AccessKeyId,
-		Secret: c.AccessKeySecret,
-	}
+	return inauth.ParseAccessKey(c.AK)
 }
 
 func init() {
@@ -74,7 +70,7 @@ func Setup() error {
 
 	for _, path := range configPaths {
 		if err := htoml.DecodeFromFile(path, &Config); err == nil {
-			return nil
+			return os.Chmod(path, 0644)
 		} else if !os.IsNotExist(err) {
 			return err
 		}

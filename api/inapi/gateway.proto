@@ -30,7 +30,7 @@ message GatewayService_Domain {
   };
   inapi.Common_Meta meta = 1;
   string description = 3;
-  string zone_id = 5;
+  string zone_name = 5;
   string action = 6;
   repeated Route routes = 9;
   repeated inapi.Common_Option options = 10;
@@ -65,7 +65,7 @@ message GatewayService_DomainDeploy {
 }
 
 message GatewayService_DomainDeployListRequest {
-  string zone_id = 1;
+  string zone_name = 1;
   uint64 version = 15;
 }
 

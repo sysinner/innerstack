@@ -15,14 +15,19 @@
 package inauth
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/sysinner/incore/v2/internal/inutil"
+)
+
+const accessKeyPrefix = "ak_"
+
+var (
+	akIdValid     = regexp.MustCompile("^[0-9a-f]{12,32}$")
+	akSecretValid = regexp.MustCompile("^[0-9a-zA-Z]{16,64}$")
 )
 
 func NewAccessKey() *AccessKey {
@@ -50,22 +55,34 @@ func (it *AccessKey) Allow(scopes ...string) bool {
 		return false
 	}
 	for _, scope := range scopes {
-		if !slices.Contains(it.Scopes, scope) {
+		if !scopeMatch(it.Scopes, scope) {
 			return false
 		}
 	}
 	return true
 }
 
-const accessKeyPrefix = "ak_"
-
-var akIdValid = regexp.MustCompile("^[0-9a-f]{12,16}$")
+// scopeMatch checks if the required scope is satisfied by any of the granted scopes.
+// Supports wildcard matching: "*" matches everything, "zone:rw" matches "zone:ro".
+func scopeMatch(granted []string, required string) bool {
+	for _, g := range granted {
+		if g == "*" {
+			return true
+		}
+		if g == required {
+			return true
+		}
+		// Write scopes imply read scopes (e.g., "zone:rw" covers "zone:ro")
+		if strings.HasSuffix(g, ":rw") && g[:len(g)-3]+":ro" == required {
+			return true
+		}
+	}
+	return false
+}
 
 func (it *AccessKey) Export() string {
 	if it != nil {
-		raw := fmt.Sprintf("%s:%s", it.Id, it.Secret)
-		enc := base64.RawURLEncoding.EncodeToString([]byte(raw))
-		return accessKeyPrefix + enc
+		return accessKeyPrefix + fmt.Sprintf("%s_%s", it.Id, it.Secret)
 	}
 	return ""
 }
@@ -75,18 +92,13 @@ func ParseAccessKey(ak string) (*AccessKey, error) {
 		return nil, errors.New("invalid access-key format: missing prefix")
 	}
 
-	raw := strings.TrimPrefix(ak, accessKeyPrefix)
-	dec, err := base64.RawURLEncoding.DecodeString(raw)
-	if err != nil {
-		return nil, err
-	}
-
-	parts := strings.SplitN(string(dec), ":", 2)
+	parts := strings.SplitN(ak[len(accessKeyPrefix):], "_", 2)
 	if len(parts) != 2 {
 		return nil, errors.New("invalid access-key structure")
 	}
 
-	if !akIdValid.MatchString(parts[0]) {
+	if !akIdValid.MatchString(parts[0]) ||
+		!akSecretValid.MatchString(parts[1]) {
 		return nil, errors.New("invalid access-key id format")
 	}
 

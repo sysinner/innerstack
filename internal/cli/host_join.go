@@ -29,9 +29,9 @@ import (
 func NewHostJoinCommand() *cobra.Command {
 
 	var (
-		zoneAddr  string
-		hostAddr  string
-		hostToken string
+		zoneAddr      string
+		hostAddr      string
+		hostAccessKey string
 	)
 
 	run := func(cmd *cobra.Command, args []string) error {
@@ -42,7 +42,12 @@ func NewHostJoinCommand() *cobra.Command {
 		}
 
 		// Connect to gRPC server
-		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		ak, err := zone.AccessKey()
+		if err != nil {
+			return fmt.Errorf("invalid access key: %w", err)
+		}
+
+		conn, err := client.Connect(zone.Addr, ak, false)
 		if err != nil {
 			return fmt.Errorf("failed to connect to zone server %s: %w", zone.Addr, err)
 		}
@@ -50,8 +55,8 @@ func NewHostJoinCommand() *cobra.Command {
 		zc := inapi.NewZoneServiceClient(conn)
 
 		req := &inapi.HostJoinRequest{
-			Addr:  hostAddr,
-			Token: hostToken,
+			Addr:      hostAddr,
+			AccessKey: hostAccessKey,
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -78,11 +83,11 @@ func NewHostJoinCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&hostAddr, "addr", "a", "", "Host address (required)")
-	cmd.Flags().StringVarP(&hostToken, "token", "t", "", "Host Access Token (required)")
+	cmd.Flags().StringVarP(&hostAccessKey, "access-key", "k", "", "Host Access Key (required)")
 	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "z", "", "Zone server address")
 
 	cmd.MarkFlagRequired("addr")
-	cmd.MarkFlagRequired("token")
+	cmd.MarkFlagRequired("access-key")
 
 	return cmd
 }

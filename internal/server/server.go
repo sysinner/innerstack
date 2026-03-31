@@ -40,6 +40,7 @@ func Setup() error {
 		grpc.MaxSendMsgSize(grpcMsgByteMax),
 		grpc.MaxRecvMsgSize(grpcMsgByteMax),
 		grpc.ChainUnaryInterceptor(auth.AuthMgr.GrpcAuthInterceptor()),
+		grpc.ChainStreamInterceptor(auth.AuthMgr.GrpcStreamAuthInterceptor()),
 	}
 
 	server = grpc.NewServer(opts...)

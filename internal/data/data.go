@@ -15,6 +15,8 @@
 package data
 
 import (
+	"log/slog"
+
 	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 	"github.com/lynkdb/kvgo/v2/pkg/kvrep"
 	"github.com/lynkdb/kvgo/v2/pkg/storage"
@@ -63,5 +65,7 @@ func Close() error {
 	Hostlet.Close()
 	Zonelet.Close()
 	Package.Close()
+
+	slog.Warn("database closed")
 	return nil
 }

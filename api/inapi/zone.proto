@@ -23,8 +23,8 @@ option go_package = "./;inapi";
 // A zone contains multiple hosts and serves as a management boundary for
 // resource allocation and application deployment.
 message Zone {
-  // id is the unique identifier of the zone.
-  string id = 1;
+  // name is the unique identifier of the zone.
+  string name = 1;
 
   // description provides a human-readable description of the zone.
   string description = 3;

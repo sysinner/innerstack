@@ -48,8 +48,8 @@ func NsZoneletLeader(zone string) []byte {
 	return []byte(fmt.Sprintf("v2/zone/%s/leader", zone))
 }
 
-func NsZoneSysAccessKey(zone, kid string) []byte {
-	return []byte(fmt.Sprintf("v2/zone/%s/sys-ak/%s", zone, kid))
+func NsZoneletAccessKey(zone, kid string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/ak/%s", zone, kid))
 }
 
 func NsHostInfo(zone, host string) []byte {

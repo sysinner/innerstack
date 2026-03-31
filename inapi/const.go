@@ -58,6 +58,19 @@ const (
 	HealthFailoverMsgSent uint32 = 1 << 16 // failover message sent flag
 )
 
+// Scope constants for authorization checks
+const (
+	AuthScope_Zone_Read     = "zone:ro"
+	AuthScope_Zone_Write    = "zone:rw"
+	AuthScope_Host_Read     = "host:ro"
+	AuthScope_Host_Write    = "host:rw"
+	AuthScope_App_Read      = "app:ro"
+	AuthScope_App_Write     = "app:rw"
+	AuthScope_Package_Read  = "pkg:ro"
+	AuthScope_Package_Write = "pkg:rw"
+	AuthScope_Wildcard      = "*"
+)
+
 const (
 	// User action command
 	OpActionStart   = "start"   // user action: start

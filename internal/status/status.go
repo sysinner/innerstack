@@ -23,7 +23,7 @@ var (
 )
 
 func IsZonelet() bool {
-	if config.Config.Zonelet.ZoneId == "" {
+	if config.Config.Zonelet.ZoneName == "" {
 		return false
 	}
 	for _, v := range config.Config.Server.ZoneHosts {

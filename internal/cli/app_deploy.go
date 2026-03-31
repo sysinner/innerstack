@@ -97,7 +97,12 @@ func NewAppDeployCommand() *cobra.Command {
 			return err
 		}
 
-		conn, err := client.Connect(zone.Addr, zone.AccessKey(), false)
+		ak, err := zone.AccessKey()
+		if err != nil {
+			return fmt.Errorf("invalid access key: %w", err)
+		}
+
+		conn, err := client.Connect(zone.Addr, ak, false)
 		if err != nil {
 			return fmt.Errorf("failed to connect to zone leader %s: %w", zone.Addr, err)
 		}

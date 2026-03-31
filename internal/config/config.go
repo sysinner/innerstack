@@ -25,6 +25,7 @@ import (
 
 	"github.com/hooto/htoml4g/htoml"
 
+	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inlog"
@@ -66,11 +67,13 @@ type HostletConfig struct {
 }
 
 type ZoneletConfig struct {
-	ZoneId string `json:"zone_id" toml:"zone_id"`
+	ZoneName string `json:"zone_name" toml:"zone_name"`
 
-	// ZoneName string `json:"zone_name" toml:"zone_name"`
+	AccessKeys []*AccessKeyPublic `json:"access_keys,omitempty" toml:"access_keys,omitempty"`
+}
 
-	AccessKeys []*inauth.AccessKey `json:"access_keys,omitempty" toml:"access_keys,omitempty"`
+type AccessKeyPublic struct {
+	AccessKey string `json:"access_key" toml:"access_key"`
 }
 
 var (
@@ -113,22 +116,20 @@ func Setup(ver, rel string) error {
 	}
 
 	// Auto-create default sysadmin access key if not configured
-	{
-		if len(Config.Zonelet.AccessKeys) == 0 {
-			secret, _ := inutil.GenerateSecretKeyBase62(48)
-			Config.Zonelet.AccessKeys = []*inauth.AccessKey{
-				{
-					Id:          inutil.SeqRandHexString(4, 8),
-					Secret:      secret,
-					User:        "sysadmin",
-					Description: "System Access Key",
-				},
-			}
+	if len(Config.Zonelet.AccessKeys) == 0 ||
+		Config.Zonelet.AccessKeys[0].AccessKey == "" {
+		ak := inauth.NewAccessKey()
+		Config.Zonelet.AccessKeys = []*AccessKeyPublic{
+			{
+				AccessKey: ak.Export(),
+			},
 		}
 	}
 
 	{
-		Config.Hostlet.PodPath = Prefix + "/pod"
+		if Config.Hostlet.PodPath == "" {
+			Config.Hostlet.PodPath = Prefix + "/pod"
+		}
 
 		if Config.Hostlet.HostId == "" {
 			Config.Hostlet.HostId = inutil.SeqRandHexString(4, 8)
@@ -145,7 +146,8 @@ func Setup(ver, rel string) error {
 				return fmt.Errorf("hostlet access_key parse error: %w", err)
 			} else {
 				ak.Scopes = []string{
-					fmt.Sprintf("host:rw:%s", Config.Hostlet.HostId),
+					inapi.AuthScope_Host_Write + ":" + Config.Hostlet.HostId,
+					inapi.AuthScope_Package_Read,
 				}
 				Config.Hostlet.ak = ak
 			}
@@ -168,7 +170,6 @@ func Setup(ver, rel string) error {
 					" not found in local network interfaces")
 			}
 		}
-
 	}
 
 	return Config.Flush()
@@ -180,7 +181,11 @@ func Flush() error {
 
 func (cfg *ConfigCommon) Flush() error {
 	if cfg.filepath != "" {
-		return htoml.EncodeToFile(Config, cfg.filepath, nil)
+		err := htoml.EncodeToFile(Config, cfg.filepath, nil)
+		if err != nil {
+			return err
+		}
+		os.Chmod(cfg.filepath, 0600)
 	}
 	return nil
 }

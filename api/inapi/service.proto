@@ -91,14 +91,11 @@ message CommonResponse {}
 
 // HostInitRequest is the request message for initializing a host.
 message HostInitRequest {
-  // zone_id is the ID of the zone to which the host should be registered.
-  string zone_id = 1;
+  // zone_name is the name of the zone to which the host should be registered.
+  string zone_name = 1;
 
   // zone_hosts is a list of existing host addresses in the zone for discovery.
   repeated string zone_hosts = 2;
-
-  // token is the authentication token for host registration.
-  string token = 3;
 }
 
 // HostInitResponse is the response message after host initialization.
@@ -115,8 +112,8 @@ message HostJoinRequest {
   // addr is the network address of the host joining the zone.
   string addr = 1;
 
-  // token is the authentication token for joining.
-  string token = 2;
+  // access_key is the authentication access key for joining.
+  string access_key = 2;
 }
 
 // HostJoinResponse is the response message after a host joins a zone.
