@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"log/slog"
+	"net"
 	"slices"
 	"sort"
 	"strings"
@@ -29,6 +30,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/internal/auth"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
@@ -36,6 +38,7 @@ import (
 	"github.com/sysinner/incore/v2/internal/pkgbuild"
 	"github.com/sysinner/incore/v2/internal/status"
 	"github.com/sysinner/incore/v2/pkg/inauth"
+	"github.com/sysinner/incore/v2/pkg/inetutil"
 )
 
 // uploadMutex provides per-package mutex for concurrent upload protection
@@ -140,7 +143,92 @@ func (s *zoneServer) ZoneInfo(
 		return nil, err
 	}
 
-	return &inapi.ZoneInfoResponse{
+	info := &inapi.ZoneInfoResponse{
+		Zone: &zone,
+	}
+
+	if zoneNetMgr.IsReady() {
+		info.NetworkMap = zoneNetMgr.Map
+	}
+
+	return info, nil
+}
+
+func (s *zoneServer) ZoneSet(
+	ctx context.Context, req *inapi.ZoneSetRequest,
+) (*inapi.ZoneSetResponse, error) {
+
+	if !status.IsZoneletLeader() {
+		return nil, errors.New("zonelet leader")
+	}
+
+	if config.Config.Zonelet.ZoneName == "" {
+		return nil, errors.New("zone not initialized")
+	}
+
+	// All three VPC fields must be provided together; partial updates not allowed
+	if req.VpcBridgeCidr == "" || req.VpcInstanceCidr == "" || req.VpcNetworkDomain == "" {
+		return nil, errors.New("vpc_bridge_cidr, vpc_instance_cidr, and vpc_network_domain are all required")
+	}
+
+	// Validate CIDR formats and ensure private network addresses (RFC 1918)
+	bridgeNet, err := validatePrivateCIDR(req.VpcBridgeCidr, "vpc_bridge_cidr", 24)
+	if err != nil {
+		return nil, err
+	}
+	instanceNet, err := validatePrivateCIDR(req.VpcInstanceCidr, "vpc_instance_cidr", 16)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure bridge and instance CIDRs do not overlap
+	if cidrsOverlap(bridgeNet, instanceNet) {
+		return nil, errors.New("vpc_bridge_cidr and vpc_instance_cidr must not overlap")
+	}
+
+	// Load current zone
+	var zone inapi.Zone
+	if rs := data.Zonelet.NewReader(
+		inapi.NsZoneletInfo(config.Config.Zonelet.ZoneName)).Exec(); !rs.OK() {
+		if rs.NotFound() {
+			return nil, errors.New("zone not found")
+		}
+		return nil, rs.Error()
+	} else if err := rs.Item().JsonDecode(&zone); err != nil {
+		return nil, err
+	}
+
+	// Update zone VPC fields
+	zone.VpcBridgeCidr = req.VpcBridgeCidr
+	zone.VpcInstanceCidr = req.VpcInstanceCidr
+	zone.VpcNetworkDomain = req.VpcNetworkDomain
+
+	// Persist updated zone
+	if rs := data.Zonelet.NewWriter(
+		inapi.NsZoneletInfo(zone.Name), &zone).Exec(); !rs.OK() {
+		return nil, rs.Error()
+	}
+
+	// Apply zone VPC networking
+	if err := zoneNetMgr.ZoneSetup(
+		zone.Name,
+		zone.VpcBridgeCidr,
+		zone.VpcInstanceCidr,
+		zone.VpcNetworkDomain); err != nil {
+		slog.Error("zone VPC setup failed",
+			"zone", zone.Name,
+			"err", err.Error())
+		return nil, fmt.Errorf("zone VPC setup failed: %w", err)
+	}
+
+	slog.Warn("zonelet zone-set",
+		"zone_name", zone.Name,
+		"vpc_bridge_cidr", zone.VpcBridgeCidr,
+		"vpc_instance_cidr", zone.VpcInstanceCidr,
+		"vpc_network_domain", zone.VpcNetworkDomain,
+	)
+
+	return &inapi.ZoneSetResponse{
 		Zone: &zone,
 	}, nil
 }
@@ -201,6 +289,12 @@ func (s *zoneServer) HostJoin(
 	if !inapi.ObjectIdValid.MatchString(resp.HostId) {
 		return nil, errors.New("invalid host_id")
 	}
+
+	ak.Scopes = []string{
+		inapi.AuthScope_Host_Write + ":" + resp.HostId,
+		inapi.AuthScope_Package_Read,
+	}
+	auth.AuthMgr.SaveAccessKey(ak)
 
 	slog.Warn("zonelet init-host",
 		"host_id", resp.HostId,
@@ -974,4 +1068,35 @@ func (s *zoneServer) PackageDelete(
 		Id:            req.Id,
 		ChunksDeleted: chunksDeleted,
 	}, nil
+}
+
+// validatePrivateCIDR parses a CIDR string and validates that its network
+// address belongs to a private range (RFC 1918) with the required prefix length.
+// Returns the parsed *net.IPNet on success.
+func validatePrivateCIDR(cidr, fieldName string, requiredPrefixLen int) (*net.IPNet, error) {
+
+	ip, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s: %w", fieldName, err)
+	}
+
+	if ip.To4() == nil {
+		return nil, fmt.Errorf("%s must be an IPv4 CIDR", fieldName)
+	}
+
+	if _, err := inetutil.ParsePrivateIP(ip.String()); err != nil {
+		return nil, fmt.Errorf("%s must be a private network address (RFC 1918)", fieldName)
+	}
+
+	prefixLen, _ := ipNet.Mask.Size()
+	if prefixLen != requiredPrefixLen {
+		return nil, fmt.Errorf("%s must be a /%d network", fieldName, requiredPrefixLen)
+	}
+
+	return ipNet, nil
+}
+
+// cidrsOverlap checks whether two IP networks overlap.
+func cidrsOverlap(a, b *net.IPNet) bool {
+	return a.Contains(b.IP) || b.Contains(a.IP)
 }

@@ -240,6 +240,9 @@ message AppDeployReplica {
 
   // state is the desired state of the replica.
   string state = 3;
+
+  // vpc_ipv4 is the VPC IPv4 address assigned to this replica by IPAM.
+  string vpc_ipv4 = 4;
 }
 
 // AppStatus represents the current observed status of an application.

@@ -24,8 +24,6 @@ import "zone.proto";
 import "app.proto";
 import "package.proto";
 
-
-
 // ZoneService is the gRPC service for zone-level management.
 // It handles zone initialization, host management, and application deployment.
 service ZoneService {
@@ -35,17 +33,23 @@ service ZoneService {
   // ZoneInfo retrieves information about the current zone.
   rpc ZoneInfo(ZoneInfoRequest) returns (ZoneInfoResponse) {}
 
+  // ZoneSet updates zone network configuration.
+  // All three VPC fields (bridge, instance, domain) must be provided together.
+  rpc ZoneSet(ZoneSetRequest) returns (ZoneSetResponse) {}
+
   // HostJoin registers a new host to join the zone.
   rpc HostJoin(HostJoinRequest) returns (HostJoinResponse) {}
 
   // HostList retrieves all hosts in the zone.
   rpc HostList(HostListRequest) returns (HostListResponse) {}
 
-  // AppInstanceDeploy deploys a new application instance or updates an existing one.
+  // AppInstanceDeploy deploys a new application instance or updates an
+  // existing one.
   rpc AppInstanceDeploy(AppInstanceDeployRequest)
       returns (AppInstanceDeployResponse) {}
 
-  // AppInstanceInfo retrieves detailed information about a specific application instance.
+  // AppInstanceInfo retrieves detailed information about a specific
+  // application instance.
   rpc AppInstanceInfo(AppInstanceInfoRequest)
       returns (AppInstanceInfoResponse) {}
 
@@ -71,7 +75,8 @@ service ZoneService {
 // It handles host status reporting and package chunk transfer between
 // host machines and the zone leader.
 service ZoneInternalService {
-  // HostStatusUpdate updates the status of a host and receives updated app instances.
+  // HostStatusUpdate updates the status of a host and receives updated app
+  // instances.
   rpc HostStatusUpdate(HostStatusUpdateRequest)
       returns (HostStatusUpdateResponse) {}
 
@@ -80,7 +85,8 @@ service ZoneInternalService {
 }
 
 // HostInternalService is the gRPC service running on each host machine.
-// It handles host-level operations including initialization and status reporting.
+// It handles host-level operations including initialization and status
+// reporting.
 service HostInternalService {
   // HostInit initializes a new host and registers it with the specified zone.
   rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
@@ -94,7 +100,8 @@ message HostInitRequest {
   // zone_name is the name of the zone to which the host should be registered.
   string zone_name = 1;
 
-  // zone_hosts is a list of existing host addresses in the zone for discovery.
+  // zone_hosts is a list of existing host addresses in the zone for
+  // discovery.
   repeated string zone_hosts = 2;
 }
 
@@ -145,6 +152,16 @@ message HostStatusUpdateResponse {
   // app_instances is the list of application instances that need to be synced
   // to the host after the status update.
   repeated AppInstance app_instances = 2;
+
+  // vpc_bridge_ip is the VPC bridge IP assigned to this host by the zone
+  // leader.
+  string vpc_bridge_ip = 3;
+
+  // vpc_instance_cidr is the VPC instance subnet assigned to this host.
+  string vpc_instance_cidr = 4;
+
+  // zone_network_map contains the distributed VPC routing table.
+  ZoneNetworkMap zone_network_map = 5;
 }
 
 // ZoneInitRequest is the request message for initializing a zone.
@@ -166,15 +183,39 @@ message ZoneInfoResponse {
 
   // hosts is the list of hosts belonging to the zone.
   repeated Host hosts = 2;
+
+  ZoneNetworkMap network_map = 3;
 }
 
-// AppInstanceDeployRequest is the request message for deploying an application instance.
+// ZoneSetRequest is the request message for updating zone network configuration.
+// All three VPC fields must be provided together; partial updates are not allowed.
+message ZoneSetRequest {
+  // vpc_bridge_cidr is the zone-wide VPC bridge CIDR (e.g., "192.168.10.0/24").
+  string vpc_bridge_cidr = 1;
+
+  // vpc_instance_cidr is the zone-wide VPC instance CIDR (e.g., "10.10.0.0/16").
+  string vpc_instance_cidr = 2;
+
+  // vpc_network_domain is the DNS domain name for the zone (e.g., "local").
+  string vpc_network_domain = 3;
+}
+
+// ZoneSetResponse is the response message after updating zone network
+// configuration.
+message ZoneSetResponse {
+  // zone contains the updated zone information.
+  Zone zone = 1;
+}
+
+// AppInstanceDeployRequest is the request message for deploying an application
+// instance.
 message AppInstanceDeployRequest {
   // id is the unique identifier for the application instance.
   // If empty, a new ID will be generated.
   string id = 1;
 
-  // spec defines the application specification including resources, executors, etc.
+  // spec defines the application specification including resources,
+  // executors, etc.
   AppSpec spec = 2;
 
   // replica_cap specifies the desired number of replicas for the application.
@@ -184,40 +225,47 @@ message AppInstanceDeployRequest {
   AppDeploy deploy = 4;
 }
 
-// AppInstanceDeployResponse is the response message after deploying an application instance.
+// AppInstanceDeployResponse is the response message after deploying an
+// application instance.
 message AppInstanceDeployResponse {
   // id is the unique identifier of the deployed application instance.
   string id = 1;
 }
 
-// AppInstanceInfoRequest is the request message for retrieving application instance info.
+// AppInstanceInfoRequest is the request message for retrieving application
+// instance info.
 message AppInstanceInfoRequest {
   // id is the unique identifier of the application instance to retrieve.
   string id = 1;
 }
 
-// AppInstanceInfoResponse is the response message containing application instance info.
+// AppInstanceInfoResponse is the response message containing application
+// instance info.
 message AppInstanceInfoResponse {
   // instance contains the application instance information.
   AppInstance instance = 1;
 }
 
-// AppInstanceListRequest is the request message for listing application instances.
+// AppInstanceListRequest is the request message for listing application
+// instances.
 message AppInstanceListRequest {}
 
-// AppInstanceListResponse is the response message containing the list of application instances.
+// AppInstanceListResponse is the response message containing the list of
+// application instances.
 message AppInstanceListResponse {
   // items is the list of application instances.
   repeated AppInstance items = 1;
 }
 
-// AppInstanceDeleteRequest is the request message for deleting an application instance.
+// AppInstanceDeleteRequest is the request message for deleting an application
+// instance.
 message AppInstanceDeleteRequest {
   // id is the unique identifier of the application instance to delete.
   string id = 1;
 }
 
-// AppInstanceDeleteResponse is the response message after deleting an application instance.
+// AppInstanceDeleteResponse is the response message after deleting an
+// application instance.
 message AppInstanceDeleteResponse {}
 
 // PackagePushRequest is the request message for uploading a package chunk.
@@ -228,7 +276,8 @@ message PackagePushRequest {
   // package contains the package metadata (required on first chunk).
   Package package = 2;
 
-  // total_size is the total size of the package file in bytes (required on first chunk).
+  // total_size is the total size of the package file in bytes (required on
+  // first chunk).
   int64 total_size = 3;
 
   int64 chunk_size = 4;
@@ -258,8 +307,8 @@ message PackageListRequest {
   // name filters packages by exact name match (optional).
   string name = 2;
 
-  // version filters packages by version with fuzzy matching support (optional).
-  // Examples:
+  // version filters packages by version with fuzzy matching support
+  // (optional). Examples:
   //   "2.0" matches "2.0.0", "2.0.1", "2.0.2", etc. (equivalent to "~2.0.x")
   //   "2.0.0" matches only "2.0.0" exactly
   string version = 3;
@@ -272,9 +321,9 @@ message PackageListRequest {
   // Common values: "amd64", "arm64"
   string arch = 5;
 
-  // latest_only returns only the latest version for each (name, os, arch) combination
-  // when set to true. Requires name to be specified.
-  // Default is false, which returns all matching packages.
+  // latest_only returns only the latest version for each (name, os, arch)
+  // combination when set to true. Requires name to be specified. Default is
+  // false, which returns all matching packages.
   bool latest_only = 6;
 }
 
@@ -313,6 +362,7 @@ message PackageChunkResponse {
   // chunk contains the chunk data and metadata.
   PackageFileChunk chunk = 1;
 
-  // file contains the file metadata (size, chunk_size) for calculating progress.
+  // file contains the file metadata (size, chunk_size) for calculating
+  // progress.
   PackageFile file = 2;
 }

@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/sysinner/incore/v2/inapi"
@@ -86,12 +87,12 @@ var (
 //	                   +----------+
 //
 //	Event transitions (on success/fail):
-//	- starting  + success → running
-//	- starting  + fail    → failed
-//	- stopping  + success → stopped
-//	- stopping  + fail    → failed
-//	- destroying+ success → destroyed
-//	- destroying+ fail    → failed
+//	- starting  + success -> running
+//	- starting  + fail    -> failed
+//	- stopping  + success -> stopped
+//	- stopping  + fail    -> failed
+//	- destroying+ success -> destroyed
+//	- destroying+ fail    -> failed
 func taskContainerInit() {
 	// User action: start
 	hoststatus.AppWorkflow.Register(
@@ -253,6 +254,7 @@ func containerStatusRefresh() error {
 			pctr.Started = ctr.Started
 			pctr.State = ctr.State
 			pctr.Image = ctr.Image
+			pctr.IP = ctr.IP
 		}
 	}
 	hoststatus.ContainerReady.Store(true)
@@ -401,6 +403,7 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 			info.CpuLimit = ifo.CpuLimit
 			info.MemoryLimit = ifo.MemoryLimit
 			info.Ports = ifo.Ports
+			info.IP = ifo.IP
 			info.LastInspectTime = tn
 		}
 		cancel()
@@ -417,7 +420,7 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 	if rep.App.Spec.Resources != nil &&
 		rep.App.Spec.Image != "" &&
 		rep.App.Spec.Image != info.Image {
-		slog.Debug("container spec reset: image mismatch",
+		slog.Info("container spec reset: image mismatch",
 			"desired", rep.App.Spec.Image,
 			"current", info.Image)
 		return true
@@ -425,7 +428,7 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 
 	// Check 2: CpuLimit with 1% tolerance
 	if relDiff(rep.App.Deploy.CpuLimit, info.CpuLimit) > 0.01 {
-		slog.Debug("container spec reset: cpu limit mismatch",
+		slog.Info("container spec reset: cpu limit mismatch",
 			"desired", rep.App.Deploy.CpuLimit,
 			"current", info.CpuLimit)
 		return true
@@ -433,7 +436,7 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 
 	// Check 3: MemoryLimit with 1% tolerance
 	if relDiff(rep.App.Deploy.MemoryLimit, info.MemoryLimit) > 0.01 {
-		slog.Debug("container spec reset: memory limit mismatch",
+		slog.Info("container spec reset: memory limit mismatch",
 			"desired", rep.App.Deploy.MemoryLimit,
 			"current", info.MemoryLimit)
 		return true
@@ -448,11 +451,18 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 			continue
 		}
 		if _, bound := info.Ports[int32(sp.Port)]; !bound {
-			slog.Debug("container spec reset: service port not bound",
+			slog.Info("container spec reset: service port not bound",
 				"desired_port", sp.Port,
 				"bound_ports", info.Ports)
 			return true
 		}
+	}
+
+	if rep.Replica.VpcIpv4 != "" && rep.Replica.VpcIpv4 != info.IP {
+		slog.Info("container spec reset: vpc_ipv4",
+			"vpc_ipv4", rep.Replica.VpcIpv4,
+			"container_ip", info.IP)
+		return true
 	}
 
 	return false
@@ -675,6 +685,13 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 		opts.MemoryLimit = rep.App.Deploy.MemoryLimit
 	}
 
+	// VPC networking
+	opts.VpcIPv4 = rep.Replica.VpcIpv4
+	opts.VpcSubnet = config.Config.Hostlet.VpcInstanceCIDR
+	if !strings.Contains(opts.VpcSubnet, "/") {
+		opts.VpcSubnet += "/24"
+	}
+
 	// Setup port bindings for all service ports
 	for _, sp := range rep.App.Spec.ServicePorts {
 		if sp != nil && sp.Port > 0 && sp.Port < 65536 {
@@ -728,17 +745,12 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 					"path", appInstancePath, "err", err.Error())
 			}
 
-			// Copy ininit script
-			srcIninitPath := hostSrcPaths.IninitSrc()
+			// Write ininit script (embedded)
 			ininitPath := podPaths.IninitFile()
-			if ininitData, err := os.ReadFile(srcIninitPath); err == nil {
-				if err := os.WriteFile(ininitPath, ininitData, 0755); err == nil {
-					slog.Debug("ininit script copied", "path", ininitPath)
-				} else {
-					slog.Warn("failed to write ininit script", "error", err)
-				}
+			if err := os.WriteFile(ininitPath, ininitScript, 0755); err == nil {
+				slog.Debug("ininit script written", "path", ininitPath)
 			} else {
-				slog.Warn("failed to read ininit script", "path", srcIninitPath, "error", err)
+				slog.Warn("failed to write ininit script", "error", err)
 			}
 
 			// Copy inagent binary based on architecture (amd64/arm64)

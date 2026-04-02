@@ -52,6 +52,11 @@ func NsZoneletAccessKey(zone, kid string) []byte {
 	return []byte(fmt.Sprintf("v2/zone/%s/ak/%s", zone, kid))
 }
 
+// NsZoneletNetworkIPAM returns the KV key for persisting IPAM state.
+func NsZoneletNetworkIPAM(zone string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/network/ipam", zone))
+}
+
 func NsHostInfo(zone, host string) []byte {
 	return []byte(fmt.Sprintf("v2/host/%s/info/%s", zone, host))
 }

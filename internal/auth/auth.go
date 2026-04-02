@@ -118,18 +118,45 @@ func (am *AuthManager) RefreshAccessKeysFromDB() error {
 		return errors.New("data:zonelet not setup")
 	}
 
-	offset := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, "")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+	{
+		offset := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, "")
+		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 
-	for _, item := range rs.Items {
-		var key inauth.AccessKey
-		if err := item.JsonDecode(&key); err != nil {
-			slog.Warn("failed to decode access key", "error", err)
-			continue
+		for _, item := range rs.Items {
+			var key inauth.AccessKey
+			if err := item.JsonDecode(&key); err != nil {
+				slog.Warn("failed to decode access key", "error", err)
+				continue
+			}
+			if key.Id != "" && key.Secret != "" {
+				am.keyMgr.Set(&key)
+				slog.Debug("auth key loaded from db", "key_id", key.Id)
+			}
 		}
-		if key.Id != "" && key.Secret != "" {
-			am.keyMgr.Set(&key)
-			slog.Debug("auth key loaded from db", "key_id", key.Id)
+	}
+
+	{
+		offset := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
+		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+
+		for _, item := range rs.Items {
+			var host inapi.Host
+			if err := item.JsonDecode(&host); err != nil {
+				slog.Warn("failed to decode access key", "error", err)
+				continue
+			}
+			ak, err := inauth.ParseAccessKey(host.AccessKey)
+			if err != nil {
+				slog.Warn("load host access-key fail", "host_id", host.Id)
+			} else {
+				ak.Scopes = []string{
+					inapi.AuthScope_Host_Write + ":" + host.Id,
+					inapi.AuthScope_Package_Read,
+				}
+				AuthMgr.keyMgr.Set(ak)
+
+				slog.Warn("load host access-key", "host_id", host.Id)
+			}
 		}
 	}
 

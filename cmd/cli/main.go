@@ -79,8 +79,10 @@ func main() {
 	// Register zone management commands
 	// - zone-init: Initialize a new zone with specified configuration
 	// - zone-info: Retrieve and display information about a zone
+	// - zone-set: Update zone VPC network configuration
 	rootCmd.AddCommand(cli.NewZoneInitCommand())
 	rootCmd.AddCommand(cli.NewZoneInfoCommand())
+	rootCmd.AddCommand(cli.NewZoneSetCommand())
 
 	// Register host management commands
 	// - host-join: Join a host to the specified zone

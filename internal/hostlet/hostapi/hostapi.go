@@ -116,6 +116,8 @@ type ContainerCreateOptions struct {
 	Ports         []PortBinding     // port mappings
 	Mounts        []MountBind       // volume mounts
 	RestartPolicy string            // no, always, on-failure, unless-stopped
+	VpcIPv4       string            // VPC IP to assign to container
+	VpcSubnet     string            // VPC subnet CIDR for Docker network creation
 }
 
 // Driver defines the container runtime driver interface.

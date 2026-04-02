@@ -17,6 +17,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"os"
 	"os/user"
@@ -64,10 +65,17 @@ type HostletConfig struct {
 	ak        *inauth.AccessKey
 
 	PodPath string `json:"pod_path" toml:"pod_path"`
+
+	VpcBridgeIP     string `json:"vpc_bridge_ip,omitempty" toml:"vpc_bridge_ip,omitempty"`
+	VpcInstanceCIDR string `json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
 }
 
 type ZoneletConfig struct {
 	ZoneName string `json:"zone_name" toml:"zone_name"`
+
+	VpcBridgeCidr    string `json:"vpc_bridge_cidr,omitempty" toml:"vpc_bridge_cidr,omitempty"`
+	VpcInstanceCidr  string `json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
+	VpcNetworkDomain string `json:"vpc_network_domain,omitempty" toml:"vpc_network_domain,omitempty"`
 
 	AccessKeys []*AccessKeyPublic `json:"access_keys,omitempty" toml:"access_keys,omitempty"`
 }
@@ -100,6 +108,7 @@ func Setup(ver, rel string) error {
 
 	if err := htoml.DecodeFromFile(Prefix+"/etc/"+cfgFile, &Config); err != nil {
 		if !os.IsNotExist(err) {
+			slog.Info(err.Error())
 			return err
 		}
 	}

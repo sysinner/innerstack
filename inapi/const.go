@@ -138,6 +138,18 @@ const (
 	PackageFileStateFailed    = "failed"    // upload failed
 )
 
+// VPC IP allocation range constants.
+// Octet values in [VpcAllocMin, VpcAllocMax] are allocatable; values
+// outside this range are reserved for system use (network, gateway,
+// broadcast, future extensions).
+const (
+	VpcAllocMin uint8 = 3   // first allocatable octet value
+	VpcAllocMax uint8 = 252 // last allocatable octet value
+
+	// VpcAllocCap is the number of allocatable addresses per octet slot.
+	VpcAllocCap = int(VpcAllocMax) - int(VpcAllocMin) + 1 // 250
+)
+
 // var (
 // 	OpLogNsZoneMasterPodScheduleRep = func(repId uint32) string {
 // 		if repId > 65535 {

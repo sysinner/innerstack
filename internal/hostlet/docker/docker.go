@@ -57,8 +57,10 @@ func NewDriver() (hostapi.Driver, error) {
 }
 
 type dockerDriver struct {
-	mu     sync.RWMutex
-	client *drvClient.Client
+	mu           sync.RWMutex
+	client       *drvClient.Client
+	vpcSubnet    string
+	vpcNetworkID string
 }
 
 func (it *dockerDriver) Name() string {
@@ -81,6 +83,72 @@ func (it *dockerDriver) init() error {
 		return err
 	}
 	it.client = client
+	return nil
+}
+
+const vpcNetworkName = "invpc2_docker"
+
+// ensureVpcNetwork ensures the VPC Docker network exists with the correct subnet.
+func (it *dockerDriver) ensureVpcNetwork(ctx context.Context, subnet string) error {
+	if err := it.init(); err != nil {
+		return err
+	}
+
+	it.mu.RLock()
+	if it.vpcSubnet == subnet && it.vpcNetworkID != "" {
+		it.mu.RUnlock()
+		return nil
+	}
+	it.mu.RUnlock()
+
+	it.mu.Lock()
+	defer it.mu.Unlock()
+
+	// Double-check after acquiring write lock
+	if it.vpcSubnet == subnet && it.vpcNetworkID != "" {
+		return nil
+	}
+
+	networks, err := it.client.ListNetworks()
+	if err != nil {
+		return fmt.Errorf("[docker.ensureVpcNetwork] list networks failed: %w", err)
+	}
+
+	for _, net := range networks {
+		if net.Name == vpcNetworkName {
+			if len(net.IPAM.Config) > 0 && net.IPAM.Config[0].Subnet == subnet {
+				// Network exists with correct subnet, cache and return
+				it.vpcSubnet = subnet
+				it.vpcNetworkID = net.ID
+				return nil
+			}
+			// Network exists with wrong subnet, remove it
+			if err := it.client.RemoveNetwork(net.ID); err != nil {
+				return fmt.Errorf("[docker.ensureVpcNetwork] remove old network failed: %w", err)
+			}
+			break
+		}
+	}
+
+	// Create the network
+	netOpts := drvClient.CreateNetworkOptions{
+		Name:   vpcNetworkName,
+		Driver: "bridge",
+		IPAM: &drvClient.IPAMOptions{
+			Config: []drvClient.IPAMConfig{
+				{Subnet: subnet},
+			},
+		},
+		Context: ctx,
+	}
+
+	netInfo, err := it.client.CreateNetwork(netOpts)
+	if err != nil {
+		return fmt.Errorf("[docker.ensureVpcNetwork] create network failed: %w", err)
+	}
+
+	it.vpcSubnet = subnet
+	it.vpcNetworkID = netInfo.ID
 	return nil
 }
 
@@ -194,10 +262,16 @@ func (it *dockerDriver) ContainerList(ctx context.Context) ([]*hostapi.Container
 			info.Ports[pb.ContainerPort] = pb
 		}
 
-		for _, net := range ctr.Networks.Networks {
+		// Prefer IP from VPC network, fall back to any network
+		for netName, net := range ctr.Networks.Networks {
 			if net.IPAddress != "" {
-				info.IP = net.IPAddress
-				break
+				if netName == vpcNetworkName {
+					info.IP = net.IPAddress
+					break
+				}
+				if info.IP == "" {
+					info.IP = net.IPAddress
+				}
 			}
 		}
 
@@ -286,12 +360,17 @@ func (it *dockerDriver) ContainerInspect(
 		}
 	}
 
-	// Extract IP from network settings
+	// Extract IP from network settings, prefer VPC network
 	if container.NetworkSettings != nil {
-		for _, net := range container.NetworkSettings.Networks {
+		for netName, net := range container.NetworkSettings.Networks {
 			if net.IPAddress != "" {
-				info.IP = net.IPAddress
-				break
+				if netName == vpcNetworkName {
+					info.IP = net.IPAddress
+					break
+				}
+				if info.IP == "" {
+					info.IP = net.IPAddress
+				}
 			}
 		}
 	}
@@ -359,11 +438,29 @@ func (it *dockerDriver) ContainerCreate(
 		}
 	}
 
+	// VPC endpoint config
+	var networkingConfig *drvClient.NetworkingConfig
+	if opts.VpcIPv4 != "" && opts.VpcSubnet != "" {
+		if err := it.ensureVpcNetwork(ctx, opts.VpcSubnet); err != nil {
+			return nil, fmt.Errorf("vpc network setup failed: %w", err)
+		}
+		networkingConfig = &drvClient.NetworkingConfig{
+			EndpointsConfig: map[string]*drvClient.EndpointConfig{
+				vpcNetworkName: {
+					IPAMConfig: &drvClient.EndpointIPAMConfig{
+						IPv4Address: opts.VpcIPv4,
+					},
+				},
+			},
+		}
+	}
+
 	container, err := it.client.CreateContainer(drvClient.CreateContainerOptions{
-		Name:       opts.Name,
-		Config:     config,
-		HostConfig: hostConfig,
-		Context:    ctx,
+		Name:             opts.Name,
+		Config:           config,
+		HostConfig:       hostConfig,
+		NetworkingConfig: networkingConfig,
+		Context:          ctx,
 	})
 	if err != nil {
 		return nil, err

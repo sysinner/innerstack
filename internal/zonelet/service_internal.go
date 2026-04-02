@@ -25,6 +25,7 @@ import (
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
 	"github.com/sysinner/incore/v2/pkg/inauth"
+	"github.com/sysinner/incore/v2/pkg/inetutil"
 )
 
 type zoneInternalServer struct {
@@ -58,8 +59,7 @@ func (s *zoneInternalServer) HostStatusUpdate(
 
 	resp := &inapi.HostStatusUpdateResponse{}
 
-	key := inapi.NsHostStatus(config.Config.Zonelet.ZoneName,
-		req.Host.Id)
+	key := inapi.NsHostStatus(config.Config.Zonelet.ZoneName, req.Host.Id)
 
 	if rs := data.Zonelet.NewWriter(key, req.Status).Exec(); !rs.OK() {
 		return nil, rs.Error()
@@ -67,7 +67,35 @@ func (s *zoneInternalServer) HostStatusUpdate(
 
 	status.Zonelet_HostStatusSet.Store(req.Host.Id, req.Status)
 
-	slog.Debug("zonelist update host status", "host_id", req.Host.Id, "status", req.Status)
+	// Populate VPC config in response from host operate data
+	if val, ok := status.Zonelet_HostSet.Load(req.Host.Id); ok {
+		host := val.(*inapi.Host)
+		if host.Deploy != nil {
+			resp.VpcBridgeIp = host.Deploy.VpcBridgeIp
+			resp.VpcInstanceCidr = host.Deploy.VpcInstanceCidr
+		}
+		if req.Host.PeerAddr != "" && req.Host.PeerAddr != host.PeerAddr {
+			if _, err := inetutil.ParsePrivateAddress(req.Host.PeerAddr); err != nil {
+				slog.Warn("update host peer-address fail", "host_id", req.Host.Id,
+					"err", err.Error(),
+				)
+			} else {
+				host.PeerAddr = req.Host.PeerAddr
+				if rs := data.Zonelet.NewWriter(
+					inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), host).Exec(); !rs.OK() {
+					return nil, rs.Error()
+				}
+			}
+		}
+	}
+
+	// Attach zone network map if VPC is active
+	if zoneNetMgr.IsReady() {
+		resp.ZoneNetworkMap = zoneNetMgr.Map
+	}
+
+	slog.Debug("zonelist update host status",
+		"host_id", req.Host.Id, "status", req.Status)
 
 	// Query app instances associated with this host_id
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")

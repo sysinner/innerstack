@@ -15,6 +15,7 @@
 package zonelet
 
 import (
+	"fmt"
 	"log/slog"
 	"sort"
 
@@ -32,10 +33,99 @@ func schedulerRefresh(forceRefresh bool) error {
 		return nil
 	}
 
+	// Restore zone VPC networking on leader
+	if forceRefresh || status.Zonelet_HostOperateSet.Len() == 0 {
+
+		if err := zoneNetMgr.Restore(config.Config.Zonelet.ZoneName); err != nil {
+			return err
+		}
+
+		var zone inapi.Zone
+		if rs := data.Zonelet.NewReader(
+			inapi.NsZoneletInfo(config.Config.Zonelet.ZoneName)).Exec(); !rs.OK() {
+			return rs.Error()
+		} else if err := rs.Item().JsonDecode(&zone); err != nil {
+			return err
+		} else if zone.VpcBridgeCidr != "" && zone.VpcInstanceCidr != "" {
+			if err := zoneNetMgr.ZoneSetup(config.Config.Zonelet.ZoneName,
+				zone.VpcBridgeCidr, zone.VpcInstanceCidr, zone.VpcNetworkDomain); err != nil {
+				slog.Error("scheduler VPC zone setup failed", "err", err.Error())
+			}
+		}
+
+		if !zoneNetMgr.IsReady() && config.Config.Zonelet.VpcBridgeCidr != "" {
+			if err := zoneNetMgr.ZoneSetup(
+				config.Config.Zonelet.ZoneName,
+				config.Config.Zonelet.VpcBridgeCidr,
+				config.Config.Zonelet.VpcInstanceCidr,
+				config.Config.Zonelet.VpcNetworkDomain); err != nil {
+				slog.Error("scheduler VPC zone setup failed", "err", err.Error())
+			}
+		}
+	}
+
 	var (
+		hosts          = []*inapi.Host{}
 		instances      = []*inapi.AppInstance{}
 		activeInstance *inapi.AppInstance
 	)
+
+	{
+		var (
+			offset = inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
+			rs     = data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+		)
+		if !rs.OK() && !rs.NotFound() {
+			return rs.Error()
+		}
+
+		for _, item := range rs.Items {
+			var host inapi.Host
+			if err := item.JsonDecode(&host); err != nil {
+				continue
+			}
+
+			if host.Deploy == nil {
+				host.Deploy = &inapi.HostDeploy{}
+			}
+			status.Zonelet_HostSet.Store(host.Id, &host)
+			hosts = append(hosts, &host)
+
+			if !zoneNetMgr.IsReady() {
+				continue
+			}
+
+			chg, err := zoneNetMgr.RefreshHostNetwork(config.Config.Zonelet.ZoneName, &host)
+			if err != nil {
+				slog.Warn("scheduler host network refresh fail",
+					"host_id", host.Id,
+					"peer", host.PeerAddr,
+					"bridge-ip", host.Deploy.VpcBridgeIp,
+					"instance_cidr", host.Deploy.VpcInstanceCidr,
+					"err", err.Error())
+				continue
+			}
+			if chg {
+				slog.Warn("scheduler host network refresh",
+					"host_id", host.Id,
+					"peer", host.PeerAddr,
+					"bridge-ip", host.Deploy.VpcBridgeIp,
+					"instance_cidr", host.Deploy.VpcInstanceCidr)
+
+				slog.Warn("scheduler host VPC setup",
+					"host_id", host.Id,
+					"host_peer", host.PeerAddr,
+					"bridge_ip", host.Deploy.VpcBridgeIp,
+					"instance_cidr", host.Deploy.VpcInstanceCidr)
+
+				if rs := data.Zonelet.NewWriter(
+					inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), host).
+					SetPrevVersion(item.Meta.Version).Exec(); !rs.OK() {
+					return rs.Error()
+				}
+			}
+		}
+	}
 
 	{
 		offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
@@ -67,6 +157,44 @@ func schedulerRefresh(forceRefresh bool) error {
 				}
 			}
 			instances = append(instances, &instance)
+
+			if zoneNetMgr.IsReady() &&
+				(forceRefresh || status.Zonelet_HostOperateSet.Len() == 0) {
+
+				for _, rep := range instance.Deploy.Replicas {
+					if rep.HostId == "" {
+						continue
+					}
+
+					if rep.VpcIpv4 != "" {
+						if s := zoneNetMgr.VpcInstance(rep.VpcIpv4); s == "" ||
+							s != fmt.Sprintf("%s-%04x", instance.Id, rep.Id) {
+							rep.VpcIpv4 = ""
+						} else {
+							continue
+						}
+					}
+
+					if hostNet := zoneNetMgr.HostNetwork(rep.HostId); hostNet == nil {
+						continue
+					}
+					rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
+						rep.HostId, instance.Id, rep.Id)
+					if rep.VpcIpv4 == "" {
+						continue
+					}
+					key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
+					if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {
+						slog.Warn("scheduler update instance fail",
+							"instance_id", instance.Id,
+							"err", rs.ErrorMessage())
+					} else {
+						slog.Warn("scheduler alloc instance vpc",
+							"instance_id", instance.Id,
+							"ip", rep.VpcIpv4)
+					}
+				}
+			}
 		}
 	}
 
@@ -80,18 +208,7 @@ func schedulerRefresh(forceRefresh bool) error {
 	)
 
 	{
-		var (
-			offset = inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
-			rs     = data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
-		)
-		if !rs.OK() && !rs.NotFound() {
-			return rs.Error()
-		}
-		for _, item := range rs.Items {
-			var host inapi.Host
-			if err := item.JsonDecode(&host); err != nil {
-				continue
-			}
+		for _, host := range hosts {
 
 			if hostStatus, ok := status.Zonelet_HostStatusSet.Load(host.Id); !ok {
 				continue
@@ -151,11 +268,12 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	for _, host := range schedResources.Hosts {
-		status.Zonelet_HostOperateSet.Store(host.Id, nil, &inapi.HostOperate{
+		hostOp := &inapi.HostOperate{
 			CpuAlloc:     host.CpuAlloc,
 			MemAlloc:     host.MemAlloc,
 			StorageAlloc: host.Volumes[0].Alloc,
-		})
+		}
+		status.Zonelet_HostOperateSet.Store(host.Id, nil, hostOp)
 	}
 
 	if activeInstance == nil {
@@ -211,6 +329,14 @@ func schedulerRefresh(forceRefresh bool) error {
 			}
 
 			rep.HostId = hit.HostId
+
+			// Allocate VPC IP for the instance
+			if zoneNetMgr.IsReady() {
+				if hostNet := zoneNetMgr.HostNetwork(hit.HostId); hostNet != nil {
+					rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
+						hit.HostId, instance.Id, rep.Id)
+				}
+			}
 
 			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
 			if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {

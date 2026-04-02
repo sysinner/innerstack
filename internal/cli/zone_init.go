@@ -43,8 +43,13 @@ func NewZoneInitCommand() *cobra.Command {
 			return err
 		}
 
+		ak, err := zone.AccessKey()
+		if err != nil {
+			return fmt.Errorf("invalid access key: %w", err)
+		}
+
 		// Connect to gRPC server (no auth needed for zone-init)
-		conn, err := client.Connect(zone.Addr, nil, false)
+		conn, err := client.Connect(zone.Addr, ak, false)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server %s: %w", zone.Addr, err)
 		}

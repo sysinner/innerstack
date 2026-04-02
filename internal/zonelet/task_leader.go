@@ -90,6 +90,7 @@ func leaderRefresh() (forceRefresh bool, err error) {
 
 			status.ZoneletLeader = hostId
 			status.ZoneletLeaderVersion = rs.Items[0].Meta.Version
+			forceRefresh = true
 
 			slog.Warn("zonelet leader refresh",
 				"host_id", hostId,
@@ -104,10 +105,12 @@ func leaderRefresh() (forceRefresh bool, err error) {
 			"err", rs.ErrorMessage())
 	}
 
-	if forceRefresh {
-		if err := auth.AuthMgr.RefreshAccessKeysFromDB(); err != nil {
-			slog.Error("zonelet failed to load access keys from db", "error", err)
-		}
+	if !forceRefresh {
+		return false, nil
+	}
+
+	if err := auth.AuthMgr.RefreshAccessKeysFromDB(); err != nil {
+		slog.Error("zonelet failed to load access keys from db", "error", err)
 	}
 
 	return forceRefresh, nil

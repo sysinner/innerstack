@@ -19,8 +19,11 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/sysinner/incore/v2/internal/zonelet/network"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
+
+var zoneNetMgr = network.NewNetworkManager()
 
 func Run() {
 
@@ -39,6 +42,11 @@ func Run() {
 			if forceRefresh, err = leaderRefresh(); err != nil {
 				slog.Error(fmt.Sprintf("zonelet leader refresh, err %s", err.Error()))
 			}
+			// if forceRefresh {
+			// 	if err := auth.AuthMgr.RefreshAccessKeysFromDB(); err != nil {
+			// 		slog.Error(fmt.Sprintf("zonelet auth refresh, err %s", err.Error()))
+			// 	}
+			// }
 			if err = schedulerRefresh(forceRefresh); err != nil {
 				slog.Error(fmt.Sprintf("zonelet scheduler refresh, err %s", err.Error()))
 			}

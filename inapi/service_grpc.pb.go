@@ -35,6 +35,7 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	ZoneService_ZoneInit_FullMethodName          = "/inapi.ZoneService/ZoneInit"
 	ZoneService_ZoneInfo_FullMethodName          = "/inapi.ZoneService/ZoneInfo"
+	ZoneService_ZoneSet_FullMethodName           = "/inapi.ZoneService/ZoneSet"
 	ZoneService_HostJoin_FullMethodName          = "/inapi.ZoneService/HostJoin"
 	ZoneService_HostList_FullMethodName          = "/inapi.ZoneService/HostList"
 	ZoneService_AppInstanceDeploy_FullMethodName = "/inapi.ZoneService/AppInstanceDeploy"
@@ -54,13 +55,18 @@ type ZoneServiceClient interface {
 	ZoneInit(ctx context.Context, in *ZoneInitRequest, opts ...grpc.CallOption) (*ZoneInitResponse, error)
 	// ZoneInfo retrieves information about the current zone.
 	ZoneInfo(ctx context.Context, in *ZoneInfoRequest, opts ...grpc.CallOption) (*ZoneInfoResponse, error)
+	// ZoneSet updates zone network configuration.
+	// All three VPC fields (bridge, instance, domain) must be provided together.
+	ZoneSet(ctx context.Context, in *ZoneSetRequest, opts ...grpc.CallOption) (*ZoneSetResponse, error)
 	// HostJoin registers a new host to join the zone.
 	HostJoin(ctx context.Context, in *HostJoinRequest, opts ...grpc.CallOption) (*HostJoinResponse, error)
 	// HostList retrieves all hosts in the zone.
 	HostList(ctx context.Context, in *HostListRequest, opts ...grpc.CallOption) (*HostListResponse, error)
-	// AppInstanceDeploy deploys a new application instance or updates an existing one.
+	// AppInstanceDeploy deploys a new application instance or updates an
+	// existing one.
 	AppInstanceDeploy(ctx context.Context, in *AppInstanceDeployRequest, opts ...grpc.CallOption) (*AppInstanceDeployResponse, error)
-	// AppInstanceInfo retrieves detailed information about a specific application instance.
+	// AppInstanceInfo retrieves detailed information about a specific
+	// application instance.
 	AppInstanceInfo(ctx context.Context, in *AppInstanceInfoRequest, opts ...grpc.CallOption) (*AppInstanceInfoResponse, error)
 	// AppInstanceList retrieves all application instances in the zone.
 	AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error)
@@ -94,6 +100,15 @@ func (c *zoneServiceClient) ZoneInit(ctx context.Context, in *ZoneInitRequest, o
 func (c *zoneServiceClient) ZoneInfo(ctx context.Context, in *ZoneInfoRequest, opts ...grpc.CallOption) (*ZoneInfoResponse, error) {
 	out := new(ZoneInfoResponse)
 	err := c.cc.Invoke(ctx, ZoneService_ZoneInfo_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) ZoneSet(ctx context.Context, in *ZoneSetRequest, opts ...grpc.CallOption) (*ZoneSetResponse, error) {
+	out := new(ZoneSetResponse)
+	err := c.cc.Invoke(ctx, ZoneService_ZoneSet_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -189,13 +204,18 @@ type ZoneServiceServer interface {
 	ZoneInit(context.Context, *ZoneInitRequest) (*ZoneInitResponse, error)
 	// ZoneInfo retrieves information about the current zone.
 	ZoneInfo(context.Context, *ZoneInfoRequest) (*ZoneInfoResponse, error)
+	// ZoneSet updates zone network configuration.
+	// All three VPC fields (bridge, instance, domain) must be provided together.
+	ZoneSet(context.Context, *ZoneSetRequest) (*ZoneSetResponse, error)
 	// HostJoin registers a new host to join the zone.
 	HostJoin(context.Context, *HostJoinRequest) (*HostJoinResponse, error)
 	// HostList retrieves all hosts in the zone.
 	HostList(context.Context, *HostListRequest) (*HostListResponse, error)
-	// AppInstanceDeploy deploys a new application instance or updates an existing one.
+	// AppInstanceDeploy deploys a new application instance or updates an
+	// existing one.
 	AppInstanceDeploy(context.Context, *AppInstanceDeployRequest) (*AppInstanceDeployResponse, error)
-	// AppInstanceInfo retrieves detailed information about a specific application instance.
+	// AppInstanceInfo retrieves detailed information about a specific
+	// application instance.
 	AppInstanceInfo(context.Context, *AppInstanceInfoRequest) (*AppInstanceInfoResponse, error)
 	// AppInstanceList retrieves all application instances in the zone.
 	AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error)
@@ -219,6 +239,9 @@ func (UnimplementedZoneServiceServer) ZoneInit(context.Context, *ZoneInitRequest
 }
 func (UnimplementedZoneServiceServer) ZoneInfo(context.Context, *ZoneInfoRequest) (*ZoneInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ZoneInfo not implemented")
+}
+func (UnimplementedZoneServiceServer) ZoneSet(context.Context, *ZoneSetRequest) (*ZoneSetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ZoneSet not implemented")
 }
 func (UnimplementedZoneServiceServer) HostJoin(context.Context, *HostJoinRequest) (*HostJoinResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HostJoin not implemented")
@@ -292,6 +315,24 @@ func _ZoneService_ZoneInfo_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ZoneServiceServer).ZoneInfo(ctx, req.(*ZoneInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_ZoneSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ZoneSetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).ZoneSet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_ZoneSet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).ZoneSet(ctx, req.(*ZoneSetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -474,6 +515,10 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ZoneService_ZoneInfo_Handler,
 		},
 		{
+			MethodName: "ZoneSet",
+			Handler:    _ZoneService_ZoneSet_Handler,
+		},
+		{
 			MethodName: "HostJoin",
 			Handler:    _ZoneService_HostJoin_Handler,
 		},
@@ -523,7 +568,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ZoneInternalServiceClient interface {
-	// HostStatusUpdate updates the status of a host and receives updated app instances.
+	// HostStatusUpdate updates the status of a host and receives updated app
+	// instances.
 	HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error)
 	// PackageChunk retrieves a single chunk of a package for download.
 	PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error)
@@ -559,7 +605,8 @@ func (c *zoneInternalServiceClient) PackageChunk(ctx context.Context, in *Packag
 // All implementations must embed UnimplementedZoneInternalServiceServer
 // for forward compatibility
 type ZoneInternalServiceServer interface {
-	// HostStatusUpdate updates the status of a host and receives updated app instances.
+	// HostStatusUpdate updates the status of a host and receives updated app
+	// instances.
 	HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error)
 	// PackageChunk retrieves a single chunk of a package for download.
 	PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error)

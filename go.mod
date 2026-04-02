@@ -11,7 +11,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/google/uuid v1.6.0
-	github.com/hooto/hauth/go v0.1.5
 	github.com/hooto/hauth/go/v2 v2.0.0-20260125120444-4cbf92d8d081
 	github.com/hooto/hflag4g v0.10.1
 	github.com/hooto/hmetrics v0.0.2
@@ -25,6 +24,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/tdewolff/minify/v2 v2.24.10
 	github.com/ulikunitz/xz v0.5.15
+	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/crypto v0.49.0
 	golang.org/x/mod v0.34.0
 	golang.org/x/time v0.15.0
@@ -58,6 +58,7 @@ require (
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
+	github.com/hooto/hauth/go v0.1.5 // indirect
 	github.com/hooto/hlog4g v0.9.5 // indirect
 	github.com/hooto/httpsrv v0.12.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -96,6 +97,7 @@ require (
 	github.com/tdewolff/parse/v2 v2.8.10 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
+	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect

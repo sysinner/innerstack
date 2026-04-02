@@ -17,6 +17,8 @@ var (
 )
 
 var (
+	Zonelet_HostSet sync.Map
+
 	Zonelet_HostStatusSet sync.Map
 
 	Zonelet_HostOperateSet KvSet

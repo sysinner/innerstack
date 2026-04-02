@@ -15,6 +15,7 @@
 package hostlet
 
 import (
+	_ "embed"
 	"log/slog"
 	"path/filepath"
 	"sync"
@@ -25,6 +26,9 @@ import (
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
+
+//go:embed scripts/ininit
+var ininitScript []byte
 
 func TryRun() error {
 	cfgfile := filepath.Join(config.Prefix + "/etc/hostlet_active.json")
@@ -58,6 +62,8 @@ func Run() {
 
 		case <-tr.C:
 			if err := statusRefresh(); err != nil {
+				slog.Error("hostlet", "err", err.Error())
+			} else if err = networkRefresh(); err != nil {
 				slog.Error("hostlet", "err", err.Error())
 			}
 			tr.Reset(3e9)

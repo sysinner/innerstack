@@ -110,7 +110,7 @@ func PrettyBytes(v, base int64) string {
 
 // ParseBytes parses human-readable byte string to int64.
 func ParseBytes(s string) (int64, error) {
-	var value, value2, unitRate float64
+	var value, value2, unitRate float64 = 0, 0, 1
 
 	s = strings.TrimSpace(s)
 

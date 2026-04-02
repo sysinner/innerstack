@@ -25,163 +25,179 @@ import "common.proto";
 // It contains the host's identity, connection information, operational
 // parameters, and current status.
 message Host {
-  // id is the unique identifier of the host.
-  string id = 1;
+    // id is the unique identifier of the host.
+    string id = 1;
 
-  // name is the hostname of the machine.
-  string name = 2;
+    // name is the hostname of the machine.
+    string name = 2;
 
-  // peer_addr is the network address used for peer-to-peer communication.
-  string peer_addr = 3;
+    // peer_addr is the network address used for peer-to-peer communication.
+    string peer_addr = 3;
 
-  // access_key is the exported access key for secure communication.
-  string access_key = 8;
+    // access_key is the exported access key for secure communication.
+    string access_key = 8;
 
-  // operate specifies the operational parameters for the host.
-  HostOperate operate = 10;
+    HostDeploy deploy = 9;
 
-  // status reflects the current observed state of the host.
-  HostStatus status = 30;
+    // operate specifies the operational parameters for the host.
+    HostOperate operate = 10;
+
+    // status reflects the current observed state of the host.
+    HostStatus status = 30;
 }
 
-// HostOperate defines the operational resource allocation parameters for a host.
+message HostDeploy {
+    // vpc_bridge_ip is the host's VPC bridge address (e.g., "192.168.10.3").
+    string vpc_bridge_ip = 10;
+
+    // vpc_instance_cidr is the host's VPC instance subnet (e.g.,
+    // "10.10.3.0/24").
+    string vpc_instance_cidr = 11;
+}
+
+// HostOperate defines the operational resource allocation parameters for a
+// host.
 message HostOperate {
-  // cpu_alloc specifies the allocated CPU resources in millicores.
-  int64 cpu_alloc = 1;
+    // cpu_alloc specifies the allocated CPU resources in millicores.
+    int64 cpu_alloc = 1;
 
-  // mem_alloc specifies the allocated memory in bytes.
-  int64 mem_alloc = 2;
+    // mem_alloc specifies the allocated memory in bytes.
+    int64 mem_alloc = 2;
 
-  // storage_alloc specifies the allocated storage in bytes.
-  int64 storage_alloc = 3;
+    // storage_alloc specifies the allocated storage in bytes.
+    int64 storage_alloc = 3;
 }
 
-// HostPlatform contains information about the host's operating system and hardware.
+// HostPlatform contains information about the host's operating system and
+// hardware.
 message HostPlatform {
-  // os is the operating system name (e.g., "linux", "darwin").
-  string os = 1;
+    // os is the operating system name (e.g., "linux", "darwin").
+    string os = 1;
 
-  // kernel is the kernel version string.
-  string kernel = 2;
+    // kernel is the kernel version string.
+    string kernel = 2;
 
-  // arch is the CPU architecture (e.g., "amd64", "arm64").
-  string arch = 3;
+    // arch is the CPU architecture (e.g., "amd64", "arm64").
+    string arch = 3;
 }
 
 // HostVolume represents a storage volume on the host.
 message HostVolume {
-  // name is the name or mount point of the volume.
-  string name = 1;
+    // name is the name or mount point of the volume.
+    string name = 1;
 
-  // total is the total capacity of the volume in bytes.
-  uint64 total = 2;
+    // total is the total capacity of the volume in bytes.
+    uint64 total = 2;
 
-  // used is the used space on the volume in bytes.
-  uint64 used = 3;
+    // used is the used space on the volume in bytes.
+    uint64 used = 3;
 }
 
 // HostStatus represents the current status and metrics of a host.
 message HostStatus {
-  // host_id is the unique identifier of the host.
-  string host_id = 1;
+    // host_id is the unique identifier of the host.
+    string host_id = 1;
 
-  // Timestamp fields
-  // uptime is the duration in seconds since the host was started.
-  int64 uptime = 5;
-  // updated is the Unix timestamp of the last status update.
-  int64 updated = 6;
+    // Timestamp fields
+    // uptime is the duration in seconds since the host was started.
+    int64 uptime = 5;
+    // updated is the Unix timestamp of the last status update.
+    int64 updated = 6;
 
-  // CPU Info
-  // cpu_model is the CPU model name.
-  string cpu_model = 10;
-  // cpu_cores is the number of CPU cores.
-  int32 cpu_cores = 11;
-  // cpu_sys is the CPU time spent in system mode (in jiffies or milliseconds).
-  int64 cpu_sys = 12;
-  // cpu_user is the CPU time spent in user mode (in jiffies or milliseconds).
-  int64 cpu_user = 13;
+    // CPU Info
+    // cpu_model is the CPU model name.
+    string cpu_model = 10;
+    // cpu_cores is the number of CPU cores.
+    int32 cpu_cores = 11;
+    // cpu_sys is the CPU time spent in system mode (in jiffies or
+    // milliseconds).
+    int64 cpu_sys = 12;
+    // cpu_user is the CPU time spent in user mode (in jiffies or milliseconds).
+    int64 cpu_user = 13;
 
-  // Memory Info
-  // mem_total is the total memory in bytes.
-  int64 mem_total = 20;
-  // mem_used is the used memory in bytes.
-  int64 mem_used = 21;
-  // mem_available is the available memory in bytes.
-  int64 mem_available = 22;
+    // Memory Info
+    // mem_total is the total memory in bytes.
+    int64 mem_total = 20;
+    // mem_used is the used memory in bytes.
+    int64 mem_used = 21;
+    // mem_available is the available memory in bytes.
+    int64 mem_available = 22;
 
-  // Network Info
-  // lan_addr is the LAN (local area network) IP address.
-  string lan_addr = 30;
-  // wan_addr is the WAN (wide area network) IP address.
-  string wan_addr = 31;
+    // Network Info
+    // lan_addr is the LAN (local area network) IP address.
+    string lan_addr = 30;
+    // wan_addr is the WAN (wide area network) IP address.
+    string wan_addr = 31;
 
-  // Network IO
-  // net_recv_bytes is the total bytes received over the network.
-  int64 net_recv_bytes = 40;
-  // net_recv_count is the total number of packets received.
-  int64 net_recv_count = 41;
-  // net_sent_bytes is the total bytes sent over the network.
-  int64 net_sent_bytes = 42;
-  // net_sent_count is the total number of packets sent.
-  int64 net_sent_count = 43;
+    // Network IO
+    // net_recv_bytes is the total bytes received over the network.
+    int64 net_recv_bytes = 40;
+    // net_recv_count is the total number of packets received.
+    int64 net_recv_count = 41;
+    // net_sent_bytes is the total bytes sent over the network.
+    int64 net_sent_bytes = 42;
+    // net_sent_count is the total number of packets sent.
+    int64 net_sent_count = 43;
 
-  // Storage IO
-  // disk_read_bytes is the total bytes read from disk.
-  int64 disk_read_bytes = 50;
-  // disk_read_count is the total number of disk read operations.
-  int64 disk_read_count = 51;
-  // disk_write_bytes is the total bytes written to disk.
-  int64 disk_write_bytes = 52;
-  // disk_write_count is the total number of disk write operations.
-  int64 disk_write_count = 53;
+    // Storage IO
+    // disk_read_bytes is the total bytes read from disk.
+    int64 disk_read_bytes = 50;
+    // disk_read_count is the total number of disk read operations.
+    int64 disk_read_count = 51;
+    // disk_write_bytes is the total bytes written to disk.
+    int64 disk_write_bytes = 52;
+    // disk_write_count is the total number of disk write operations.
+    int64 disk_write_count = 53;
 
-  // Storage Usage
-  // disk_total_bytes is the total disk capacity in bytes.
-  int64 disk_total_bytes = 54;
-  // disk_free_bytes is the free disk space in bytes.
-  int64 disk_free_bytes = 55;
+    // Storage Usage
+    // disk_total_bytes is the total disk capacity in bytes.
+    int64 disk_total_bytes = 54;
+    // disk_free_bytes is the free disk space in bytes.
+    int64 disk_free_bytes = 55;
 
-  // Container Server Info
-  // containers maps driver names to their container service status.
-  // Supports multiple drivers: docker, containerd, etc.
-  map<string, HostStatus_Container> containers = 60;
+    // Container Server Info
+    // containers maps driver names to their container service status.
+    // Supports multiple drivers: docker, containerd, etc.
+    map<string, HostStatus_Container> containers = 60;
 }
 
 // HostStatus_Container represents the status of a container runtime service.
 message HostStatus_Container {
-  // driver is the container driver name (e.g., "docker", "containerd").
-  string driver = 1;
+    // driver is the container driver name (e.g., "docker", "containerd").
+    string driver = 1;
 
-  // version is the driver version string.
-  string version = 2;
+    // version is the driver version string.
+    string version = 2;
 
-  // api_version is the API version of the container runtime.
-  string api_version = 3;
+    // api_version is the API version of the container runtime.
+    string api_version = 3;
 
-  // container_num is the number of running containers.
-  int32 container_num = 4;
+    // container_num is the number of running containers.
+    int32 container_num = 4;
 
-  // image_num is the number of available images.
-  int32 image_num = 5;
+    // image_num is the number of available images.
+    int32 image_num = 5;
 }
 
-// HostService_Zone represents zone information from the host service perspective.
+// HostService_Zone represents zone information from the host service
+// perspective.
 message HostService_Zone {
-  // meta contains common metadata for the zone.
-  inapi.Common_Meta meta = 2;
+    // meta contains common metadata for the zone.
+    inapi.Common_Meta meta = 2;
 
-  // action specifies the current action on the zone.
-  string action = 3;
+    // action specifies the current action on the zone.
+    string action = 3;
 
-  // description provides a human-readable description of the zone.
-  string description = 4;
+    // description provides a human-readable description of the zone.
+    string description = 4;
 }
 
 // HostService_ZoneListRequest is the request message for listing zones.
 message HostService_ZoneListRequest {}
 
-// HostService_ZoneListResponse is the response message containing the list of zones.
+// HostService_ZoneListResponse is the response message containing the list of
+// zones.
 message HostService_ZoneListResponse {
-  // zones is the list of zones available to the host.
-  repeated HostService_Zone zones = 9;
+    // zones is the list of zones available to the host.
+    repeated HostService_Zone zones = 9;
 }

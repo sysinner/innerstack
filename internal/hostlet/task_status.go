@@ -16,6 +16,7 @@ package hostlet
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"runtime"
@@ -120,7 +121,7 @@ func statusRefresh() error {
 	}
 
 	// Disk I/O
-	devs, _ := ps_disk.Partitions(false)
+	devs, _ := ps_disk.Partitions(true)
 	if devName, mntPoint := diskDevName(devs, config.Config.Hostlet.PodPath); devName != "" {
 		if diom, err := ps_disk.IOCounters(devName); err == nil {
 			if dio, ok := diom[devName]; ok {
@@ -195,7 +196,10 @@ func statusRefresh() error {
 
 	zc := inapi.NewZoneInternalServiceClient(conn)
 	resp, err := zc.HostStatusUpdate(ctx, &inapi.HostStatusUpdateRequest{
-		Host:   &inapi.Host{Id: config.Config.Hostlet.HostId},
+		Host: &inapi.Host{
+			Id:       config.Config.Hostlet.HostId,
+			PeerAddr: fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
+		},
 		Status: hs,
 	})
 	if err != nil {
@@ -206,6 +210,27 @@ func statusRefresh() error {
 	for _, app := range resp.AppInstances {
 		hoststatus.ActiveAppList.Store(app.Id, app)
 	}
+
+	cfgFlush := false
+
+	// Extract VPC configuration from zone leader response
+	if resp.VpcBridgeIp != "" && resp.VpcBridgeIp != config.Config.Hostlet.VpcBridgeIP {
+		config.Config.Hostlet.VpcBridgeIP = resp.VpcBridgeIp
+		cfgFlush = true
+	}
+	if resp.VpcInstanceCidr != "" && resp.VpcInstanceCidr != config.Config.Hostlet.VpcInstanceCIDR {
+		config.Config.Hostlet.VpcInstanceCIDR = resp.VpcInstanceCidr
+		cfgFlush = true
+	}
+
+	if resp.ZoneNetworkMap != nil {
+		zoneNetworkMap = *resp.ZoneNetworkMap
+	}
+
+	if cfgFlush {
+		config.Flush()
+	}
+
 	hoststatus.HostReady.Store(true)
 
 	return nil
