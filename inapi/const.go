@@ -138,6 +138,21 @@ const (
 	PackageFileStateFailed    = "failed"    // upload failed
 )
 
+const (
+	Zonelet_MaxHosts     = 252
+	Zonelet_MaxInstances = 252 * 252
+)
+
+// Host port allocation range constants.
+// Ports in [HostPortMin, HostPortMax] are auto-allocated for container
+// host port mapping when a replica binds to a host.
+const (
+	HostPortMin   uint32 = 20000 // start of host port allocation range
+	HostPortMax   uint32 = 30000 // end of host port allocation range (inclusive)
+	HostPortRange        = HostPortMax - HostPortMin + 1
+	HostPortLimit        = int(HostPortRange) // max number of allocatable ports
+)
+
 // VPC IP allocation range constants.
 // Octet values in [VpcAllocMin, VpcAllocMax] are allocatable; values
 // outside this range are reserved for system use (network, gateway,

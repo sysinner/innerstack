@@ -329,7 +329,7 @@ func containerControlRefresh() error {
 			// Execute state transition command
 			nextState, err := cmd.Command(repInstance)
 			if err != nil {
-				slog.Warn("app operate command failed",
+				slog.Warn("app deploy command failed",
 					"app", app.Id,
 					"replica", rep.Id,
 					"state", currentState,
@@ -337,7 +337,7 @@ func containerControlRefresh() error {
 					"next_state", nextState,
 					"error", err)
 			} else {
-				slog.Info("app operate command succeeded",
+				slog.Info("app deploy command succeeded",
 					"app", app.Id,
 					"replica", rep.Id,
 					"state", currentState,
@@ -442,19 +442,23 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 		return true
 	}
 
-	// Check 4: ServicePorts must match (all desired ports should be bound)
-	if len(rep.App.Spec.ServicePorts) != len(info.Ports) {
-		return true
-	}
-	for _, sp := range rep.App.Spec.ServicePorts {
-		if sp == nil || sp.Port < 1 || sp.Port >= 65536 {
-			continue
-		}
-		if _, bound := info.Ports[int32(sp.Port)]; !bound {
-			slog.Info("container spec reset: service port not bound",
-				"desired_port", sp.Port,
-				"bound_ports", info.Ports)
-			return true
+	// Check 4: ServicePorts must match (using allocated host ports)
+	if len(rep.Replica.ServicePorts) > 0 {
+		for _, sp := range rep.Replica.ServicePorts {
+			if sp == nil || sp.BoxPort < 1 || sp.HostPort < 1 {
+				continue
+			}
+			if binding, bound := info.Ports[int32(sp.BoxPort)]; !bound {
+				slog.Info("container spec reset: service port not bound",
+					"desired_port", sp.BoxPort,
+					"bound_ports", info.Ports)
+				return true
+			} else if binding.HostPort != int32(sp.HostPort) {
+				slog.Info("container spec reset: host port mismatch",
+					"desired_host_port", sp.HostPort,
+					"current_host_port", binding.HostPort)
+				return true
+			}
 		}
 	}
 
@@ -692,14 +696,27 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 		opts.VpcSubnet += "/24"
 	}
 
-	// Setup port bindings for all service ports
-	for _, sp := range rep.App.Spec.ServicePorts {
-		if sp != nil && sp.Port > 0 && sp.Port < 65536 {
+	// Setup port bindings using allocated host ports from scheduler
+	for _, sp := range rep.Replica.ServicePorts {
+		if sp != nil && sp.BoxPort > 0 && sp.HostPort > 0 {
 			opts.Ports = append(opts.Ports, hostapi.PortBinding{
-				ContainerPort: int32(sp.Port),
-				HostPort:      int32(sp.Port),
+				ContainerPort: int32(sp.BoxPort),
+				HostPort:      int32(sp.HostPort),
 				Protocol:      "tcp",
 			})
+		}
+	}
+
+	// Fallback: bind service ports without host port allocation (1:1 mapping)
+	if len(opts.Ports) == 0 {
+		for _, sp := range rep.App.Spec.ServicePorts {
+			if sp != nil && sp.Port > 0 && sp.Port < 65536 {
+				opts.Ports = append(opts.Ports, hostapi.PortBinding{
+					ContainerPort: int32(sp.Port),
+					HostPort:      int32(sp.Port),
+					Protocol:      "tcp",
+				})
+			}
 		}
 	}
 

@@ -243,6 +243,11 @@ message AppDeployReplica {
 
   // vpc_ipv4 is the VPC IPv4 address assigned to this replica by IPAM.
   string vpc_ipv4 = 4;
+
+  // service_ports is the list of port mappings allocated for this replica.
+  // Each entry maps a container port (box_port) to a host physical port
+  // (host_port), assigned by the scheduler when the replica binds to a host.
+  repeated ServicePort service_ports = 5;
 }
 
 // AppStatus represents the current observed status of an application.

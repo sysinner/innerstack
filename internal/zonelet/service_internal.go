@@ -68,8 +68,8 @@ func (s *zoneInternalServer) HostStatusUpdate(
 	status.Zonelet_HostStatusSet.Store(req.Host.Id, req.Status)
 
 	// Populate VPC config in response from host operate data
-	if val, ok := status.Zonelet_HostSet.Load(req.Host.Id); ok {
-		host := val.(*inapi.Host)
+	if val := gHostSet.Load(req.Host.Id); val != nil {
+		host := val.Value.(*inapi.Host)
 		if host.Deploy != nil {
 			resp.VpcBridgeIp = host.Deploy.VpcBridgeIp
 			resp.VpcInstanceCidr = host.Deploy.VpcInstanceCidr

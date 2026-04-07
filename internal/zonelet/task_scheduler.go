@@ -17,14 +17,24 @@ package zonelet
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
+	"time"
 
 	"github.com/sysinner/incore/v2/inapi"
 	typeScheduler "github.com/sysinner/incore/v2/inapi/scheduler"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/internal/zonelet/network"
 	"github.com/sysinner/incore/v2/internal/zonelet/scheduler"
+)
+
+var (
+	lastRefreshed int64 = 0
+	forceFreshTTL int64 = 1800
+
+	nextScheduleTasks int = 0
 )
 
 func schedulerRefresh(forceRefresh bool) error {
@@ -33,8 +43,18 @@ func schedulerRefresh(forceRefresh bool) error {
 		return nil
 	}
 
+	tn := time.Now().Unix()
+
+	if !forceRefresh &&
+		(lastRefreshed+forceFreshTTL < tn || gHostOperateSet.Len() == 0 ||
+			status.Zonelet_ForceRefresh.Load()) {
+		forceRefresh = true
+		lastRefreshed = tn
+		status.Zonelet_ForceRefresh.Store(false)
+	}
+
 	// Restore zone VPC networking on leader
-	if forceRefresh || status.Zonelet_HostOperateSet.Len() == 0 {
+	if forceRefresh {
 
 		if err := zoneNetMgr.Restore(config.Config.Zonelet.ZoneName); err != nil {
 			return err
@@ -65,15 +85,19 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	var (
-		hosts          = []*inapi.Host{}
-		instances      = []*inapi.AppInstance{}
+		hostPortMap = map[string][]uint32{}
+
+		instanceMap     = map[string]*inapi.AppInstance{}
+		instanceVersMap = map[string]uint64{}
+
 		activeInstance *inapi.AppInstance
 	)
 
 	{
 		var (
 			offset = inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
-			rs     = data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+			rs     = data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+				SetLimit(inapi.Zonelet_MaxHosts).Exec()
 		)
 		if !rs.OK() && !rs.NotFound() {
 			return rs.Error()
@@ -88,8 +112,8 @@ func schedulerRefresh(forceRefresh bool) error {
 			if host.Deploy == nil {
 				host.Deploy = &inapi.HostDeploy{}
 			}
-			status.Zonelet_HostSet.Store(host.Id, &host)
-			hosts = append(hosts, &host)
+
+			gHostSet.Store(host.Id, item.Meta, &host)
 
 			if !zoneNetMgr.IsReady() {
 				continue
@@ -104,32 +128,28 @@ func schedulerRefresh(forceRefresh bool) error {
 					"instance_cidr", host.Deploy.VpcInstanceCidr,
 					"err", err.Error())
 				continue
+			} else if !chg {
+				continue
 			}
-			if chg {
-				slog.Warn("scheduler host network refresh",
-					"host_id", host.Id,
-					"peer", host.PeerAddr,
-					"bridge-ip", host.Deploy.VpcBridgeIp,
-					"instance_cidr", host.Deploy.VpcInstanceCidr)
 
-				slog.Warn("scheduler host VPC setup",
-					"host_id", host.Id,
-					"host_peer", host.PeerAddr,
-					"bridge_ip", host.Deploy.VpcBridgeIp,
-					"instance_cidr", host.Deploy.VpcInstanceCidr)
+			slog.Warn("scheduler host VPC setup",
+				"host_id", host.Id,
+				"host_peer", host.PeerAddr,
+				"bridge_ip", host.Deploy.VpcBridgeIp,
+				"instance_cidr", host.Deploy.VpcInstanceCidr)
 
-				if rs := data.Zonelet.NewWriter(
-					inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), host).
-					SetPrevVersion(item.Meta.Version).Exec(); !rs.OK() {
-					return rs.Error()
-				}
+			if rs := data.Zonelet.NewWriter(
+				inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), host).
+				SetPrevVersion(item.Meta.Version).Exec(); !rs.OK() {
+				return rs.Error()
 			}
 		}
 	}
 
 	{
 		offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+			SetLimit(inapi.Zonelet_MaxInstances).Exec()
 		if !rs.OK() && !rs.NotFound() {
 			return rs.Error()
 		}
@@ -138,12 +158,14 @@ func schedulerRefresh(forceRefresh bool) error {
 			if err := item.JsonDecode(&instance); err != nil {
 				continue
 			}
+
 			if instance.Deploy == nil || instance.Spec == nil ||
 				instance.Spec.Resources == nil {
 				slog.Warn("scheduler skip instance with invalid operate or spec",
 					"instance_id", instance.Id)
 				continue
 			}
+
 			if activeInstance == nil {
 				if len(instance.Deploy.Replicas) < int(instance.Deploy.ReplicaCap) {
 					activeInstance = &instance
@@ -156,49 +178,203 @@ func schedulerRefresh(forceRefresh bool) error {
 					}
 				}
 			}
-			instances = append(instances, &instance)
+			instanceMap[instance.Id] = &instance
+			instanceVersMap[instance.Id] = item.Meta.Version
 
-			if zoneNetMgr.IsReady() &&
-				(forceRefresh || status.Zonelet_HostOperateSet.Len() == 0) {
-
-				for _, rep := range instance.Deploy.Replicas {
-					if rep.HostId == "" {
-						continue
-					}
-
-					if rep.VpcIpv4 != "" {
-						if s := zoneNetMgr.VpcInstance(rep.VpcIpv4); s == "" ||
-							s != fmt.Sprintf("%s-%04x", instance.Id, rep.Id) {
-							rep.VpcIpv4 = ""
-						} else {
-							continue
-						}
-					}
-
-					if hostNet := zoneNetMgr.HostNetwork(rep.HostId); hostNet == nil {
-						continue
-					}
-					rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
-						rep.HostId, instance.Id, rep.Id)
-					if rep.VpcIpv4 == "" {
-						continue
-					}
-					key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
-					if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {
-						slog.Warn("scheduler update instance fail",
-							"instance_id", instance.Id,
-							"err", rs.ErrorMessage())
-					} else {
-						slog.Warn("scheduler alloc instance vpc",
-							"instance_id", instance.Id,
-							"ip", rep.VpcIpv4)
+			for _, rep := range instance.Deploy.Replicas {
+				if rep.HostId == "" {
+					continue
+				}
+				if _, ok := hostPortMap[rep.HostId]; !ok {
+					hostPortMap[rep.HostId] = []uint32{}
+				}
+				for _, sp := range rep.ServicePorts {
+					if sp.HostPort > 0 &&
+						!slices.Contains(hostPortMap[rep.HostId], sp.HostPort) {
+						hostPortMap[rep.HostId] = append(hostPortMap[rep.HostId], sp.HostPort)
 					}
 				}
 			}
 		}
 	}
 
-	if activeInstance == nil && status.Zonelet_HostOperateSet.Len() > 0 {
+	{
+		for hostId, ports := range hostPortMap {
+
+			item := gHostSet.Load(hostId)
+			if item == nil {
+				continue
+			}
+			host := item.Value.(*inapi.Host)
+
+			if host.Deploy == nil {
+				host.Deploy = &inapi.HostDeploy{}
+			}
+
+			slices.Sort(host.Deploy.PortUsed)
+			slices.Sort(ports)
+			if slices.Compare(host.Deploy.PortUsed, ports) == 0 {
+				continue
+			}
+
+			host.Deploy.PortUsed = ports
+			hostKey := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id)
+			if rs := data.Zonelet.NewWriter(hostKey, host).SetPrevVersion(
+				item.Meta.Version).Exec(); !rs.OK() {
+				slog.Warn("scheduler update host port_used fail",
+					"host_id", host.Id,
+					"err", rs.ErrorMessage())
+				return rs.Error()
+			} else {
+				slog.Warn("scheduler update host port_used",
+					"host_id", host.Id,
+					"ports", ports)
+				item.Meta.Version = rs.Item().Meta.Version
+			}
+		}
+	}
+
+	for _, instance := range instanceMap {
+
+		ports := map[uint32]*inapi.AppServicePort{}
+		for _, sp := range instance.Spec.ServicePorts {
+			if sp == nil || sp.Port < 1 || sp.Port >= 65536 {
+				continue
+			}
+			ports[sp.Port] = sp
+		}
+
+		for _, rep := range instance.Deploy.Replicas {
+			if rep.HostId == "" {
+				continue
+			}
+			kvHost := gHostSet.Load(rep.HostId)
+			if kvHost == nil {
+				continue
+			}
+			host := kvHost.Value.(*inapi.Host)
+
+			flush := false
+			setPorts := make([]*inapi.ServicePort, 0, len(ports))
+			for _, sp := range rep.ServicePorts {
+				if _, ok := ports[sp.BoxPort]; ok && sp.HostPort > 0 &&
+					!slices.ContainsFunc(setPorts, func(p *inapi.ServicePort) bool {
+						return p.BoxPort == sp.BoxPort
+					}) {
+					setPorts = append(setPorts, sp)
+				}
+			}
+
+			if len(setPorts) == len(ports) {
+				continue
+			}
+
+			for _, sp := range ports {
+
+				if slices.ContainsFunc(setPorts, func(p *inapi.ServicePort) bool {
+					return p.BoxPort == sp.Port
+				}) {
+					continue
+				}
+
+				hp := network.HostPortAlloc(host.Deploy.PortUsed, 0)
+				if hp == 0 {
+					slog.Warn("scheduler port alloc failed",
+						"host_id", rep.HostId,
+						"box_port", sp.Port)
+					continue
+				}
+				slog.Warn("scheduler port alloc",
+					"host_id", rep.HostId,
+					"box_port", sp.Port,
+					"host_port", hp)
+
+				host.Deploy.PortUsed = append(host.Deploy.PortUsed, hp)
+				slices.Sort(host.Deploy.PortUsed)
+				setPorts = append(setPorts, &inapi.ServicePort{
+					Name:     sp.Name,
+					BoxPort:  sp.Port,
+					HostPort: hp,
+				})
+				flush = true
+			}
+
+			if !flush {
+				continue
+			}
+
+			rep.ServicePorts = setPorts
+
+			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
+			if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
+				instanceVersMap[instance.Id]).Exec(); !rs.OK() {
+				slog.Warn("scheduler update instance fail",
+					"instance_id", instance.Id,
+					"err", rs.ErrorMessage())
+				return rs.Error()
+			} else {
+				slog.Warn("scheduler alloc instance vpc",
+					"instance_id", instance.Id,
+					"rep_id", rep.Id,
+					"ports", setPorts)
+				instanceVersMap[instance.Id] = rs.Item().Meta.Version
+			}
+
+			// Persist host with updated port_used
+			hostKey := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id)
+			if rs := data.Zonelet.NewWriter(hostKey, host).SetPrevVersion(
+				kvHost.Meta.Version).Exec(); !rs.OK() {
+				slog.Warn("scheduler update host port_used fail",
+					"host_id", host.Id,
+					"err", rs.ErrorMessage())
+				return rs.Error()
+			} else {
+				kvHost.Meta = rs.Item().Meta
+			}
+		}
+
+		if zoneNetMgr.IsReady() {
+
+			for _, rep := range instance.Deploy.Replicas {
+				if rep.HostId == "" {
+					continue
+				}
+
+				if rep.VpcIpv4 != "" {
+					if s := zoneNetMgr.VpcInstance(rep.VpcIpv4); s == "" ||
+						s != fmt.Sprintf("%s-%04x", instance.Id, rep.Id) {
+						rep.VpcIpv4 = ""
+					} else {
+						continue
+					}
+				}
+
+				if hostNet := zoneNetMgr.HostNetwork(rep.HostId); hostNet == nil {
+					continue
+				}
+				rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
+					rep.HostId, instance.Id, rep.Id)
+				if rep.VpcIpv4 == "" {
+					continue
+				}
+				key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
+				if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
+					instanceVersMap[instance.Id]).Exec(); !rs.OK() {
+					slog.Warn("scheduler update instance fail",
+						"instance_id", instance.Id,
+						"err", rs.ErrorMessage())
+					return rs.Error()
+				} else {
+					slog.Warn("scheduler alloc instance vpc",
+						"instance_id", instance.Id,
+						"ip", rep.VpcIpv4)
+					instanceVersMap[instance.Id] = rs.Item().Meta.Version
+				}
+			}
+		}
+	}
+
+	if activeInstance == nil && gHostOperateSet.Len() > 0 {
 		return nil
 	}
 
@@ -207,46 +383,47 @@ func schedulerRefresh(forceRefresh bool) error {
 		schedHosts     = map[string]*typeScheduler.ScheduleHostItem{}
 	)
 
-	{
-		for _, host := range hosts {
+	gHostSet.Iter(func(kvHost *inapi.KvEntry) bool {
 
-			if hostStatus, ok := status.Zonelet_HostStatusSet.Load(host.Id); !ok {
-				continue
-			} else {
-				host.Status = hostStatus.(*inapi.HostStatus)
-			}
-
-			if host.Status.CpuCores <= 0 ||
-				host.Status.MemTotal <= 0 ||
-				host.Status.DiskTotalBytes <= 0 {
-				continue
-			}
-
-			host.Operate = &inapi.HostOperate{}
-
-			schedHostItem := &typeScheduler.ScheduleHostItem{
-				Id:       host.Id,
-				OpAction: []string{inapi.HostSetupStart},
-
-				CpuTotal: int64(host.Status.CpuCores) * 1000,
-				CpuUsed:  host.Status.CpuSys + host.Status.CpuUser,
-
-				MemTotal: host.Status.MemTotal,
-				MemUsed:  host.Status.MemUsed,
-
-				Volumes: []*typeScheduler.ScheduleHostVolume{
-					{
-						Name:  "default",
-						Total: host.Status.DiskTotalBytes,
-						Used:  host.Status.DiskTotalBytes - host.Status.DiskFreeBytes,
-					},
-				},
-			}
-
-			schedHosts[host.Id] = schedHostItem
-			schedResources.Hosts = append(schedResources.Hosts, schedHostItem)
+		host := kvHost.Value.(*inapi.Host)
+		if hostStatus, ok := status.Zonelet_HostStatusSet.Load(host.Id); !ok {
+			return true
+		} else {
+			host.Status = hostStatus.(*inapi.HostStatus)
 		}
-	}
+
+		if host.Status.CpuCores <= 0 ||
+			host.Status.MemTotal <= 0 ||
+			host.Status.DiskTotalBytes <= 0 {
+			return true
+		}
+
+		host.Operate = &inapi.HostOperate{}
+
+		schedHostItem := &typeScheduler.ScheduleHostItem{
+			Id:       host.Id,
+			OpAction: []string{inapi.HostSetupStart},
+
+			CpuTotal: int64(host.Status.CpuCores) * 1000,
+			CpuUsed:  host.Status.CpuSys + host.Status.CpuUser,
+
+			MemTotal: host.Status.MemTotal,
+			MemUsed:  host.Status.MemUsed,
+
+			Volumes: []*typeScheduler.ScheduleHostVolume{
+				{
+					Name:  "default",
+					Total: host.Status.DiskTotalBytes,
+					Used:  host.Status.DiskTotalBytes - host.Status.DiskFreeBytes,
+				},
+			},
+		}
+
+		schedHosts[host.Id] = schedHostItem
+		schedResources.Hosts = append(schedResources.Hosts, schedHostItem)
+
+		return true
+	})
 
 	if len(schedHosts) == 0 {
 		slog.Warn("scheduler no available hosts")
@@ -254,7 +431,7 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	// Calculate already allocated resources from existing replicas
-	for _, instance := range instances {
+	for _, instance := range instanceMap {
 		for _, rep := range instance.Deploy.Replicas {
 			if rep.HostId == "" {
 				continue
@@ -273,7 +450,7 @@ func schedulerRefresh(forceRefresh bool) error {
 			MemAlloc:     host.MemAlloc,
 			StorageAlloc: host.Volumes[0].Alloc,
 		}
-		status.Zonelet_HostOperateSet.Store(host.Id, nil, hostOp)
+		gHostOperateSet.Store(host.Id, nil, hostOp)
 	}
 
 	if activeInstance == nil {
@@ -328,6 +505,12 @@ func schedulerRefresh(forceRefresh bool) error {
 				break
 			}
 
+			kvHost := gHostSet.Load(hit.HostId)
+			if kvHost == nil {
+				break
+			}
+			host := kvHost.Value.(*inapi.Host)
+
 			rep.HostId = hit.HostId
 
 			// Allocate VPC IP for the instance
@@ -338,30 +521,67 @@ func schedulerRefresh(forceRefresh bool) error {
 				}
 			}
 
+			rep.ServicePorts = []*inapi.ServicePort{}
+
+			for _, sp := range instance.Spec.ServicePorts {
+				if sp == nil || sp.Port < 1 || sp.Port >= 65536 {
+					continue
+				}
+
+				hp := network.HostPortAlloc(host.Deploy.PortUsed, 0)
+				if hp == 0 {
+					slog.Warn("scheduler port alloc failed",
+						"host_id", hit.HostId,
+						"box_port", sp.Port)
+					continue
+				}
+				host.Deploy.PortUsed = append(host.Deploy.PortUsed, hp)
+				slices.Sort(host.Deploy.PortUsed)
+				rep.ServicePorts = append(rep.ServicePorts, &inapi.ServicePort{
+					Name:     sp.Name,
+					BoxPort:  sp.Port,
+					HostPort: hp,
+				})
+			}
+
 			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
-			if rs := data.Zonelet.NewWriter(key, instance).Exec(); !rs.OK() {
+			if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
+				instanceVersMap[instance.Id]).Exec(); !rs.OK() {
 				slog.Warn("scheduler update instance fail",
 					"instance_id", instance.Id,
 					"err", rs.ErrorMessage())
+				return rs.Error()
+			}
+
+			slog.Info("scheduler assigned host",
+				"instance_id", instance.Id,
+				"instance_name", instance.Name,
+				"replica_id", rep.Id,
+				"host_id", hit.HostId)
+
+			if host, ok := schedHosts[hit.HostId]; ok {
+				host.CpuAlloc += instance.Deploy.CpuLimit
+				host.MemAlloc += instance.Deploy.MemoryLimit
+				host.Volumes[0].Alloc += instance.Deploy.VolumeLimit
+			}
+
+			if val := gHostOperateSet.Load(hit.HostId); val != nil {
+				op := val.Value.(*inapi.HostOperate)
+				op.CpuAlloc += instance.Deploy.CpuLimit
+				op.MemAlloc += instance.Deploy.MemoryLimit
+				op.StorageAlloc += instance.Deploy.VolumeLimit
+			}
+
+			// Persist host with updated port_used
+			hostKey := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id)
+			if rs := data.Zonelet.NewWriter(hostKey, host).SetPrevVersion(
+				kvHost.Meta.Version).Exec(); !rs.OK() {
+				slog.Warn("scheduler update host port_used fail",
+					"host_id", host.Id,
+					"err", rs.ErrorMessage())
+				return rs.Error()
 			} else {
-				slog.Info("scheduler assigned host",
-					"instance_id", instance.Id,
-					"instance_name", instance.Name,
-					"replica_id", rep.Id,
-					"host_id", hit.HostId)
-
-				if host, ok := schedHosts[hit.HostId]; ok {
-					host.CpuAlloc += instance.Deploy.CpuLimit
-					host.MemAlloc += instance.Deploy.MemoryLimit
-					host.Volumes[0].Alloc += instance.Deploy.VolumeLimit
-				}
-
-				if val, ok := status.Zonelet_HostOperateSet.Load(hit.HostId); ok {
-					op := val.Value.(*inapi.HostOperate)
-					op.CpuAlloc += instance.Deploy.CpuLimit
-					op.MemAlloc += instance.Deploy.MemoryLimit
-					op.StorageAlloc += instance.Deploy.VolumeLimit
-				}
+				kvHost.Meta = rs.Item().Meta
 			}
 
 			break

@@ -19,11 +19,17 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/zonelet/network"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
 
-var zoneNetMgr = network.NewNetworkManager()
+var (
+	zoneNetMgr = network.NewNetworkManager()
+
+	gHostSet        inapi.KvSet
+	gHostOperateSet inapi.KvSet
+)
 
 func Run() {
 

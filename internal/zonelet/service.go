@@ -115,6 +115,8 @@ func (s *zoneServer) ZoneInit(
 		)
 	}
 
+	status.Zonelet_ForceRefresh.Store(true)
+
 	return &inapi.ZoneInitResponse{}, nil
 }
 
@@ -228,6 +230,8 @@ func (s *zoneServer) ZoneSet(
 		"vpc_network_domain", zone.VpcNetworkDomain,
 	)
 
+	status.Zonelet_ForceRefresh.Store(true)
+
 	return &inapi.ZoneSetResponse{
 		Zone: &zone,
 	}, nil
@@ -300,6 +304,8 @@ func (s *zoneServer) HostJoin(
 		"host_id", resp.HostId,
 	)
 
+	status.Zonelet_ForceRefresh.Store(true)
+
 	return &inapi.HostJoinResponse{
 		Status: resp.Status,
 	}, nil
@@ -329,7 +335,7 @@ func (s *zoneServer) HostList(
 			if val, ok := status.Zonelet_HostStatusSet.Load(host.Id); ok {
 				host.Status = val.(*inapi.HostStatus)
 			}
-			if val, ok := status.Zonelet_HostOperateSet.Load(host.Id); ok {
+			if val := gHostOperateSet.Load(host.Id); val != nil {
 				host.Operate = val.Value.(*inapi.HostOperate)
 			}
 			resp.Hosts = append(resp.Hosts, &host)
@@ -512,6 +518,8 @@ func (s *zoneServer) AppInstanceDeploy(
 		)
 	}
 
+	status.Zonelet_ForceRefresh.Store(true)
+
 	return &inapi.AppInstanceDeployResponse{
 		Id: instance.Id,
 	}, nil
@@ -605,6 +613,8 @@ func (s *zoneServer) AppInstanceDelete(
 	slog.Warn("zonelet app-instance-delete",
 		"instance_id", req.Id,
 	)
+
+	status.Zonelet_ForceRefresh.Store(true)
 
 	return &inapi.AppInstanceDeleteResponse{}, nil
 }
