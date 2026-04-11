@@ -100,6 +100,14 @@ func main() {
 	rootCmd.AddCommand(cli.NewAppDeployCommand())
 	rootCmd.AddCommand(cli.NewAppDeleteCommand())
 
+	// Register gateway ingress management commands
+	// - gw-ingress-list: List all gateway ingress rules
+	// - gw-ingress-info: Display detailed information about a specific ingress
+	// - gw-ingress-set: Create or update a gateway ingress rule
+	rootCmd.AddCommand(cli.NewGatewayIngressListCommand())
+	rootCmd.AddCommand(cli.NewGatewayIngressInfoCommand())
+	rootCmd.AddCommand(cli.NewGatewayIngressSetCommand())
+
 	// Register package management commands
 	// - pkg-build: Build a package from source specification
 	// - pkg-push: Upload a package to the package repository

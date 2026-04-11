@@ -33,18 +33,21 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ZoneService_ZoneInit_FullMethodName          = "/inapi.ZoneService/ZoneInit"
-	ZoneService_ZoneInfo_FullMethodName          = "/inapi.ZoneService/ZoneInfo"
-	ZoneService_ZoneSet_FullMethodName           = "/inapi.ZoneService/ZoneSet"
-	ZoneService_HostJoin_FullMethodName          = "/inapi.ZoneService/HostJoin"
-	ZoneService_HostList_FullMethodName          = "/inapi.ZoneService/HostList"
-	ZoneService_AppInstanceDeploy_FullMethodName = "/inapi.ZoneService/AppInstanceDeploy"
-	ZoneService_AppInstanceInfo_FullMethodName   = "/inapi.ZoneService/AppInstanceInfo"
-	ZoneService_AppInstanceList_FullMethodName   = "/inapi.ZoneService/AppInstanceList"
-	ZoneService_AppInstanceDelete_FullMethodName = "/inapi.ZoneService/AppInstanceDelete"
-	ZoneService_PackagePush_FullMethodName       = "/inapi.ZoneService/PackagePush"
-	ZoneService_PackageList_FullMethodName       = "/inapi.ZoneService/PackageList"
-	ZoneService_PackageDelete_FullMethodName     = "/inapi.ZoneService/PackageDelete"
+	ZoneService_ZoneInit_FullMethodName           = "/inapi.ZoneService/ZoneInit"
+	ZoneService_ZoneInfo_FullMethodName           = "/inapi.ZoneService/ZoneInfo"
+	ZoneService_ZoneSet_FullMethodName            = "/inapi.ZoneService/ZoneSet"
+	ZoneService_HostJoin_FullMethodName           = "/inapi.ZoneService/HostJoin"
+	ZoneService_HostList_FullMethodName           = "/inapi.ZoneService/HostList"
+	ZoneService_AppInstanceDeploy_FullMethodName  = "/inapi.ZoneService/AppInstanceDeploy"
+	ZoneService_AppInstanceInfo_FullMethodName    = "/inapi.ZoneService/AppInstanceInfo"
+	ZoneService_AppInstanceList_FullMethodName    = "/inapi.ZoneService/AppInstanceList"
+	ZoneService_AppInstanceDelete_FullMethodName  = "/inapi.ZoneService/AppInstanceDelete"
+	ZoneService_GatewayIngressInfo_FullMethodName = "/inapi.ZoneService/GatewayIngressInfo"
+	ZoneService_GatewayIngressList_FullMethodName = "/inapi.ZoneService/GatewayIngressList"
+	ZoneService_GatewayIngressSet_FullMethodName  = "/inapi.ZoneService/GatewayIngressSet"
+	ZoneService_PackagePush_FullMethodName        = "/inapi.ZoneService/PackagePush"
+	ZoneService_PackageList_FullMethodName        = "/inapi.ZoneService/PackageList"
+	ZoneService_PackageDelete_FullMethodName      = "/inapi.ZoneService/PackageDelete"
 )
 
 // ZoneServiceClient is the client API for ZoneService service.
@@ -72,6 +75,9 @@ type ZoneServiceClient interface {
 	AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error)
+	GatewayIngressInfo(ctx context.Context, in *GatewayIngressInfoRequest, opts ...grpc.CallOption) (*GatewayIngressInfoResponse, error)
+	GatewayIngressList(ctx context.Context, in *GatewayIngressListRequest, opts ...grpc.CallOption) (*GatewayIngressListResponse, error)
+	GatewayIngressSet(ctx context.Context, in *GatewayIngressSetRequest, opts ...grpc.CallOption) (*GatewayIngressSetResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error)
 	// PackageList retrieves all packages in the zone.
@@ -169,6 +175,33 @@ func (c *zoneServiceClient) AppInstanceDelete(ctx context.Context, in *AppInstan
 	return out, nil
 }
 
+func (c *zoneServiceClient) GatewayIngressInfo(ctx context.Context, in *GatewayIngressInfoRequest, opts ...grpc.CallOption) (*GatewayIngressInfoResponse, error) {
+	out := new(GatewayIngressInfoResponse)
+	err := c.cc.Invoke(ctx, ZoneService_GatewayIngressInfo_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) GatewayIngressList(ctx context.Context, in *GatewayIngressListRequest, opts ...grpc.CallOption) (*GatewayIngressListResponse, error) {
+	out := new(GatewayIngressListResponse)
+	err := c.cc.Invoke(ctx, ZoneService_GatewayIngressList_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) GatewayIngressSet(ctx context.Context, in *GatewayIngressSetRequest, opts ...grpc.CallOption) (*GatewayIngressSetResponse, error) {
+	out := new(GatewayIngressSetResponse)
+	err := c.cc.Invoke(ctx, ZoneService_GatewayIngressSet_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *zoneServiceClient) PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error) {
 	out := new(PackagePushResponse)
 	err := c.cc.Invoke(ctx, ZoneService_PackagePush_FullMethodName, in, out, opts...)
@@ -221,6 +254,9 @@ type ZoneServiceServer interface {
 	AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error)
+	GatewayIngressInfo(context.Context, *GatewayIngressInfoRequest) (*GatewayIngressInfoResponse, error)
+	GatewayIngressList(context.Context, *GatewayIngressListRequest) (*GatewayIngressListResponse, error)
+	GatewayIngressSet(context.Context, *GatewayIngressSetRequest) (*GatewayIngressSetResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error)
 	// PackageList retrieves all packages in the zone.
@@ -260,6 +296,15 @@ func (UnimplementedZoneServiceServer) AppInstanceList(context.Context, *AppInsta
 }
 func (UnimplementedZoneServiceServer) AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppInstanceDelete not implemented")
+}
+func (UnimplementedZoneServiceServer) GatewayIngressInfo(context.Context, *GatewayIngressInfoRequest) (*GatewayIngressInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GatewayIngressInfo not implemented")
+}
+func (UnimplementedZoneServiceServer) GatewayIngressList(context.Context, *GatewayIngressListRequest) (*GatewayIngressListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GatewayIngressList not implemented")
+}
+func (UnimplementedZoneServiceServer) GatewayIngressSet(context.Context, *GatewayIngressSetRequest) (*GatewayIngressSetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GatewayIngressSet not implemented")
 }
 func (UnimplementedZoneServiceServer) PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackagePush not implemented")
@@ -445,6 +490,60 @@ func _ZoneService_AppInstanceDelete_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ZoneService_GatewayIngressInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GatewayIngressInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).GatewayIngressInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_GatewayIngressInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).GatewayIngressInfo(ctx, req.(*GatewayIngressInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_GatewayIngressList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GatewayIngressListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).GatewayIngressList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_GatewayIngressList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).GatewayIngressList(ctx, req.(*GatewayIngressListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_GatewayIngressSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GatewayIngressSetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).GatewayIngressSet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_GatewayIngressSet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).GatewayIngressSet(ctx, req.(*GatewayIngressSetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ZoneService_PackagePush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackagePushRequest)
 	if err := dec(in); err != nil {
@@ -543,6 +642,18 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ZoneService_AppInstanceDelete_Handler,
 		},
 		{
+			MethodName: "GatewayIngressInfo",
+			Handler:    _ZoneService_GatewayIngressInfo_Handler,
+		},
+		{
+			MethodName: "GatewayIngressList",
+			Handler:    _ZoneService_GatewayIngressList_Handler,
+		},
+		{
+			MethodName: "GatewayIngressSet",
+			Handler:    _ZoneService_GatewayIngressSet_Handler,
+		},
+		{
 			MethodName: "PackagePush",
 			Handler:    _ZoneService_PackagePush_Handler,
 		},
@@ -560,8 +671,9 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	ZoneInternalService_HostStatusUpdate_FullMethodName = "/inapi.ZoneInternalService/HostStatusUpdate"
-	ZoneInternalService_PackageChunk_FullMethodName     = "/inapi.ZoneInternalService/PackageChunk"
+	ZoneInternalService_HostStatusUpdate_FullMethodName         = "/inapi.ZoneInternalService/HostStatusUpdate"
+	ZoneInternalService_GatewayIngressDeployList_FullMethodName = "/inapi.ZoneInternalService/GatewayIngressDeployList"
+	ZoneInternalService_PackageChunk_FullMethodName             = "/inapi.ZoneInternalService/PackageChunk"
 )
 
 // ZoneInternalServiceClient is the client API for ZoneInternalService service.
@@ -571,6 +683,7 @@ type ZoneInternalServiceClient interface {
 	// HostStatusUpdate updates the status of a host and receives updated app
 	// instances.
 	HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error)
+	GatewayIngressDeployList(ctx context.Context, in *GatewayIngressDeployListRequest, opts ...grpc.CallOption) (*GatewayIngressDeployListResponse, error)
 	// PackageChunk retrieves a single chunk of a package for download.
 	PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error)
 }
@@ -586,6 +699,15 @@ func NewZoneInternalServiceClient(cc grpc.ClientConnInterface) ZoneInternalServi
 func (c *zoneInternalServiceClient) HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error) {
 	out := new(HostStatusUpdateResponse)
 	err := c.cc.Invoke(ctx, ZoneInternalService_HostStatusUpdate_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneInternalServiceClient) GatewayIngressDeployList(ctx context.Context, in *GatewayIngressDeployListRequest, opts ...grpc.CallOption) (*GatewayIngressDeployListResponse, error) {
+	out := new(GatewayIngressDeployListResponse)
+	err := c.cc.Invoke(ctx, ZoneInternalService_GatewayIngressDeployList_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -608,6 +730,7 @@ type ZoneInternalServiceServer interface {
 	// HostStatusUpdate updates the status of a host and receives updated app
 	// instances.
 	HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error)
+	GatewayIngressDeployList(context.Context, *GatewayIngressDeployListRequest) (*GatewayIngressDeployListResponse, error)
 	// PackageChunk retrieves a single chunk of a package for download.
 	PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error)
 	mustEmbedUnimplementedZoneInternalServiceServer()
@@ -619,6 +742,9 @@ type UnimplementedZoneInternalServiceServer struct {
 
 func (UnimplementedZoneInternalServiceServer) HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HostStatusUpdate not implemented")
+}
+func (UnimplementedZoneInternalServiceServer) GatewayIngressDeployList(context.Context, *GatewayIngressDeployListRequest) (*GatewayIngressDeployListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GatewayIngressDeployList not implemented")
 }
 func (UnimplementedZoneInternalServiceServer) PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackageChunk not implemented")
@@ -654,6 +780,24 @@ func _ZoneInternalService_HostStatusUpdate_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ZoneInternalService_GatewayIngressDeployList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GatewayIngressDeployListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneInternalServiceServer).GatewayIngressDeployList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneInternalService_GatewayIngressDeployList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneInternalServiceServer).GatewayIngressDeployList(ctx, req.(*GatewayIngressDeployListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ZoneInternalService_PackageChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PackageChunkRequest)
 	if err := dec(in); err != nil {
@@ -682,6 +826,10 @@ var ZoneInternalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HostStatusUpdate",
 			Handler:    _ZoneInternalService_HostStatusUpdate_Handler,
+		},
+		{
+			MethodName: "GatewayIngressDeployList",
+			Handler:    _ZoneInternalService_GatewayIngressDeployList_Handler,
 		},
 		{
 			MethodName: "PackageChunk",

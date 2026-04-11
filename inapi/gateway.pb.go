@@ -34,21 +34,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GatewayService_Domain struct {
+// GatewayIngress is the user-facing model for managing an HTTP ingress entry
+// bound to a domain with routing rules.
+type GatewayIngress struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Meta        *Common_Meta                   `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty" toml:"meta,omitempty"`
-	Description string                         `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
-	ZoneName    string                         `protobuf:"bytes,5,opt,name=zone_name,json=zoneName,proto3" json:"zone_name,omitempty" toml:"zone_name,omitempty"`
-	Action      string                         `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
-	Routes      []*GatewayService_Domain_Route `protobuf:"bytes,9,rep,name=routes,proto3" json:"routes,omitempty" toml:"routes,omitempty"`
-	Options     []*Common_Option               `protobuf:"bytes,10,rep,name=options,proto3" json:"options,omitempty" toml:"options,omitempty"`
+	// meta is the standard resource metadata (id, timestamps, version).
+	Meta *Metadata `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty" toml:"meta,omitempty"`
+	// domain is the fully qualified domain name for this ingress.
+	Domain string `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty" toml:"domain,omitempty"`
+	// description is a human-readable description of this ingress.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
+	// options holds optional gateway features such as TLS.
+	Options *GatewayIngress_Options `protobuf:"bytes,4,opt,name=options,proto3" json:"options,omitempty" toml:"options,omitempty"`
+	// action is the ingress operation: "enable" (default) or "disable".
+	Action string `protobuf:"bytes,5,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
+	// routes are the HTTP routing rules for this domain.
+	Routes []*GatewayIngress_HttpRoute `protobuf:"bytes,6,rep,name=routes,proto3" json:"routes,omitempty" toml:"routes,omitempty"`
 }
 
-func (x *GatewayService_Domain) Reset() {
-	*x = GatewayService_Domain{}
+func (x *GatewayIngress) Reset() {
+	*x = GatewayIngress{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,13 +64,13 @@ func (x *GatewayService_Domain) Reset() {
 	}
 }
 
-func (x *GatewayService_Domain) String() string {
+func (x *GatewayIngress) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GatewayService_Domain) ProtoMessage() {}
+func (*GatewayIngress) ProtoMessage() {}
 
-func (x *GatewayService_Domain) ProtoReflect() protoreflect.Message {
+func (x *GatewayIngress) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -74,63 +82,74 @@ func (x *GatewayService_Domain) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GatewayService_Domain.ProtoReflect.Descriptor instead.
-func (*GatewayService_Domain) Descriptor() ([]byte, []int) {
+// Deprecated: Use GatewayIngress.ProtoReflect.Descriptor instead.
+func (*GatewayIngress) Descriptor() ([]byte, []int) {
 	return file_gateway_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GatewayService_Domain) GetMeta() *Common_Meta {
+func (x *GatewayIngress) GetMeta() *Metadata {
 	if x != nil {
 		return x.Meta
 	}
 	return nil
 }
 
-func (x *GatewayService_Domain) GetDescription() string {
+func (x *GatewayIngress) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *GatewayIngress) GetDescription() string {
 	if x != nil {
 		return x.Description
 	}
 	return ""
 }
 
-func (x *GatewayService_Domain) GetZoneName() string {
-	if x != nil {
-		return x.ZoneName
-	}
-	return ""
-}
-
-func (x *GatewayService_Domain) GetAction() string {
-	if x != nil {
-		return x.Action
-	}
-	return ""
-}
-
-func (x *GatewayService_Domain) GetRoutes() []*GatewayService_Domain_Route {
-	if x != nil {
-		return x.Routes
-	}
-	return nil
-}
-
-func (x *GatewayService_Domain) GetOptions() []*Common_Option {
+func (x *GatewayIngress) GetOptions() *GatewayIngress_Options {
 	if x != nil {
 		return x.Options
 	}
 	return nil
 }
 
-type GatewayService_DomainRequest struct {
+func (x *GatewayIngress) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *GatewayIngress) GetRoutes() []*GatewayIngress_HttpRoute {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+// GatewayIngressDeploy is the flattened deployment model used by zonelet to
+// configure the actual gateway proxy.
+type GatewayIngressDeploy struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	// id is the unique identifier of this deployment entry.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	// domain is the fully qualified domain name.
+	Domain string `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty" toml:"domain,omitempty"`
+	// letsencrypt_enable enables automatic TLS provisioning via Let's Encrypt.
+	LetsencryptEnable bool `protobuf:"varint,3,opt,name=letsencrypt_enable,json=letsencryptEnable,proto3" json:"letsencrypt_enable,omitempty" toml:"letsencrypt_enable,omitempty"`
+	// routes are the HTTP routing rules for this domain.
+	Routes []*GatewayIngressDeploy_HttpRoute `protobuf:"bytes,4,rep,name=routes,proto3" json:"routes,omitempty" toml:"routes,omitempty"`
+	// version is a monotonically increasing revision number for this deployment.
+	Version uint64 `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
 }
 
-func (x *GatewayService_DomainRequest) Reset() {
-	*x = GatewayService_DomainRequest{}
+func (x *GatewayIngressDeploy) Reset() {
+	*x = GatewayIngressDeploy{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -138,13 +157,13 @@ func (x *GatewayService_DomainRequest) Reset() {
 	}
 }
 
-func (x *GatewayService_DomainRequest) String() string {
+func (x *GatewayIngressDeploy) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GatewayService_DomainRequest) ProtoMessage() {}
+func (*GatewayIngressDeploy) ProtoMessage() {}
 
-func (x *GatewayService_DomainRequest) ProtoReflect() protoreflect.Message {
+func (x *GatewayIngressDeploy) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -156,26 +175,64 @@ func (x *GatewayService_DomainRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GatewayService_DomainRequest.ProtoReflect.Descriptor instead.
-func (*GatewayService_DomainRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GatewayIngressDeploy.ProtoReflect.Descriptor instead.
+func (*GatewayIngressDeploy) Descriptor() ([]byte, []int) {
 	return file_gateway_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GatewayService_DomainRequest) GetName() string {
+func (x *GatewayIngressDeploy) GetId() string {
 	if x != nil {
-		return x.Name
+		return x.Id
 	}
 	return ""
 }
 
-type GatewayService_DomainListRequest struct {
+func (x *GatewayIngressDeploy) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *GatewayIngressDeploy) GetLetsencryptEnable() bool {
+	if x != nil {
+		return x.LetsencryptEnable
+	}
+	return false
+}
+
+func (x *GatewayIngressDeploy) GetRoutes() []*GatewayIngressDeploy_HttpRoute {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+func (x *GatewayIngressDeploy) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+// HttpRoute maps a URL path to one or more upstream backends.
+type GatewayIngress_HttpRoute struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	// path is the URL path to match, e.g. "/" or "/api/v1".
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty" toml:"path,omitempty"`
+	// type is the route type: "instance", "upstream", or "redirect".
+	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty" toml:"type,omitempty"`
+	// action is the route operation: "enable" or "disable".
+	Action string `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
+	// targets are the upstream backends for this route.
+	Targets []*GatewayIngress_HttpRoute_Target `protobuf:"bytes,4,rep,name=targets,proto3" json:"targets,omitempty" toml:"targets,omitempty"`
 }
 
-func (x *GatewayService_DomainListRequest) Reset() {
-	*x = GatewayService_DomainListRequest{}
+func (x *GatewayIngress_HttpRoute) Reset() {
+	*x = GatewayIngress_HttpRoute{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -183,13 +240,13 @@ func (x *GatewayService_DomainListRequest) Reset() {
 	}
 }
 
-func (x *GatewayService_DomainListRequest) String() string {
+func (x *GatewayIngress_HttpRoute) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GatewayService_DomainListRequest) ProtoMessage() {}
+func (*GatewayIngress_HttpRoute) ProtoMessage() {}
 
-func (x *GatewayService_DomainListRequest) ProtoReflect() protoreflect.Message {
+func (x *GatewayIngress_HttpRoute) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -201,21 +258,52 @@ func (x *GatewayService_DomainListRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GatewayService_DomainListRequest.ProtoReflect.Descriptor instead.
-func (*GatewayService_DomainListRequest) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{2}
+// Deprecated: Use GatewayIngress_HttpRoute.ProtoReflect.Descriptor instead.
+func (*GatewayIngress_HttpRoute) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{0, 0}
 }
 
-type GatewayService_DomainListResponse struct {
+func (x *GatewayIngress_HttpRoute) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GatewayIngress_HttpRoute) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *GatewayIngress_HttpRoute) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *GatewayIngress_HttpRoute) GetTargets() []*GatewayIngress_HttpRoute_Target {
+	if x != nil {
+		return x.Targets
+	}
+	return nil
+}
+
+// Options holds optional gateway features.
+type GatewayIngress_Options struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Domains []*GatewayService_Domain `protobuf:"bytes,9,rep,name=domains,proto3" json:"domains,omitempty" toml:"domains,omitempty"`
+	// letsencrypt_enable enables automatic TLS certificate provisioning
+	// via Let's Encrypt for this domain.
+	LetsencryptEnable bool `protobuf:"varint,1,opt,name=letsencrypt_enable,json=letsencryptEnable,proto3" json:"letsencrypt_enable,omitempty" toml:"letsencrypt_enable,omitempty"`
 }
 
-func (x *GatewayService_DomainListResponse) Reset() {
-	*x = GatewayService_DomainListResponse{}
+func (x *GatewayIngress_Options) Reset() {
+	*x = GatewayIngress_Options{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -223,13 +311,13 @@ func (x *GatewayService_DomainListResponse) Reset() {
 	}
 }
 
-func (x *GatewayService_DomainListResponse) String() string {
+func (x *GatewayIngress_Options) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GatewayService_DomainListResponse) ProtoMessage() {}
+func (*GatewayIngress_Options) ProtoMessage() {}
 
-func (x *GatewayService_DomainListResponse) ProtoReflect() protoreflect.Message {
+func (x *GatewayIngress_Options) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -241,32 +329,37 @@ func (x *GatewayService_DomainListResponse) ProtoReflect() protoreflect.Message 
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GatewayService_DomainListResponse.ProtoReflect.Descriptor instead.
-func (*GatewayService_DomainListResponse) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use GatewayIngress_Options.ProtoReflect.Descriptor instead.
+func (*GatewayIngress_Options) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{0, 1}
 }
 
-func (x *GatewayService_DomainListResponse) GetDomains() []*GatewayService_Domain {
+func (x *GatewayIngress_Options) GetLetsencryptEnable() bool {
 	if x != nil {
-		return x.Domains
+		return x.LetsencryptEnable
 	}
-	return nil
+	return false
 }
 
-type GatewayService_DomainDeploy struct {
+// Target is an upstream backend endpoint with an optional weight for
+// load-balancing distribution.
+type GatewayIngress_HttpRoute_Target struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
-	LetsencryptEnable bool                                 `protobuf:"varint,4,opt,name=letsencrypt_enable,json=letsencryptEnable,proto3" json:"letsencrypt_enable,omitempty" toml:"letsencrypt_enable,omitempty"`
-	Routes            []*GatewayService_DomainDeploy_Route `protobuf:"bytes,9,rep,name=routes,proto3" json:"routes,omitempty" toml:"routes,omitempty"`
-	Version           uint64                               `protobuf:"varint,15,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	// backend is the backend endpoint, format depends on the route type:
+	//
+	//	instance  — AppInstance.ID:Port  (e.g. "a1b2c3d4e5f6:8080")
+	//	upstream  — IPv4:Port            (e.g. "10.0.0.1:8080")
+	//	redirect  — Full URL             (e.g. "https://example.com/path")
+	Backend string `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty" toml:"backend,omitempty"`
+	// weight is the traffic weight for load balancing (0 means equal share).
+	Weight int32 `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty" toml:"weight,omitempty"`
 }
 
-func (x *GatewayService_DomainDeploy) Reset() {
-	*x = GatewayService_DomainDeploy{}
+func (x *GatewayIngress_HttpRoute_Target) Reset() {
+	*x = GatewayIngress_HttpRoute_Target{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -274,13 +367,13 @@ func (x *GatewayService_DomainDeploy) Reset() {
 	}
 }
 
-func (x *GatewayService_DomainDeploy) String() string {
+func (x *GatewayIngress_HttpRoute_Target) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GatewayService_DomainDeploy) ProtoMessage() {}
+func (*GatewayIngress_HttpRoute_Target) ProtoMessage() {}
 
-func (x *GatewayService_DomainDeploy) ProtoReflect() protoreflect.Message {
+func (x *GatewayIngress_HttpRoute_Target) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -292,57 +385,41 @@ func (x *GatewayService_DomainDeploy) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GatewayService_DomainDeploy.ProtoReflect.Descriptor instead.
-func (*GatewayService_DomainDeploy) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{4}
+// Deprecated: Use GatewayIngress_HttpRoute_Target.ProtoReflect.Descriptor instead.
+func (*GatewayIngress_HttpRoute_Target) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{0, 0, 0}
 }
 
-func (x *GatewayService_DomainDeploy) GetId() string {
+func (x *GatewayIngress_HttpRoute_Target) GetBackend() string {
 	if x != nil {
-		return x.Id
+		return x.Backend
 	}
 	return ""
 }
 
-func (x *GatewayService_DomainDeploy) GetName() string {
+func (x *GatewayIngress_HttpRoute_Target) GetWeight() int32 {
 	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *GatewayService_DomainDeploy) GetLetsencryptEnable() bool {
-	if x != nil {
-		return x.LetsencryptEnable
-	}
-	return false
-}
-
-func (x *GatewayService_DomainDeploy) GetRoutes() []*GatewayService_DomainDeploy_Route {
-	if x != nil {
-		return x.Routes
-	}
-	return nil
-}
-
-func (x *GatewayService_DomainDeploy) GetVersion() uint64 {
-	if x != nil {
-		return x.Version
+		return x.Weight
 	}
 	return 0
 }
 
-type GatewayService_DomainDeployListRequest struct {
+// HttpRoute is a simplified routing rule for deployment.
+type GatewayIngressDeploy_HttpRoute struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ZoneName string `protobuf:"bytes,1,opt,name=zone_name,json=zoneName,proto3" json:"zone_name,omitempty" toml:"zone_name,omitempty"`
-	Version  uint64 `protobuf:"varint,15,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	// type is the route type: "instance", "upstream", or "redirect".
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty" toml:"type,omitempty"`
+	// path is the URL path to match.
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty" toml:"path,omitempty"`
+	// targets are the upstream backends for this route.
+	Targets []*GatewayIngressDeploy_HttpRoute_Target `protobuf:"bytes,3,rep,name=targets,proto3" json:"targets,omitempty" toml:"targets,omitempty"`
 }
 
-func (x *GatewayService_DomainDeployListRequest) Reset() {
-	*x = GatewayService_DomainDeployListRequest{}
+func (x *GatewayIngressDeploy_HttpRoute) Reset() {
+	*x = GatewayIngressDeploy_HttpRoute{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -350,13 +427,13 @@ func (x *GatewayService_DomainDeployListRequest) Reset() {
 	}
 }
 
-func (x *GatewayService_DomainDeployListRequest) String() string {
+func (x *GatewayIngressDeploy_HttpRoute) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GatewayService_DomainDeployListRequest) ProtoMessage() {}
+func (*GatewayIngressDeploy_HttpRoute) ProtoMessage() {}
 
-func (x *GatewayService_DomainDeployListRequest) ProtoReflect() protoreflect.Message {
+func (x *GatewayIngressDeploy_HttpRoute) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -368,36 +445,47 @@ func (x *GatewayService_DomainDeployListRequest) ProtoReflect() protoreflect.Mes
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GatewayService_DomainDeployListRequest.ProtoReflect.Descriptor instead.
-func (*GatewayService_DomainDeployListRequest) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{5}
+// Deprecated: Use GatewayIngressDeploy_HttpRoute.ProtoReflect.Descriptor instead.
+func (*GatewayIngressDeploy_HttpRoute) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{1, 0}
 }
 
-func (x *GatewayService_DomainDeployListRequest) GetZoneName() string {
+func (x *GatewayIngressDeploy_HttpRoute) GetType() string {
 	if x != nil {
-		return x.ZoneName
+		return x.Type
 	}
 	return ""
 }
 
-func (x *GatewayService_DomainDeployListRequest) GetVersion() uint64 {
+func (x *GatewayIngressDeploy_HttpRoute) GetPath() string {
 	if x != nil {
-		return x.Version
+		return x.Path
 	}
-	return 0
+	return ""
 }
 
-type GatewayService_DomainDeployListResponse struct {
+func (x *GatewayIngressDeploy_HttpRoute) GetTargets() []*GatewayIngressDeploy_HttpRoute_Target {
+	if x != nil {
+		return x.Targets
+	}
+	return nil
+}
+
+// Target is an upstream backend endpoint with an optional weight for
+// load-balancing distribution.
+type GatewayIngressDeploy_HttpRoute_Target struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Domains []*GatewayService_DomainDeploy `protobuf:"bytes,9,rep,name=domains,proto3" json:"domains,omitempty" toml:"domains,omitempty"`
-	Version uint64                         `protobuf:"varint,15,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	// backend is the backend endpoint (format depends on route type).
+	Backend string `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty" toml:"backend,omitempty"`
+	// weight is the traffic weight for load balancing (0 means equal share).
+	Weight int32 `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty" toml:"weight,omitempty"`
 }
 
-func (x *GatewayService_DomainDeployListResponse) Reset() {
-	*x = GatewayService_DomainDeployListResponse{}
+func (x *GatewayIngressDeploy_HttpRoute_Target) Reset() {
+	*x = GatewayIngressDeploy_HttpRoute_Target{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_gateway_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -405,13 +493,13 @@ func (x *GatewayService_DomainDeployListResponse) Reset() {
 	}
 }
 
-func (x *GatewayService_DomainDeployListResponse) String() string {
+func (x *GatewayIngressDeploy_HttpRoute_Target) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GatewayService_DomainDeployListResponse) ProtoMessage() {}
+func (*GatewayIngressDeploy_HttpRoute_Target) ProtoMessage() {}
 
-func (x *GatewayService_DomainDeployListResponse) ProtoReflect() protoreflect.Message {
+func (x *GatewayIngressDeploy_HttpRoute_Target) ProtoReflect() protoreflect.Message {
 	mi := &file_gateway_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -423,157 +511,23 @@ func (x *GatewayService_DomainDeployListResponse) ProtoReflect() protoreflect.Me
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GatewayService_DomainDeployListResponse.ProtoReflect.Descriptor instead.
-func (*GatewayService_DomainDeployListResponse) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{6}
+// Deprecated: Use GatewayIngressDeploy_HttpRoute_Target.ProtoReflect.Descriptor instead.
+func (*GatewayIngressDeploy_HttpRoute_Target) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{1, 0, 0}
 }
 
-func (x *GatewayService_DomainDeployListResponse) GetDomains() []*GatewayService_DomainDeploy {
+func (x *GatewayIngressDeploy_HttpRoute_Target) GetBackend() string {
 	if x != nil {
-		return x.Domains
+		return x.Backend
 	}
-	return nil
+	return ""
 }
 
-func (x *GatewayService_DomainDeployListResponse) GetVersion() uint64 {
+func (x *GatewayIngressDeploy_HttpRoute_Target) GetWeight() int32 {
 	if x != nil {
-		return x.Version
+		return x.Weight
 	}
 	return 0
-}
-
-type GatewayService_Domain_Route struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Path    string   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty" toml:"path,omitempty"`
-	Type    string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty" toml:"type,omitempty"`
-	Action  string   `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
-	Targets []string `protobuf:"bytes,9,rep,name=targets,proto3" json:"targets,omitempty" toml:"targets,omitempty"`
-}
-
-func (x *GatewayService_Domain_Route) Reset() {
-	*x = GatewayService_Domain_Route{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_proto_msgTypes[7]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GatewayService_Domain_Route) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GatewayService_Domain_Route) ProtoMessage() {}
-
-func (x *GatewayService_Domain_Route) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_proto_msgTypes[7]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GatewayService_Domain_Route.ProtoReflect.Descriptor instead.
-func (*GatewayService_Domain_Route) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{0, 0}
-}
-
-func (x *GatewayService_Domain_Route) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *GatewayService_Domain_Route) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *GatewayService_Domain_Route) GetAction() string {
-	if x != nil {
-		return x.Action
-	}
-	return ""
-}
-
-func (x *GatewayService_Domain_Route) GetTargets() []string {
-	if x != nil {
-		return x.Targets
-	}
-	return nil
-}
-
-type GatewayService_DomainDeploy_Route struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Path    string   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty" toml:"path,omitempty"`
-	Type    string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty" toml:"type,omitempty"`
-	Targets []string `protobuf:"bytes,9,rep,name=targets,proto3" json:"targets,omitempty" toml:"targets,omitempty"`
-}
-
-func (x *GatewayService_DomainDeploy_Route) Reset() {
-	*x = GatewayService_DomainDeploy_Route{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gateway_proto_msgTypes[8]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GatewayService_DomainDeploy_Route) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GatewayService_DomainDeploy_Route) ProtoMessage() {}
-
-func (x *GatewayService_DomainDeploy_Route) ProtoReflect() protoreflect.Message {
-	mi := &file_gateway_proto_msgTypes[8]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GatewayService_DomainDeploy_Route.ProtoReflect.Descriptor instead.
-func (*GatewayService_DomainDeploy_Route) Descriptor() ([]byte, []int) {
-	return file_gateway_proto_rawDescGZIP(), []int{4, 0}
-}
-
-func (x *GatewayService_DomainDeploy_Route) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *GatewayService_DomainDeploy_Route) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *GatewayService_DomainDeploy_Route) GetTargets() []string {
-	if x != nil {
-		return x.Targets
-	}
-	return nil
 }
 
 var File_gateway_proto protoreflect.FileDescriptor
@@ -581,74 +535,64 @@ var File_gateway_proto protoreflect.FileDescriptor
 var file_gateway_proto_rawDesc = []byte{
 	0x0a, 0x0d, 0x67, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12,
 	0x05, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x1a, 0x0c, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x22, 0xe5, 0x02, 0x0a, 0x15, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79,
-	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x12, 0x26,
-	0x0a, 0x04, 0x6d, 0x65, 0x74, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x69,
-	0x6e, 0x61, 0x70, 0x69, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x5f, 0x4d, 0x65, 0x74, 0x61,
-	0x52, 0x04, 0x6d, 0x65, 0x74, 0x61, 0x12, 0x20, 0x0a, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69,
-	0x70, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73,
-	0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x1b, 0x0a, 0x09, 0x7a, 0x6f, 0x6e, 0x65,
-	0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x7a, 0x6f, 0x6e,
-	0x65, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x18,
-	0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x3a, 0x0a,
-	0x06, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x73, 0x18, 0x09, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x22, 0x2e,
-	0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72,
-	0x76, 0x69, 0x63, 0x65, 0x5f, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x2e, 0x52, 0x6f, 0x75, 0x74,
-	0x65, 0x52, 0x06, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x73, 0x12, 0x2e, 0x0a, 0x07, 0x6f, 0x70, 0x74,
-	0x69, 0x6f, 0x6e, 0x73, 0x18, 0x0a, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x69, 0x6e, 0x61,
-	0x70, 0x69, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x5f, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e,
-	0x52, 0x07, 0x6f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x1a, 0x61, 0x0a, 0x05, 0x52, 0x6f, 0x75,
-	0x74, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x63,
-	0x74, 0x69, 0x6f, 0x6e, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x63, 0x74, 0x69,
-	0x6f, 0x6e, 0x12, 0x18, 0x0a, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73, 0x18, 0x09, 0x20,
-	0x03, 0x28, 0x09, 0x52, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73, 0x22, 0x32, 0x0a, 0x1c,
-	0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x44,
-	0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04,
-	0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65,
-	0x22, 0x22, 0x0a, 0x20, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72, 0x76, 0x69,
-	0x63, 0x65, 0x5f, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x22, 0x5b, 0x0a, 0x21, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53,
-	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x4c, 0x69, 0x73,
-	0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x36, 0x0a, 0x07, 0x64, 0x6f, 0x6d,
-	0x61, 0x69, 0x6e, 0x73, 0x18, 0x09, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x69, 0x6e, 0x61,
-	0x70, 0x69, 0x2e, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
-	0x65, 0x5f, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x52, 0x07, 0x64, 0x6f, 0x6d, 0x61, 0x69, 0x6e,
-	0x73, 0x22, 0x97, 0x02, 0x0a, 0x1b, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72,
-	0x76, 0x69, 0x63, 0x65, 0x5f, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x44, 0x65, 0x70, 0x6c, 0x6f,
-	0x79, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69,
-	0x64, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x2d, 0x0a, 0x12, 0x6c, 0x65, 0x74, 0x73, 0x65, 0x6e, 0x63,
-	0x72, 0x79, 0x70, 0x74, 0x5f, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28,
-	0x08, 0x52, 0x11, 0x6c, 0x65, 0x74, 0x73, 0x65, 0x6e, 0x63, 0x72, 0x79, 0x70, 0x74, 0x45, 0x6e,
-	0x61, 0x62, 0x6c, 0x65, 0x12, 0x40, 0x0a, 0x06, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x73, 0x18, 0x09,
-	0x20, 0x03, 0x28, 0x0b, 0x32, 0x28, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x47, 0x61, 0x74,
-	0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x44, 0x6f, 0x6d, 0x61,
-	0x69, 0x6e, 0x44, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x2e, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x52, 0x06,
-	0x72, 0x6f, 0x75, 0x74, 0x65, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
-	0x6e, 0x18, 0x0f, 0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
-	0x1a, 0x49, 0x0a, 0x05, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74,
-	0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x12, 0x12, 0x0a,
-	0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70,
-	0x65, 0x12, 0x18, 0x0a, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73, 0x18, 0x09, 0x20, 0x03,
-	0x28, 0x09, 0x52, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73, 0x22, 0x5f, 0x0a, 0x26, 0x47,
-	0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x44, 0x6f,
-	0x6d, 0x61, 0x69, 0x6e, 0x44, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1b, 0x0a, 0x09, 0x7a, 0x6f, 0x6e, 0x65, 0x5f, 0x6e, 0x61,
-	0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x7a, 0x6f, 0x6e, 0x65, 0x4e, 0x61,
-	0x6d, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x0f, 0x20,
-	0x01, 0x28, 0x04, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x81, 0x01, 0x0a,
-	0x27, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f,
-	0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x44, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x4c, 0x69, 0x73, 0x74,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3c, 0x0a, 0x07, 0x64, 0x6f, 0x6d, 0x61,
-	0x69, 0x6e, 0x73, 0x18, 0x09, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x22, 0x2e, 0x69, 0x6e, 0x61, 0x70,
-	0x69, 0x2e, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
-	0x5f, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x44, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x52, 0x07, 0x64,
-	0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
-	0x6e, 0x18, 0x0f, 0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
-	0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x72, 0x6f, 0x74, 0x6f, 0x22, 0xff, 0x03, 0x0a, 0x0e, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79,
+	0x49, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x12, 0x23, 0x0a, 0x04, 0x6d, 0x65, 0x74, 0x61, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x4d, 0x65,
+	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x04, 0x6d, 0x65, 0x74, 0x61, 0x12, 0x16, 0x0a, 0x06,
+	0x64, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x64, 0x6f,
+	0x6d, 0x61, 0x69, 0x6e, 0x12, 0x20, 0x0a, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74,
+	0x69, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72,
+	0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x37, 0x0a, 0x07, 0x6f, 0x70, 0x74, 0x69, 0x6f, 0x6e,
+	0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e,
+	0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x49, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x2e, 0x4f,
+	0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x07, 0x6f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12,
+	0x16, 0x0a, 0x06, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x06, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x37, 0x0a, 0x06, 0x72, 0x6f, 0x75, 0x74, 0x65,
+	0x73, 0x18, 0x06, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e,
+	0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x49, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x2e, 0x48,
+	0x74, 0x74, 0x70, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x52, 0x06, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x73,
+	0x1a, 0xc9, 0x01, 0x0a, 0x09, 0x48, 0x74, 0x74, 0x70, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x12, 0x12,
+	0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61,
+	0x74, 0x68, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x40,
+	0x0a, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x26, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x47, 0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x49,
+	0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x2e, 0x48, 0x74, 0x74, 0x70, 0x52, 0x6f, 0x75, 0x74, 0x65,
+	0x2e, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x52, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73,
+	0x1a, 0x3a, 0x0a, 0x06, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x62, 0x61,
+	0x63, 0x6b, 0x65, 0x6e, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x62, 0x61, 0x63,
+	0x6b, 0x65, 0x6e, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x77, 0x65, 0x69, 0x67, 0x68, 0x74, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x05, 0x52, 0x06, 0x77, 0x65, 0x69, 0x67, 0x68, 0x74, 0x1a, 0x38, 0x0a, 0x07,
+	0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x2d, 0x0a, 0x12, 0x6c, 0x65, 0x74, 0x73, 0x65,
+	0x6e, 0x63, 0x72, 0x79, 0x70, 0x74, 0x5f, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x08, 0x52, 0x11, 0x6c, 0x65, 0x74, 0x73, 0x65, 0x6e, 0x63, 0x72, 0x79, 0x70, 0x74,
+	0x45, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x22, 0x80, 0x03, 0x0a, 0x14, 0x47, 0x61, 0x74, 0x65, 0x77,
+	0x61, 0x79, 0x49, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x44, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x12,
+	0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12,
+	0x16, 0x0a, 0x06, 0x64, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x06, 0x64, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x12, 0x2d, 0x0a, 0x12, 0x6c, 0x65, 0x74, 0x73, 0x65,
+	0x6e, 0x63, 0x72, 0x79, 0x70, 0x74, 0x5f, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x08, 0x52, 0x11, 0x6c, 0x65, 0x74, 0x73, 0x65, 0x6e, 0x63, 0x72, 0x79, 0x70, 0x74,
+	0x45, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x12, 0x3d, 0x0a, 0x06, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x73,
+	0x18, 0x04, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x25, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x47,
+	0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x49, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x44, 0x65, 0x70,
+	0x6c, 0x6f, 0x79, 0x2e, 0x48, 0x74, 0x74, 0x70, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x52, 0x06, 0x72,
+	0x6f, 0x75, 0x74, 0x65, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
+	0x18, 0x05, 0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x1a,
+	0xb7, 0x01, 0x0a, 0x09, 0x48, 0x74, 0x74, 0x70, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x12, 0x12, 0x0a,
+	0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70,
+	0x65, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x04, 0x70, 0x61, 0x74, 0x68, 0x12, 0x46, 0x0a, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73,
+	0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x2c, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x47,
+	0x61, 0x74, 0x65, 0x77, 0x61, 0x79, 0x49, 0x6e, 0x67, 0x72, 0x65, 0x73, 0x73, 0x44, 0x65, 0x70,
+	0x6c, 0x6f, 0x79, 0x2e, 0x48, 0x74, 0x74, 0x70, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x2e, 0x54, 0x61,
+	0x72, 0x67, 0x65, 0x74, 0x52, 0x07, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x73, 0x1a, 0x3a, 0x0a,
+	0x06, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x62, 0x61, 0x63, 0x6b, 0x65,
+	0x6e, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x62, 0x61, 0x63, 0x6b, 0x65, 0x6e,
+	0x64, 0x12, 0x16, 0x0a, 0x06, 0x77, 0x65, 0x69, 0x67, 0x68, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x05, 0x52, 0x06, 0x77, 0x65, 0x69, 0x67, 0x68, 0x74, 0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e,
+	0x2f, 0x3b, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -663,32 +607,29 @@ func file_gateway_proto_rawDescGZIP() []byte {
 	return file_gateway_proto_rawDescData
 }
 
-var file_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_gateway_proto_goTypes = []interface{}{
-	(*GatewayService_Domain)(nil),                   // 0: inapi.GatewayService_Domain
-	(*GatewayService_DomainRequest)(nil),            // 1: inapi.GatewayService_DomainRequest
-	(*GatewayService_DomainListRequest)(nil),        // 2: inapi.GatewayService_DomainListRequest
-	(*GatewayService_DomainListResponse)(nil),       // 3: inapi.GatewayService_DomainListResponse
-	(*GatewayService_DomainDeploy)(nil),             // 4: inapi.GatewayService_DomainDeploy
-	(*GatewayService_DomainDeployListRequest)(nil),  // 5: inapi.GatewayService_DomainDeployListRequest
-	(*GatewayService_DomainDeployListResponse)(nil), // 6: inapi.GatewayService_DomainDeployListResponse
-	(*GatewayService_Domain_Route)(nil),             // 7: inapi.GatewayService_Domain.Route
-	(*GatewayService_DomainDeploy_Route)(nil),       // 8: inapi.GatewayService_DomainDeploy.Route
-	(*Common_Meta)(nil),                             // 9: inapi.Common_Meta
-	(*Common_Option)(nil),                           // 10: inapi.Common_Option
+	(*GatewayIngress)(nil),                        // 0: inapi.GatewayIngress
+	(*GatewayIngressDeploy)(nil),                  // 1: inapi.GatewayIngressDeploy
+	(*GatewayIngress_HttpRoute)(nil),              // 2: inapi.GatewayIngress.HttpRoute
+	(*GatewayIngress_Options)(nil),                // 3: inapi.GatewayIngress.Options
+	(*GatewayIngress_HttpRoute_Target)(nil),       // 4: inapi.GatewayIngress.HttpRoute.Target
+	(*GatewayIngressDeploy_HttpRoute)(nil),        // 5: inapi.GatewayIngressDeploy.HttpRoute
+	(*GatewayIngressDeploy_HttpRoute_Target)(nil), // 6: inapi.GatewayIngressDeploy.HttpRoute.Target
+	(*Metadata)(nil),                              // 7: inapi.Metadata
 }
 var file_gateway_proto_depIdxs = []int32{
-	9,  // 0: inapi.GatewayService_Domain.meta:type_name -> inapi.Common_Meta
-	7,  // 1: inapi.GatewayService_Domain.routes:type_name -> inapi.GatewayService_Domain.Route
-	10, // 2: inapi.GatewayService_Domain.options:type_name -> inapi.Common_Option
-	0,  // 3: inapi.GatewayService_DomainListResponse.domains:type_name -> inapi.GatewayService_Domain
-	8,  // 4: inapi.GatewayService_DomainDeploy.routes:type_name -> inapi.GatewayService_DomainDeploy.Route
-	4,  // 5: inapi.GatewayService_DomainDeployListResponse.domains:type_name -> inapi.GatewayService_DomainDeploy
-	6,  // [6:6] is the sub-list for method output_type
-	6,  // [6:6] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	7, // 0: inapi.GatewayIngress.meta:type_name -> inapi.Metadata
+	3, // 1: inapi.GatewayIngress.options:type_name -> inapi.GatewayIngress.Options
+	2, // 2: inapi.GatewayIngress.routes:type_name -> inapi.GatewayIngress.HttpRoute
+	5, // 3: inapi.GatewayIngressDeploy.routes:type_name -> inapi.GatewayIngressDeploy.HttpRoute
+	4, // 4: inapi.GatewayIngress.HttpRoute.targets:type_name -> inapi.GatewayIngress.HttpRoute.Target
+	6, // 5: inapi.GatewayIngressDeploy.HttpRoute.targets:type_name -> inapi.GatewayIngressDeploy.HttpRoute.Target
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_gateway_proto_init() }
@@ -699,7 +640,7 @@ func file_gateway_proto_init() {
 	file_common_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_gateway_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_Domain); i {
+			switch v := v.(*GatewayIngress); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -711,7 +652,7 @@ func file_gateway_proto_init() {
 			}
 		}
 		file_gateway_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_DomainRequest); i {
+			switch v := v.(*GatewayIngressDeploy); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -723,7 +664,7 @@ func file_gateway_proto_init() {
 			}
 		}
 		file_gateway_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_DomainListRequest); i {
+			switch v := v.(*GatewayIngress_HttpRoute); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -735,7 +676,7 @@ func file_gateway_proto_init() {
 			}
 		}
 		file_gateway_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_DomainListResponse); i {
+			switch v := v.(*GatewayIngress_Options); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -747,7 +688,7 @@ func file_gateway_proto_init() {
 			}
 		}
 		file_gateway_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_DomainDeploy); i {
+			switch v := v.(*GatewayIngress_HttpRoute_Target); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -759,7 +700,7 @@ func file_gateway_proto_init() {
 			}
 		}
 		file_gateway_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_DomainDeployListRequest); i {
+			switch v := v.(*GatewayIngressDeploy_HttpRoute); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -771,31 +712,7 @@ func file_gateway_proto_init() {
 			}
 		}
 		file_gateway_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_DomainDeployListResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_Domain_Route); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gateway_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GatewayService_DomainDeploy_Route); i {
+			switch v := v.(*GatewayIngressDeploy_HttpRoute_Target); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -813,7 +730,7 @@ func file_gateway_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_gateway_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

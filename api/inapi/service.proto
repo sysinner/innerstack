@@ -22,6 +22,7 @@ option go_package = "./;inapi";
 import "host.proto";
 import "zone.proto";
 import "app.proto";
+import "gateway.proto";
 import "package.proto";
 
 // ZoneService is the gRPC service for zone-level management.
@@ -61,6 +62,15 @@ service ZoneService {
   rpc AppInstanceDelete(AppInstanceDeleteRequest)
       returns (AppInstanceDeleteResponse) {}
 
+  rpc GatewayIngressInfo(GatewayIngressInfoRequest)
+      returns (GatewayIngressInfoResponse) {}
+
+  rpc GatewayIngressList(GatewayIngressListRequest)
+      returns (GatewayIngressListResponse) {}
+
+  rpc GatewayIngressSet(GatewayIngressSetRequest)
+      returns (GatewayIngressSetResponse) {}
+
   // PackagePush uploads a package in chunks.
   rpc PackagePush(PackagePushRequest) returns (PackagePushResponse) {}
 
@@ -79,6 +89,9 @@ service ZoneInternalService {
   // instances.
   rpc HostStatusUpdate(HostStatusUpdateRequest)
       returns (HostStatusUpdateResponse) {}
+
+  rpc GatewayIngressDeployList(GatewayIngressDeployListRequest)
+      returns (GatewayIngressDeployListResponse) {}
 
   // PackageChunk retrieves a single chunk of a package for download.
   rpc PackageChunk(PackageChunkRequest) returns (PackageChunkResponse) {}
@@ -187,13 +200,15 @@ message ZoneInfoResponse {
   ZoneNetworkMap network_map = 3;
 }
 
-// ZoneSetRequest is the request message for updating zone network configuration.
-// All three VPC fields must be provided together; partial updates are not allowed.
+// ZoneSetRequest is the request message for updating zone network
+// configuration. All three VPC fields must be provided together; partial
+// updates are not allowed.
 message ZoneSetRequest {
   // vpc_bridge_cidr is the zone-wide VPC bridge CIDR (e.g., "192.168.10.0/24").
   string vpc_bridge_cidr = 1;
 
-  // vpc_instance_cidr is the zone-wide VPC instance CIDR (e.g., "10.10.0.0/16").
+  // vpc_instance_cidr is the zone-wide VPC instance CIDR (e.g.,
+  // "10.10.0.0/16").
   string vpc_instance_cidr = 2;
 
   // vpc_network_domain is the DNS domain name for the zone (e.g., "local").
@@ -267,6 +282,37 @@ message AppInstanceDeleteRequest {
 // AppInstanceDeleteResponse is the response message after deleting an
 // application instance.
 message AppInstanceDeleteResponse {}
+
+message GatewayIngressListRequest {}
+
+message GatewayIngressListResponse {
+  repeated GatewayIngress items = 9;
+}
+
+message GatewayIngressInfoRequest {
+  string name = 1;
+}
+
+message GatewayIngressInfoResponse {
+  GatewayIngress item = 9;
+}
+
+message GatewayIngressSetRequest {
+  GatewayIngress item = 9;
+}
+
+message GatewayIngressSetResponse {
+  GatewayIngress item = 9;
+}
+
+message GatewayIngressDeployListRequest {
+  uint64 version = 15;
+}
+
+message GatewayIngressDeployListResponse {
+  repeated GatewayIngressDeploy items = 9;
+  uint64 version = 15;
+}
 
 // PackagePushRequest is the request message for uploading a package chunk.
 message PackagePushRequest {

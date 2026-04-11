@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inservice
+package main
 
 import (
 	"bytes"
@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	_ "embed"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -44,9 +45,12 @@ import (
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/time/rate"
+	"google.golang.org/grpc"
 
 	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/inutil/tplrender"
+	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inlog"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
@@ -64,7 +68,7 @@ func init() {
 	inlog.Setup()
 }
 
-func Run() {
+func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", rootHandler)
@@ -184,8 +188,8 @@ type Config struct {
 	Modules      []*ConfigModule          `toml:"modules"`
 	indexModules map[string]*ConfigModule `toml:"-"`
 
-	Domains      []*inapi.GatewayService_DomainDeploy `toml:"domains"`
-	indexDomains map[string]*DomainEntry              `toml:"-"`
+	Domains      []*inapi.GatewayIngressDeploy `toml:"domains"`
+	indexDomains map[string]*DomainEntry       `toml:"-"`
 
 	lastVersion     uint64
 	lastFullUpdated int64
@@ -203,8 +207,9 @@ type ConfigServer struct {
 }
 
 type ConfigZone struct {
-	Name   string               `toml:"name"`
-	Client lynkapi.ClientConfig `toml:"client"`
+	Name  string   `toml:"name"`
+	Hosts []string `json:"hosts" toml:"hosts"`
+	AK    string   `toml:"access_key"`
 }
 
 type ConfigModule struct {
@@ -220,6 +225,14 @@ type ConfigLimit struct {
 	Burst          int64 `toml:"burst"`           // 允许的突发字节数
 	IpExpireAfter  int64 `toml:"ip_expire_after"` // IP 钝化过期时间 (秒)
 	CleanupSeconds int64 `toml:"cleanup_seconds"` // 清理检查频率 (秒)
+}
+
+// AccessKey parses the AK string (ak_{id}_{secret}) into an AccessKey
+func (c *ConfigZone) AccessKey() (*inauth.AccessKey, error) {
+	if c.AK == "" {
+		return nil, errors.New("access_key not set")
+	}
+	return inauth.ParseAccessKey(c.AK)
 }
 
 func (it *Config) Domain(name string) *DomainEntry {
@@ -243,8 +256,8 @@ func (it *Config) Module(domain string) *ConfigModule {
 }
 
 type DomainEntry struct {
-	Domain *inapi.GatewayService_DomainDeploy `json:"domain"`
-	Routes []*DomainEntryRoute                `json:"routes"`
+	Domain *inapi.GatewayIngressDeploy `json:"domain"`
+	Routes []*DomainEntryRoute         `json:"routes"`
 
 	mu          sync.RWMutex
 	indexRoutes map[string]*DomainEntryRoute
@@ -288,9 +301,11 @@ func (it *DomainEntry) lookup(urlPath string) *DomainEntryRoute {
 }
 
 var (
-	prefix = "/opt/sysinner/inservice"
+	appName = "inservice"
 
-	tlsCacheDir = prefix + "/var/tls_cache"
+	prefix = "/opt/instack"
+
+	tlsCacheDir = prefix + "/var/" + appName + "_tls_cache"
 
 	tlsDomainCache = []string{}
 
@@ -304,7 +319,7 @@ var (
 
 	cfg Config
 
-	lynkClient lynkapi.Client
+	zoneConn *grpc.ClientConn
 
 	mainQuit = false
 )
@@ -341,7 +356,7 @@ var (
 
 func initSetup() error {
 
-	if err := htoml.DecodeFromFile(prefix+"/etc/config.toml", &cfg); err != nil {
+	if err := htoml.DecodeFromFile(prefix+"/etc/"+appName+".toml", &cfg); err != nil {
 		return err
 	}
 
@@ -409,25 +424,32 @@ func initSetup() error {
 		}
 	}
 
-	if lynkClient == nil && cfg.Zone != nil {
-		if c, err := cfg.Zone.Client.NewClient(); err != nil {
-			return err
-		} else {
-			lynkClient = c
+	if zoneConn == nil && cfg.Zone != nil &&
+		len(cfg.Zone.Hosts) > 0 && cfg.Zone.AK != "" {
+		ak, err := cfg.Zone.AccessKey()
+		if err != nil {
+			return fmt.Errorf("invalid access key: %w", err)
 		}
+
+		conn, err := client.Connect(cfg.Zone.Hosts[0], ak, false)
+		if err != nil {
+			return fmt.Errorf("failed to connect to zone leader %s: %w",
+				cfg.Zone.Hosts[0], err)
+		}
+		// defer conn.Close()
+		zoneConn = conn
+		slog.Warn("zone connect init ak-id " + ak.Id)
 	}
 
 	return nil
 }
 
-func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
+func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 
 	tn := time.Now().Unix()
-	req := &inapi.GatewayService_DomainDeployListRequest{}
+	req := &inapi.GatewayIngressDeployListRequest{}
 
-	if len(domains) == 0 && cfg.Zone != nil {
-
-		req.ZoneName = cfg.Zone.Name
+	if len(domains) == 0 && zoneConn != nil {
 
 		if cfg.lastFullUpdated+600 < tn {
 			req.Version = 0
@@ -436,40 +458,41 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 			req.Version = cfg.lastVersion
 		}
 
-		rsp := lynkClient.Exec(lynkapi.NewRequest("Zonelet", "GatewayDomainDeployList", req))
-		if !rsp.OK() {
-			return rsp.Err()
-		}
+		zc := inapi.NewZoneInternalServiceClient(zoneConn)
 
-		var rspList inapi.GatewayService_DomainDeployListResponse
-		if err := rsp.Decode(&rspList); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		rspList, err := zc.GatewayIngressDeployList(ctx, req)
+		if err != nil {
 			return err
 		}
 
-		if len(rspList.Domains) == 0 {
+		if len(rspList.Items) == 0 {
 			return nil
 		}
 
 		if req.Version == 0 && len(cfg.Domains) > 0 {
-			r := float64(len(rspList.Domains)) / float64(len(cfg.Domains))
+			r := float64(len(rspList.Items)) / float64(len(cfg.Domains))
 			if r < 0.5 {
-				slog.Info(fmt.Sprintf("fetch domains %d/%d, skip", len(rspList.Domains), len(cfg.Domains)))
+				slog.Info(fmt.Sprintf("fetch domains %d/%d, skip", len(rspList.Items), len(cfg.Domains)))
 				return nil
 			}
 		}
 
-		domains = rspList.Domains
+		domains = rspList.Items
 
-		slog.Info(fmt.Sprintf("req version %d, fetch domains %d", req.Version, len(rspList.Domains)))
+		slog.Info(fmt.Sprintf("req version %d, fetch domains %d",
+			req.Version, len(rspList.Items)))
 	}
 
 	var (
-		newDomains   = []*inapi.GatewayService_DomainDeploy{}
+		newDomains   = []*inapi.GatewayIngressDeploy{}
 		tlsDomainSet = []string{}
 		flush        = false
 	)
 
-	domainFresh := func(domainEntry *DomainEntry, domain *inapi.GatewayService_DomainDeploy) {
+	domainFresh := func(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
 		domainEntry.mu.Lock()
 		defer domainEntry.mu.Unlock()
 
@@ -497,7 +520,7 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 			case "localfs":
 
 				if p := lynkapi.SlicesSearchFunc(domain.Routes,
-					func(a *inapi.GatewayService_DomainDeploy_Route) bool {
+					func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
 						return a.Path == route.Path
 					}); p == nil {
 					domainEntry.Routes = append(domainEntry.Routes, route)
@@ -513,15 +536,16 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 			}
 
 			switch location.Type {
-			case "pod", "upstream":
+			case inapi.GatewayIngressType_Instance,
+				inapi.GatewayIngressType_Upstream:
 				var (
 					urls []*url.URL
 					rps  []*httputil.ReverseProxy
 				)
-				for _, addr := range location.Targets {
+				for _, tg := range location.Targets {
 					u := &url.URL{
 						Scheme: "http",
-						Host:   addr,
+						Host:   tg.Backend,
 					}
 					urls = append(urls, u)
 					rps = append(rps, httputil.NewSingleHostReverseProxy(u))
@@ -537,9 +561,9 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 					domainEntry.indexRoutes[route.Path] = route
 				}
 
-			case "redirect":
+			case inapi.GatewayIngressType_Redirect:
 
-				if u, err := url.Parse(location.Targets[0]); err == nil {
+				if u, err := url.Parse(location.Targets[0].Backend); err == nil {
 
 					route := &DomainEntryRoute{
 						Path: location.Path,
@@ -548,6 +572,8 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 					}
 					domainEntry.Routes = append(domainEntry.Routes, route)
 					domainEntry.indexRoutes[route.Path] = route
+				} else {
+					slog.Warn("parse backend fail", "err", err.Error())
 				}
 
 			case "localfs":
@@ -557,13 +583,13 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 					Type: location.Type,
 				}
 
-				if len(location.Targets) == 1 && len(location.Targets[0]) > 1 {
-					localPath := filepath.Clean(location.Targets[0])
+				if len(location.Targets) == 1 && len(location.Targets[0].Backend) > 1 {
+					localPath := filepath.Clean(location.Targets[0].Backend)
 					if st, err := os.Stat(localPath); err == nil && st.IsDir() {
 						route.Urls = []*url.URL{{Path: localPath}}
 					}
 					slog.Info(fmt.Sprintf("domain %s, route %s, localfs %s",
-						domain.Name, route.Path, localPath))
+						domain.Domain, route.Path, localPath))
 				}
 
 				domainEntry.Routes = append(domainEntry.Routes, route)
@@ -571,7 +597,8 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 			}
 		}
 
-		slog.Info(fmt.Sprintf("updated domain %s, routes %d", domain.Name, len(domain.Routes)))
+		slog.Info(fmt.Sprintf("updated domain %s, routes %d",
+			domain.Domain, len(domain.Routes)))
 	}
 
 	cfg.mu.Lock()
@@ -579,13 +606,14 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 
 	for _, domain := range domains {
 		//
-		domainEntry, added := cfg.indexDomains[domain.Name]
+		domainEntry, added := cfg.indexDomains[domain.Domain]
 		if !added {
 			domainEntry = &DomainEntry{
 				Domain:      domain,
 				indexRoutes: map[string]*DomainEntryRoute{},
 			}
-			slog.Info(fmt.Sprintf("add domain %s, routes %d", domain.Name, len(domain.Routes)))
+			slog.Info(fmt.Sprintf("add domain %s, routes %d",
+				domain.Domain, len(domain.Routes)))
 		}
 
 		cfg.lastVersion = max(cfg.lastVersion, domain.Version)
@@ -604,12 +632,12 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 			return strings.Compare(domainEntry.Routes[i].Path, domainEntry.Routes[j].Path) > 0
 		})
 
-		if domain.LetsencryptEnable && !slices.Contains(tlsDomainSet, domain.Name) {
-			tlsDomainSet = append(tlsDomainSet, domain.Name)
+		if domain.LetsencryptEnable && !slices.Contains(tlsDomainSet, domain.Domain) {
+			tlsDomainSet = append(tlsDomainSet, domain.Domain)
 		}
 
 		if !added {
-			cfg.indexDomains[domain.Name] = domainEntry
+			cfg.indexDomains[domain.Domain] = domainEntry
 		}
 
 		newDomains = append(newDomains, domain)
@@ -623,11 +651,11 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 			len(cfg.Domains), len(newDomains), len(cfg.indexDomains)))
 
 		for _, domain := range cfg.Domains {
-			if p := lynkapi.SlicesSearchFunc(newDomains, func(a *inapi.GatewayService_DomainDeploy) bool {
-				return a.Name == domain.Name
+			if p := lynkapi.SlicesSearchFunc(newDomains, func(a *inapi.GatewayIngressDeploy) bool {
+				return a.Domain == domain.Domain
 			}); p == nil {
-				delete(cfg.indexDomains, domain.Name)
-				slog.Info("delete domain " + domain.Name)
+				delete(cfg.indexDomains, domain.Domain)
+				slog.Info("delete domain " + domain.Domain)
 			}
 		}
 		flush = true
@@ -645,7 +673,7 @@ func configRefresh(domains []*inapi.GatewayService_DomainDeploy) error {
 	}
 
 	if flush {
-		if err := htoml.EncodeToFile(cfg, prefix+"/etc/config.toml"); err != nil {
+		if err := htoml.EncodeToFile(&cfg, prefix+"/etc/"+appName+".toml"); err != nil {
 			return err
 		}
 	}
@@ -829,6 +857,10 @@ type httpRootHandler struct{}
 
 func (it httpRootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
+	if n := strings.IndexByte(r.Host, ':'); n > 0 {
+		r.Host = r.Host[:n]
+	}
+
 	if domain := cfg.Domain(r.Host); domain == nil {
 
 		if module := cfg.Module(r.Host); module != nil {
@@ -899,7 +931,8 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 		switch route.Type {
 
-		case "pod", "upstream":
+		case inapi.GatewayIngressType_Instance,
+			inapi.GatewayIngressType_Upstream:
 
 			if len(route.reverseProxy) > 0 {
 				idx := int(atomic.AddUint64(&route.callCount, 1) % uint64(len(route.reverseProxy)))
@@ -907,7 +940,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			return route
 
-		case "redirect":
+		case inapi.GatewayIngressType_Redirect:
 			w2.Header().Set("Location", route.Urls[0].String())
 			w2.WriteHeader(http.StatusFound)
 			return route

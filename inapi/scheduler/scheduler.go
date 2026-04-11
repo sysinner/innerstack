@@ -14,7 +14,7 @@
 
 package scheduler
 
-// Scheduler is an interface implemented by things that know how to schedule pods
+// Scheduler is an interface implemented by things that know how to schedule apps
 // onto hosts.
 type Scheduler interface {
 

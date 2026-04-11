@@ -13,7 +13,7 @@ LYNKAPI_FILTER_V2_ARGS = inapi
 # GOBUILD_ARGS = -trimpath -ldflags="-s -w"
 GOBUILD_ARGS = -trimpath
 
-.PHONY: api cli server inagent
+.PHONY: api cli server inagent inservice
 all: api cli server inagent
 	@echo ""
 	@echo "build complete"
@@ -31,6 +31,9 @@ cli:
 
 server:
 	go build $(GOBUILD_ARGS) -o bin/instackd cmd/server/main.go
+
+inservice:
+	go build $(GOBUILD_ARGS) -o bin/inserviced cmd/inservice/main.go
 
 inagent:
 	GOOS=linux GOARCH=amd64 go build $(GOBUILD_ARGS) -o bin/inagent-linux-amd64 cmd/inagent/inagent.go

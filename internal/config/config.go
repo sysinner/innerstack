@@ -81,7 +81,8 @@ type ZoneletConfig struct {
 }
 
 type AccessKeyPublic struct {
-	AccessKey string `json:"access_key" toml:"access_key"`
+	AccessKey   string `json:"access_key" toml:"access_key"`
+	Description string `json:"description,omitempty" toml:"description,omitempty"`
 }
 
 var (
@@ -130,9 +131,17 @@ func Setup(ver, rel string) error {
 		ak := inauth.NewAccessKey()
 		Config.Zonelet.AccessKeys = []*AccessKeyPublic{
 			{
-				AccessKey: ak.Export(),
+				AccessKey:   ak.Export(),
+				Description: "for sysadmin",
 			},
 		}
+	}
+	if len(Config.Zonelet.AccessKeys) == 1 {
+		ak := inauth.NewAccessKey()
+		Config.Zonelet.AccessKeys = append(Config.Zonelet.AccessKeys, &AccessKeyPublic{
+			AccessKey:   ak.Export(),
+			Description: "for inservice daemon",
+		})
 	}
 
 	{

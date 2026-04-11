@@ -36,9 +36,9 @@ var (
 	AuthPermSysAll = hauth2.NewScopeFilter("sys", "*")
 )
 
-func NsGlobalGatewayServiceDomain(name string) []byte {
-	return []byte(fmt.Sprintf("v2/service/gateway/domain/%s", name))
-}
+// func NsGlobalGatewayServiceDomain(name string) []byte {
+// 	return []byte(fmt.Sprintf("v2/service/gateway/domain/%s", name))
+// }
 
 func NsZoneletInfo(zone string) []byte {
 	return []byte(fmt.Sprintf("v2/zone/%s/info", zone))
@@ -55,6 +55,10 @@ func NsZoneletAccessKey(zone, kid string) []byte {
 // NsZoneletNetworkIPAM returns the KV key for persisting IPAM state.
 func NsZoneletNetworkIPAM(zone string) []byte {
 	return []byte(fmt.Sprintf("v2/zone/%s/network/ipam", zone))
+}
+
+func NsZoneletGatewayIngress(zone, name string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/gateway/default/ingress/%s", zone, name))
 }
 
 func NsHostInfo(zone, host string) []byte {

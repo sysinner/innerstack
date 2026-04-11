@@ -17,6 +17,7 @@
 package inutil
 
 import (
+	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
@@ -82,6 +83,21 @@ func SeqRandHexString(slen, rlen int) string {
 	}
 
 	return id + RandHexString(rlen/2)
+}
+
+func HashToHexString(bs []byte, strlen int) string {
+
+	if strlen < 2 {
+		strlen = 1
+	} else if strlen > 32 {
+		strlen = 16
+	} else {
+		strlen = strlen / 2
+	}
+
+	bs_hash := md5.Sum(bs)
+
+	return hex.EncodeToString(bs_hash[:strlen])
 }
 
 // RandHexString generates a cryptographically random hexadecimal string using

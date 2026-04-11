@@ -43,6 +43,8 @@ message AppInstance {
 
   // status reflects the current observed state of the application instance.
   AppStatus status = 30;
+
+  uint64 version = 31;
 }
 
 // AppSpec defines the specification of an application, including its resources,

@@ -21,55 +21,100 @@ option go_package = "./;inapi";
 
 import "common.proto";
 
-message GatewayService_Domain {
-  message Route {
+// GatewayIngress is the user-facing model for managing an HTTP ingress entry
+// bound to a domain with routing rules.
+message GatewayIngress {
+  // HttpRoute maps a URL path to one or more upstream backends.
+  message HttpRoute {
+    // Target is an upstream backend endpoint with an optional weight for
+    // load-balancing distribution.
+    message Target {
+      // backend is the backend endpoint, format depends on the route type:
+      //   instance  — AppInstance.ID:Port  (e.g. "a1b2c3d4e5f6:8080")
+      //   upstream  — IPv4:Port            (e.g. "10.0.0.1:8080")
+      //   redirect  — Full URL             (e.g. "https://example.com/path")
+      string backend = 1;
+
+      // weight is the traffic weight for load balancing (0 means equal share).
+      int32 weight = 2;
+    };
+
+    // path is the URL path to match, e.g. "/" or "/api/v1".
     string path = 1;
+
+    // type is the route type: "instance", "upstream", or "redirect".
     string type = 2;
-    string action = 6;
-    repeated string targets = 9;
+
+    // action is the route operation: "enable" or "disable".
+    string action = 3;
+
+    // targets are the upstream backends for this route.
+    repeated Target targets = 4;
   };
-  inapi.Common_Meta meta = 1;
-  string description = 3;
-  string zone_name = 5;
-  string action = 6;
-  repeated Route routes = 9;
-  repeated inapi.Common_Option options = 10;
-}
 
-message GatewayService_DomainRequest {
-  string name = 1;
-}
-
-message GatewayService_DomainListRequest {}
-
-message GatewayService_DomainListResponse {
-  repeated GatewayService_Domain domains = 9;
-}
-
-message GatewayService_DomainDeploy {
-  message Route {
-    string path = 1;
-    string type = 2;
-    repeated string targets = 9;
+  // Options holds optional gateway features.
+  message Options {
+    // letsencrypt_enable enables automatic TLS certificate provisioning
+    // via Let's Encrypt for this domain.
+    bool letsencrypt_enable = 1;
   }
 
+  // meta is the standard resource metadata (id, timestamps, version).
+  Metadata meta = 1;
+
+  // domain is the fully qualified domain name for this ingress.
+  string domain = 2;
+
+  // description is a human-readable description of this ingress.
+  string description = 3;
+
+  // options holds optional gateway features such as TLS.
+  Options options = 4;
+
+  // action is the ingress operation: "enable" (default) or "disable".
+  string action = 5;
+
+  // routes are the HTTP routing rules for this domain.
+  repeated HttpRoute routes = 6;
+}
+
+// GatewayIngressDeploy is the flattened deployment model used by zonelet to
+// configure the actual gateway proxy.
+message GatewayIngressDeploy {
+  // HttpRoute is a simplified routing rule for deployment.
+  message HttpRoute {
+    // Target is an upstream backend endpoint with an optional weight for
+    // load-balancing distribution.
+    message Target {
+      // backend is the backend endpoint (format depends on route type).
+      string backend = 1;
+
+      // weight is the traffic weight for load balancing (0 means equal share).
+      int32 weight = 2;
+    };
+
+    // type is the route type: "instance", "upstream", or "redirect".
+    string type = 1;
+
+    // path is the URL path to match.
+    string path = 2;
+
+    // targets are the upstream backends for this route.
+    repeated Target targets = 3;
+  }
+
+  // id is the unique identifier of this deployment entry.
   string id = 1;
-  string name = 2;
 
-  //
-  bool letsencrypt_enable = 4;
+  // domain is the fully qualified domain name.
+  string domain = 2;
 
-  repeated Route routes = 9;
+  // letsencrypt_enable enables automatic TLS provisioning via Let's Encrypt.
+  bool letsencrypt_enable = 3;
 
-  uint64 version = 15;
-}
+  // routes are the HTTP routing rules for this domain.
+  repeated HttpRoute routes = 4;
 
-message GatewayService_DomainDeployListRequest {
-  string zone_name = 1;
-  uint64 version = 15;
-}
-
-message GatewayService_DomainDeployListResponse {
-  repeated GatewayService_DomainDeploy domains = 9;
-  uint64 version = 15;
+  // version is a monotonically increasing revision number for this deployment.
+  uint64 version = 5;
 }

@@ -60,15 +60,24 @@ const (
 
 // Scope constants for authorization checks
 const (
-	AuthScope_Zone_Read     = "zone:ro"
-	AuthScope_Zone_Write    = "zone:rw"
-	AuthScope_Host_Read     = "host:ro"
-	AuthScope_Host_Write    = "host:rw"
-	AuthScope_App_Read      = "app:ro"
-	AuthScope_App_Write     = "app:rw"
+	AuthScope_Zone_Read  = "zone:ro"
+	AuthScope_Zone_Write = "zone:rw"
+
+	AuthScope_Host_Read  = "host:ro"
+	AuthScope_Host_Write = "host:rw"
+
+	AuthScope_App_Read  = "app:ro"
+	AuthScope_App_Write = "app:rw"
+
+	AuthScope_GatewayIngress_Read  = "ingress:ro"
+	AuthScope_GatewayIngress_Write = "ingress:rw"
+
+	AuthScope_GatewayIngressDeploy_Read = "ingress-deploy:ro"
+
 	AuthScope_Package_Read  = "pkg:ro"
 	AuthScope_Package_Write = "pkg:rw"
-	AuthScope_Wildcard      = "*"
+
+	AuthScope_Wildcard = "*"
 )
 
 const (
@@ -163,6 +172,28 @@ const (
 
 	// VpcAllocCap is the number of allocatable addresses per octet slot.
 	VpcAllocCap = int(VpcAllocMax) - int(VpcAllocMin) + 1 // 250
+)
+
+// GatewayIngress route type constants.
+// Each type determines how the gateway resolves route targets into backend
+// addresses. The target format varies by type:
+//
+//   - instance : AppInstanceID:Port  (gateway resolves the instance to its
+//     runtime address automatically, e.g. "a1b2c3d4e5f6:8080")
+//   - upstream : IPv4:Port           (static custom upstream, e.g. "10.0.1.5:80")
+//   - redirect : http(s)://host/path (HTTP redirect, e.g. "https://example.com/path")
+const (
+	GatewayIngressType_Instance = "instance" // route to an app instance by AppInstance.ID:Port
+
+	GatewayIngressType_Upstream = "upstream" // route to a static upstream by IPv4:Port
+
+	GatewayIngressType_Redirect = "redirect" // redirect to an external URL (http/https)
+)
+
+// GatewayIngress action constants
+const (
+	GatewayIngressActionEnable  = "enable"  // ingress action: enable (default)
+	GatewayIngressActionDisable = "disable" // ingress action: disable
 )
 
 // var (
