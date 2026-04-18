@@ -29,6 +29,8 @@ var (
 
 	gHostSet        inapi.KvSet
 	gHostOperateSet inapi.KvSet
+
+	gAppInstanceSet appInstanceSet
 )
 
 func Run() {

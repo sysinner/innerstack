@@ -151,10 +151,10 @@ func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 }
 
 var (
-	app hostapi.AppReplicaInstance
+	app inapi.AppReplicaInstance
 )
 
-func specRefresh() (*hostapi.AppReplicaInstance, time.Duration, bool) {
+func specRefresh() (*inapi.AppReplicaInstance, time.Duration, bool) {
 
 	dur := time.Duration(10e9)
 

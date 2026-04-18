@@ -75,8 +75,11 @@ type ZoneServiceClient interface {
 	AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error)
+	// GatewayIngressInfo retrieves details of a specific gateway ingress.
 	GatewayIngressInfo(ctx context.Context, in *GatewayIngressInfoRequest, opts ...grpc.CallOption) (*GatewayIngressInfoResponse, error)
+	// GatewayIngressList retrieves all gateway ingress entries.
 	GatewayIngressList(ctx context.Context, in *GatewayIngressListRequest, opts ...grpc.CallOption) (*GatewayIngressListResponse, error)
+	// GatewayIngressSet creates or updates a gateway ingress entry.
 	GatewayIngressSet(ctx context.Context, in *GatewayIngressSetRequest, opts ...grpc.CallOption) (*GatewayIngressSetResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error)
@@ -254,8 +257,11 @@ type ZoneServiceServer interface {
 	AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error)
+	// GatewayIngressInfo retrieves details of a specific gateway ingress.
 	GatewayIngressInfo(context.Context, *GatewayIngressInfoRequest) (*GatewayIngressInfoResponse, error)
+	// GatewayIngressList retrieves all gateway ingress entries.
 	GatewayIngressList(context.Context, *GatewayIngressListRequest) (*GatewayIngressListResponse, error)
+	// GatewayIngressSet creates or updates a gateway ingress entry.
 	GatewayIngressSet(context.Context, *GatewayIngressSetRequest) (*GatewayIngressSetResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error)
@@ -683,6 +689,8 @@ type ZoneInternalServiceClient interface {
 	// HostStatusUpdate updates the status of a host and receives updated app
 	// instances.
 	HostStatusUpdate(ctx context.Context, in *HostStatusUpdateRequest, opts ...grpc.CallOption) (*HostStatusUpdateResponse, error)
+	// GatewayIngressDeployList retrieves deployed ingress entries newer than
+	// the given version for incremental sync.
 	GatewayIngressDeployList(ctx context.Context, in *GatewayIngressDeployListRequest, opts ...grpc.CallOption) (*GatewayIngressDeployListResponse, error)
 	// PackageChunk retrieves a single chunk of a package for download.
 	PackageChunk(ctx context.Context, in *PackageChunkRequest, opts ...grpc.CallOption) (*PackageChunkResponse, error)
@@ -730,6 +738,8 @@ type ZoneInternalServiceServer interface {
 	// HostStatusUpdate updates the status of a host and receives updated app
 	// instances.
 	HostStatusUpdate(context.Context, *HostStatusUpdateRequest) (*HostStatusUpdateResponse, error)
+	// GatewayIngressDeployList retrieves deployed ingress entries newer than
+	// the given version for incremental sync.
 	GatewayIngressDeployList(context.Context, *GatewayIngressDeployListRequest) (*GatewayIngressDeployListResponse, error)
 	// PackageChunk retrieves a single chunk of a package for download.
 	PackageChunk(context.Context, *PackageChunkRequest) (*PackageChunkResponse, error)

@@ -1,59 +1,36 @@
 package inapi
 
-// Field returns the AppOptionField with the given name, or nil if not found
-func (x *AppOption) Field(name string) *AppOptionField {
-	if x == nil || x.Items == nil {
-		return nil
-	}
-	for _, item := range x.Items {
-		if item != nil && item.Name == name {
-			return item
+import "fmt"
+
+// Field returns the AppDeployConfigItem with the given name, or nil if not found
+func (x *AppDeployConfigItem) Item(name string) *AppDeployConfigItem {
+	if x != nil {
+		for _, item := range x.Items {
+			if item != nil && item.Name == name {
+				return item
+			}
 		}
 	}
 	return nil
 }
 
-// Value returns the value of the field with the given name
-func (x *AppOption) Value(name string) string {
-	if field := x.Field(name); field != nil {
-		return field.Value
-	}
-	return ""
-}
+// // Value returns the value of the field with the given name
+// func (x *AppDeployConfigItem) Value(name string) string {
+// 	if field := x.Field(name); field != nil {
+// 		return field.Value
+// 	}
+// 	return ""
+// }
 
-// ValueOK returns the value of the field with the given name and a boolean indicating if it was found
-func (x *AppOption) ValueOK(name string) (string, bool) {
-	if field := x.Field(name); field != nil {
-		return field.Value, true
-	}
-	return "", false
-}
+// // ValueOK returns the value of the field with the given name and a boolean indicating if it was found
+// func (x *AppDeployConfigItem) ValueOK(name string) (string, bool) {
+// 	if field := x.Field(name); field != nil {
+// 		return field.Value, true
+// 	}
+// 	return "", false
+// }
 
-// Field returns the AppDeployOptionField with the given name, or nil if not found
-func (x *AppDeployOption) Field(name string) *AppDeployOptionField {
-	if x == nil || x.Items == nil {
-		return nil
-	}
-	for _, item := range x.Items {
-		if item != nil && item.Name == name {
-			return item
-		}
-	}
-	return nil
-}
-
-// Value returns the value of the field with the given name
-func (x *AppDeployOption) Value(name string) string {
-	if field := x.Field(name); field != nil {
-		return field.Value
-	}
-	return ""
-}
-
-// ValueOK returns the value of the field with the given name and a boolean indicating if it was found
-func (x *AppDeployOption) ValueOK(name string) (string, bool) {
-	if field := x.Field(name); field != nil {
-		return field.Value, true
-	}
-	return "", false
+// ContainerName returns the container name for the app replica instance.
+func (it *AppReplicaInstance) ContainerName() string {
+	return fmt.Sprintf("app-%s-%04x", it.App.Id, it.Replica.Id)
 }

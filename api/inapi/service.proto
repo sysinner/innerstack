@@ -62,12 +62,15 @@ service ZoneService {
   rpc AppInstanceDelete(AppInstanceDeleteRequest)
       returns (AppInstanceDeleteResponse) {}
 
+  // GatewayIngressInfo retrieves details of a specific gateway ingress.
   rpc GatewayIngressInfo(GatewayIngressInfoRequest)
       returns (GatewayIngressInfoResponse) {}
 
+  // GatewayIngressList retrieves all gateway ingress entries.
   rpc GatewayIngressList(GatewayIngressListRequest)
       returns (GatewayIngressListResponse) {}
 
+  // GatewayIngressSet creates or updates a gateway ingress entry.
   rpc GatewayIngressSet(GatewayIngressSetRequest)
       returns (GatewayIngressSetResponse) {}
 
@@ -90,6 +93,8 @@ service ZoneInternalService {
   rpc HostStatusUpdate(HostStatusUpdateRequest)
       returns (HostStatusUpdateResponse) {}
 
+  // GatewayIngressDeployList retrieves deployed ingress entries newer than
+  // the given version for incremental sync.
   rpc GatewayIngressDeployList(GatewayIngressDeployListRequest)
       returns (GatewayIngressDeployListResponse) {}
 
@@ -104,9 +109,6 @@ service HostInternalService {
   // HostInit initializes a new host and registers it with the specified zone.
   rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
 }
-
-// CommonResponse is a generic empty response message.
-message CommonResponse {}
 
 // HostInitRequest is the request message for initializing a host.
 message HostInitRequest {
@@ -174,7 +176,7 @@ message HostStatusUpdateResponse {
   string vpc_instance_cidr = 4;
 
   // zone_network_map contains the distributed VPC routing table.
-  ZoneNetworkMap zone_network_map = 5;
+  ZoneNetworkMap zone_network_map = 6;
 }
 
 // ZoneInitRequest is the request message for initializing a zone.
@@ -197,6 +199,7 @@ message ZoneInfoResponse {
   // hosts is the list of hosts belonging to the zone.
   repeated Host hosts = 2;
 
+  // network_map is the VPC routing table for the zone.
   ZoneNetworkMap network_map = 3;
 }
 
@@ -283,35 +286,50 @@ message AppInstanceDeleteRequest {
 // application instance.
 message AppInstanceDeleteResponse {}
 
+// GatewayIngressListRequest is the request message for listing gateway ingress
+// entries.
 message GatewayIngressListRequest {}
 
+// GatewayIngressListResponse is the response message containing gateway ingress
+// entries.
 message GatewayIngressListResponse {
-  repeated GatewayIngress items = 9;
+  repeated GatewayIngress items = 9; // list of gateway ingress entries
 }
 
+// GatewayIngressInfoRequest is the request message for retrieving a specific
+// ingress.
 message GatewayIngressInfoRequest {
-  string name = 1;
+  string name = 1; // ingress name
 }
 
+// GatewayIngressInfoResponse is the response message containing the ingress
+// details.
 message GatewayIngressInfoResponse {
-  GatewayIngress item = 9;
+  GatewayIngress item = 9; // the requested gateway ingress entry
 }
 
+// GatewayIngressSetRequest is the request message for creating or updating an
+// ingress.
 message GatewayIngressSetRequest {
-  GatewayIngress item = 9;
+  GatewayIngress item = 9; // the gateway ingress entry to create or update
 }
 
+// GatewayIngressSetResponse is the response message after setting an ingress.
 message GatewayIngressSetResponse {
-  GatewayIngress item = 9;
+  GatewayIngress item = 9; // the resulting gateway ingress entry
 }
 
+// GatewayIngressDeployListRequest is the request message for incremental deploy
+// sync.
 message GatewayIngressDeployListRequest {
-  uint64 version = 15;
+  uint64 version = 15; // return only entries newer than this version
 }
 
+// GatewayIngressDeployListResponse is the response message containing deployed
+// entries.
 message GatewayIngressDeployListResponse {
-  repeated GatewayIngressDeploy items = 9;
-  uint64 version = 15;
+  repeated GatewayIngressDeploy items = 9; // deployed ingress entries
+  uint64 version = 15; // current latest version for next sync
 }
 
 // PackagePushRequest is the request message for uploading a package chunk.
@@ -326,7 +344,7 @@ message PackagePushRequest {
   // first chunk).
   int64 total_size = 3;
 
-  int64 chunk_size = 4;
+  int64 chunk_size = 4; // chunk size in bytes (default: 2MB)
 
   // chunk contains the chunk data.
   PackageFileChunk chunk = 5;

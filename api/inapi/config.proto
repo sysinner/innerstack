@@ -19,64 +19,71 @@ package inapi;
 option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
 
-enum ConfigFieldType {
-  UnSpec = 0;
+// // ConfigFieldType enumerates the supported field data types.
+// enum ConfigFieldType {
+//   UnSpec = 0; // unspecified
 
-  String = 1;
-  Select = 2;
+//   String = 1; // plain string
+//   Select = 2; // single selection from enums
 
-  Text = 300;
-  TextJSON = 301;
-  TextTOML = 302;
-  TextYAML = 303;
-  TextINI = 304;
-  TextJavaProperties = 305;
-  TextMarkdown = 306;
+//   Text = 300; // plain text (multi-line)
+//   TextJSON = 301; // JSON formatted text
+//   TextTOML = 302; // TOML formatted text
+//   TextYAML = 303; // YAML formatted text
+//   TextINI = 304; // INI formatted text
+//   TextJavaProperties = 305; // Java Properties formatted text
+//   TextMarkdown = 306; // Markdown formatted text
 
-  AuthCert = 900;
-}
+//   AuthCert = 900; // authentication certificate
+// }
 
-message ConfigFieldSpec {
-  message KeyValue {
-    string key = 1;
-    string value = 2;
-  }
+// // ConfigFieldSpec defines a single configuration field in the schema.
+// message ConfigFieldSpec {
+//   // KeyValue is a name-value pair used for enum options.
+//   message KeyValue {
+//     string key = 1; // option key
+//     string value = 2; // option value
+//   }
 
-  message Validate {
-    string name = 1;
-    string expr = 2;
-    string hint = 3;
-  }
+//   // Validate defines a validation rule for the field.
+//   message Validate {
+//     string name = 1; // rule name, e.g. "required", "pattern"
+//     string expr = 2; // rule expression
+//     string hint = 3; // error hint when validation fails
+//   }
 
-  string name = 1;
-  ConfigFieldType type = 2;
-  string title = 3;
-  string prompt = 4;
-  string default_value = 5;
-  string auto_fill = 6;
-  uint64 attrs = 7;
-  repeated KeyValue enums = 13;
-  repeated Validate validates = 14;
-  string description = 15;
-}
+//   string name = 1; // field programmatic name
+//   ConfigFieldType type = 2; // field data type
+//   string title = 3; // human-readable title
+//   string prompt = 4; // placeholder or hint text
+//   string default_value = 5; // default value
+//   string auto_fill = 6; // auto-fill expression
+//   uint64 attrs = 7; // bitwise attribute flags
+//   repeated KeyValue enums = 13; // selectable options for Select type
+//   repeated Validate validates = 14; // validation rules
+//   string description = 15; // detailed description
+// }
 
-message ConfigSpec {
-  string name = 1;
-  string version = 2;
-  repeated ConfigFieldSpec fields = 3;
-}
+// // ConfigSpec defines the configuration schema with a list of fields.
+// message ConfigSpec {
+//   string name = 1; // schema name
+//   string version = 2; // schema version
+//   repeated ConfigFieldSpec fields = 3; // field definitions
+// }
 
-message ConfigFieldValue {
-  string name = 1;
-  ConfigFieldType type = 2;
-  string value = 3;
-  uint64 attrs = 7;
-}
+// // ConfigFieldValue holds the runtime value of a single config field.
+// message ConfigFieldValue {
+//   string name = 1; // field name, matching ConfigFieldSpec.name
+//   ConfigFieldType type = 2; // field data type
+//   string value = 3; // field value
+//   uint64 attrs = 7; // bitwise attribute flags
+// }
 
-message ConfigInstance {
-  string name = 1;
-  string version = 2;
-  repeated ConfigFieldValue fields = 3;
-  int64 created = 4;
-  int64 updated = 5;
-}
+// // ConfigInstance is a filled configuration instance with concrete field values.
+// message ConfigInstance {
+//   string name = 1; // instance name
+//   string version = 2; // schema version
+//   repeated ConfigFieldValue fields = 3; // field values
+//   int64 created = 4; // creation unix timestamp (seconds)
+//   int64 updated = 5; // last update unix timestamp (seconds)
+// }

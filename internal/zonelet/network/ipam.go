@@ -39,6 +39,8 @@ type NetworkManager struct {
 	Bridge   uint32
 	Instance uint32
 
+	hostPeerIpv4 map[string]string
+
 	Hosts map[string]*inapi.ZoneNetworkMap_Host
 
 	changed bool
@@ -254,6 +256,17 @@ func (nm *NetworkManager) Restore(zoneName string) error {
 	return nil
 }
 
+func (nm *NetworkManager) HostPeerIp(hostId string) (string, bool) {
+	nm.mu.RLock()
+	defer nm.mu.RUnlock()
+	if len(nm.hostPeerIpv4) > 0 {
+		if ip, ok := nm.hostPeerIpv4[hostId]; ok {
+			return ip, true
+		}
+	}
+	return "", false
+}
+
 func (nm *NetworkManager) HostNetwork(hostId string) *inapi.ZoneNetworkMap_Host {
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
@@ -287,6 +300,11 @@ func (nm *NetworkManager) RefreshHostNetwork(zone string, host *inapi.Host) (boo
 	nm.init()
 
 	hostNet := nm.Hosts[host.Id]
+
+	if nm.hostPeerIpv4 == nil {
+		nm.hostPeerIpv4 = map[string]string{}
+	}
+	nm.hostPeerIpv4[host.Id] = inetutil.IP4ToString(peerIp)
 
 	if hostNet != nil &&
 		inetutil.Uint32ToIpv4(hostNet.Bridge) == host.Deploy.VpcBridgeIp &&

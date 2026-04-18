@@ -171,8 +171,8 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 						hostIp = host.PeerAddr
 					}
 
-					if port := lynkapi.SlicesSearchFunc(rep.ServicePorts, func(a *inapi.ServicePort) bool {
-						return a.BoxPort == uint32(podPort)
+					if port := lynkapi.SlicesSearchFunc(rep.ServicePorts, func(a *inapi.AppDeployServicePort) bool {
+						return a.Port == uint32(podPort)
 					}); port != nil {
 						hostPort = int(port.HostPort)
 					} else {

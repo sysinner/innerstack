@@ -223,7 +223,13 @@ func statusRefresh() error {
 		cfgFlush = true
 	}
 
-	if resp.ZoneNetworkMap != nil {
+	if resp.ZoneNetworkMap != nil &&
+		resp.ZoneNetworkMap.UpdateVersion > zoneNetworkMap.UpdateVersion {
+		if resp.ZoneNetworkMap.VpcNetworkDomain != "" &&
+			resp.ZoneNetworkMap.VpcNetworkDomain != config.Config.Hostlet.VpcNetworkDomain {
+			config.Config.Hostlet.VpcNetworkDomain = resp.ZoneNetworkMap.VpcNetworkDomain
+			cfgFlush = true
+		}
 		zoneNetworkMap = *resp.ZoneNetworkMap
 	}
 

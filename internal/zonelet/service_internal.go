@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
@@ -40,7 +42,7 @@ func (s *zoneInternalServer) HostStatusUpdate(
 	ctx context.Context, req *inapi.HostStatusUpdateRequest,
 ) (*inapi.HostStatusUpdateResponse, error) {
 
-	if !status.IsZoneletLeader() {
+	if !status.IsZoneletLeader() || !gAppInstanceSet.IsReady() {
 		return nil, errors.New("zonelet leader")
 	}
 
@@ -53,7 +55,8 @@ func (s *zoneInternalServer) HostStatusUpdate(
 		return nil, errors.New("invalid host_id")
 	}
 
-	if !inauth.AppContext(ctx).Allow(fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, req.Host.Id)) {
+	if !inauth.AppContext(ctx).Allow(
+		fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, req.Host.Id)) {
 		return nil, errors.New("auth fail")
 	}
 
@@ -97,24 +100,49 @@ func (s *zoneInternalServer) HostStatusUpdate(
 	slog.Debug("zonelist update host status",
 		"host_id", req.Host.Id, "status", req.Status)
 
-	// Query app instances associated with this host_id
-	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
-	for _, item := range rs.Items {
-		var instance inapi.AppInstance
-		if err := item.JsonDecode(&instance); err == nil {
-			if instance.Deploy != nil {
-				for _, rep := range instance.Deploy.Replicas {
-					if rep.HostId == req.Host.Id {
-						resp.AppInstances = append(resp.AppInstances, &instance)
-						break
+	gAppInstanceSet.Iter(func(app *appInstanceEntry) bool {
+
+		for _, rep := range app.Value.Deploy.Replicas {
+			if rep.HostId != req.Host.Id {
+				continue
+			}
+
+			appInstance := proto.Clone(app.Value).(*inapi.AppInstance)
+
+			for _, dep := range appInstance.Deploy.Depends {
+				depApp := gAppInstanceSet.Load(dep.InstanceId)
+				if depApp == nil || depApp.Value.Deploy == nil ||
+					len(depApp.Value.Deploy.Configs) == 0 {
+					continue
+				}
+				dep.Configs = nil
+				for _, opt := range depApp.Value.Deploy.Configs {
+					dep.Configs = append(dep.Configs,
+						proto.Clone(opt).(*inapi.AppDeployConfigItem))
+				}
+				dep.Replicas = nil
+				for _, rep := range depApp.Value.Deploy.Replicas {
+					if rep.HostId == "" {
+						continue
 					}
+					peerIp, ok := zoneNetMgr.HostPeerIp(rep.HostId)
+					if !ok {
+						continue
+					}
+
+					rep2 := proto.Clone(rep).(*inapi.AppDeployReplica)
+					rep2.HostIpv4 = peerIp
+
+					dep.Replicas = append(dep.Replicas, rep2)
 				}
 			}
-		} else {
-			slog.Warn(fmt.Sprintf("app decode err %s, value %s", err.Error(), string(item.Value)))
+
+			resp.AppInstances = append(resp.AppInstances, appInstance)
+			break
 		}
-	}
+
+		return true
+	})
 
 	return resp, nil
 }

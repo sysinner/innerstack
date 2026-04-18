@@ -25,62 +25,13 @@ import (
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
-	"github.com/sysinner/incore/v2/internal/inutil/tplrender"
+	"github.com/sysinner/incore/v2/pkg/inconf"
 )
 
 const minRetryIntervalSeconds int64 = 10
 
-func keyenc(k string) string {
-	return strings.Replace(strings.Replace(k, "/", "__", -1), "-", "_", -1)
-}
-
-func repParams(app *hostapi.AppReplicaInstance) map[string]string {
-
-	sets := map[string]string{}
-
-	sets["app__id"] = app.App.Id
-	sets["app__replica__rep_id"] = fmt.Sprintf("%d", app.Replica.Id)
-	sets["app__operate__replica_cap"] = fmt.Sprintf("%d", app.App.Deploy.ReplicaCap)
-
-	for _, opt := range app.App.Deploy.Options {
-
-		for _, item := range opt.Items {
-			var (
-				ckey = keyenc(fmt.Sprintf("%s__%s",
-					opt.Name, item.Name))
-				key = keyenc(fmt.Sprintf("app__%s__option__%s",
-					app.App.Spec.Name, ckey))
-			)
-			sets[key] = item.Value
-			if _, ok := sets[ckey]; !ok {
-				sets[ckey] = item.Value
-			}
-		}
-	}
-
-	for _, p := range app.App.Deploy.Services {
-
-		if p.Name == "" || len(p.Endpoints) < 1 {
-			continue
-		}
-
-		key := keyenc(fmt.Sprintf("app__oprep__port__%s__",
-			p.Name,
-		))
-		sets[key+"lan_addr"] = p.Endpoints[0].Ip
-		sets[key+"host_port"] = fmt.Sprintf("%d", p.Endpoints[0].Port)
-	}
-
-	for _, p := range app.App.Spec.Packages {
-		sets[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] =
-			fmt.Sprintf("/usr/instack/%s/%s", p.Name, p.Version)
-	}
-
-	return sets
-}
-
 var (
-	appReplicaInstance *hostapi.AppReplicaInstance
+	appReplicaInstance *inapi.AppReplicaInstance
 	execStatuses       = map[string]*executorStatus{}
 )
 
@@ -98,7 +49,7 @@ func Kill() error {
 		return nil
 	}
 
-	params := repParams(appReplicaInstance)
+	params := inconf.VarParams(appReplicaInstance)
 
 	for _, task := range appReplicaInstance.App.Spec.Tasks {
 
@@ -128,7 +79,7 @@ func Kill() error {
 	return nil
 }
 
-func Run(app *hostapi.AppReplicaInstance) error {
+func Run(app *inapi.AppReplicaInstance) error {
 
 	if len(app.App.Spec.Tasks) == 0 {
 		return nil
@@ -204,7 +155,7 @@ func Run(app *hostapi.AppReplicaInstance) error {
 		}
 
 		if params == nil {
-			params = repParams(app)
+			params = inconf.VarParams(app)
 		}
 
 		if err := taskAsyncAction(task, es, params); err != nil {
@@ -230,12 +181,7 @@ func taskSyncAction(
 	}
 
 	//
-	bs, err := tplrender.Render(script, dms)
-	if err != nil {
-		slog.Error(fmt.Sprintf("task [%s] template.Execute, err %s", task.Name, err.Error()))
-		return err
-	}
-	script = string(bs)
+	script = inconf.RenderWithExpand(script, dms)
 
 	cmd := exec.Command("sh")
 
@@ -350,14 +296,10 @@ func taskAsyncAction(
 	// slog.Info("inagent/exec run ...")
 
 	//
-	bs, err := tplrender.Render(script, dms)
-	if err != nil {
-		slog.Error(fmt.Sprintf("task [%s] template.Execute, err %s", task.Name, err.Error()))
-		return err
-	}
+	script = inconf.RenderWithExpand(script, dms)
 
 	//
-	if err := taskCmd(task, es, string(bs)); err != nil {
+	if err := taskCmd(task, es, script); err != nil {
 		slog.Error(fmt.Sprintf("task [%s] CMD, err %s", task.Name, err.Error()))
 		return err
 	}
@@ -444,8 +386,8 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 				}
 				es.DoneUpdated = 0
 				es.FailUpdated = max(time.Now().Unix(), es.ExecWindow)
-				slog.Error(fmt.Sprintf("task [%s] failed, duration %v, err %s",
-					task.Name, time.Since(execStarted), es.FailMessage))
+				slog.Error(fmt.Sprintf("task [%s] failed, duration %v, err %s, script %s",
+					task.Name, time.Since(execStarted), es.FailMessage, script))
 			}
 
 			es.Cmd = nil

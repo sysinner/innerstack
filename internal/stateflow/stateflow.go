@@ -22,11 +22,11 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/incore/v2/inapi"
 )
 
 // AppStateCommand defines the function signature for app state operations
-type AppStateCommand func(replica *hostapi.AppReplicaInstance) (string, error)
+type AppStateCommand func(replica *inapi.AppReplicaInstance) (string, error)
 
 // AppStateEntry represents a state transition with its associated command
 type AppStateEntry struct {
@@ -84,7 +84,7 @@ func (it *AppStateWorkflow) Register(
 		it.Transitions[currentState] = make(map[string]*AppStateEntry)
 	}
 
-	slog.Info(fmt.Sprintf("Register state transition %s -> %s -> %s",
+	slog.Debug(fmt.Sprintf("reg state transition %s -> %s -> %s",
 		currentState, event, nextState))
 
 	it.Transitions[currentState][event] = &AppStateEntry{

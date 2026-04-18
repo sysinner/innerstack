@@ -44,7 +44,13 @@ message AppInstance {
   // status reflects the current observed state of the application instance.
   AppStatus status = 30;
 
+  // version is an internal revision number for data synchronization.
   uint64 version = 31;
+
+  // ref_by_instances records IDs of other app instances that reference
+  // this instance as a dependency. Maintained by the zonelet to track
+  // reverse dependency links.
+  repeated string ref_by_instances = 32;
 }
 
 // AppSpec defines the specification of an application, including its resources,
@@ -72,13 +78,13 @@ message AppSpec {
   repeated AppSpecDepend service_depends = 12;
 
   // service_ports is a list of service ports exposed by the application.
-  repeated AppServicePort service_ports = 13;
+  repeated AppSpecServicePort service_ports = 13;
 
   // packages is a list of software packages required by the application.
   repeated AppSpecPackage packages = 20;
 
-  // config defines the configuration schema for the application.
-  AppSpecConfig config = 21;
+  // configs defines the configuration schema for the application.
+  repeated AppSpecConfigItem configs = 21;
 
   // tasks is a list of tasks (commands/scripts) that run within the
   // application.
@@ -117,31 +123,10 @@ message AppSpecDepend {
   string version = 3;
 }
 
-// AppServicePort defines a service port exposed by the application.
-message AppServicePort {
-  // port is the port number on which the service is exposed.
-  uint32 port = 1;
+message AppSpecServicePort {
+  string name = 1;
 
-  // name is a descriptive name for the service port.
-  string name = 2;
-
-  // endpoints is a list of replica endpoints for this service port.
-  repeated AppServiceReplica endpoints = 3;
-}
-
-// AppServiceReplica represents an endpoint replica for a service port.
-message AppServiceReplica {
-  // rep is the replica identifier/number.
-  uint32 rep = 1;
-
-  // ip is the IP address of the replica.
-  string ip = 2;
-
-  // port is the port number of the replica.
-  uint32 port = 3;
-
-  // vpc_ipv4 is the VPC IPv4 address of the replica.
-  string vpc_ipv4 = 4;
+  uint32 port = 2;
 }
 
 // AppSpecTask defines a task execution entity with trigger logic and fault
@@ -201,35 +186,51 @@ message AppDeploy {
   // volume_limit specifies the volume limit in bytes.
   int64 volume_limit = 12;
 
-  // options is a list of deployment options.
-  repeated AppDeployOption options = 13;
-
-  // services is a list of service port configurations.
-  repeated AppServicePort services = 14;
+  // configs is a list of deployment configs.
+  repeated AppDeployConfigItem configs = 13;
 
   // replica_cap specifies the desired number of replicas.
   uint32 replica_cap = 19;
 
   // replicas is a list of replica deployment states.
   repeated AppDeployReplica replicas = 20;
+
+  // depends is a list of resolved dependency bindings that map each
+  // dependent AppSpec.Name to a concrete deployed AppInstance.ID.
+  repeated AppDeployDepend depends = 21;
 }
 
-// AppDeployOption represents a named group of deployment options.
-message AppDeployOption {
-  // name is the name of the option group.
-  string name = 1;
 
-  // items is a list of fields within this option group.
-  repeated AppDeployOptionField items = 3;
-}
-
-// AppDeployOptionField represents a single field in a deployment option.
-message AppDeployOptionField {
+// AppDeployConfigItem represents a single field in a deployment config.
+message AppDeployConfigItem {
   // name is the name of the field.
   string name = 1;
 
   // value is the value of the field.
   string value = 2;
+
+  // type specifies the data type of the field.
+  string type = 3;
+
+   // items is a list of fields within this config group.
+  repeated AppDeployConfigItem items = 9;
+}
+
+// AppDeployDepend represents a resolved dependency binding at deploy time.
+// It maps an AppSpec.Name to a concrete deployed AppInstance.ID.
+message AppDeployDepend {
+  // spec_name is the name of the dependent application specification.
+  string spec_name = 1;
+
+  // instance_id is the ID of the deployed app instance that satisfies
+  // this dependency.
+  string instance_id = 2;
+
+  // 由调度器自动赋值
+  repeated AppDeployConfigItem configs = 13;
+
+  // 由调度器自动赋值
+  repeated AppDeployReplica replicas = 20;
 }
 
 // AppDeployReplica represents the deployment state of a replica.
@@ -239,6 +240,7 @@ message AppDeployReplica {
 
   // host_id is the ID of the host where the replica runs.
   string host_id = 2;
+  string host_ipv4 = 6;
 
   // state is the desired state of the replica.
   string state = 3;
@@ -249,7 +251,7 @@ message AppDeployReplica {
   // service_ports is the list of port mappings allocated for this replica.
   // Each entry maps a container port (box_port) to a host physical port
   // (host_port), assigned by the scheduler when the replica binds to a host.
-  repeated ServicePort service_ports = 5;
+  repeated AppDeployServicePort service_ports = 5;
 }
 
 // AppStatus represents the current observed status of an application.
@@ -278,66 +280,8 @@ message AppReplicaStatus {
   repeated string attrs = 4;
 }
 
-// AppOptionField represents a single field in an application option.
-message AppOptionField {
-  // type specifies the data type of the field.
-  uint32 type = 1;
-
-  // name is the name of the field.
-  string name = 2;
-
-  // value is the value of the field.
-  string value = 3;
-}
-
-// AppOption represents a configurable option for an application.
-message AppOption {
-  // name is the name of the option.
-  string name = 1;
-
-  // items is a list of fields within this option.
-  repeated AppOptionField items = 2;
-
-  // subs is a list of sub-option names.
-  repeated string subs = 3;
-
-  // ref is a reference to another resource.
-  AppOptionRef ref = 4;
-
-  // user specifies the user who owns or configured this option.
-  string user = 5;
-
-  // updated is the Unix timestamp of the last modification.
-  int64 updated = 6;
-}
-
-// AppOptionRef represents a reference from an option to another resource.
-message AppOptionRef {
-  // spec_id is the ID of the referenced specification.
-  string spec_id = 1;
-
-  // app_id is the ID of the referenced application.
-  string app_id = 2;
-
-  // ports is a list of referenced service ports.
-  repeated ServicePort ports = 3;
-
-  // updated is the Unix timestamp of the last reference update.
-  int64 updated = 4;
-}
-
-// AppSpecConfig defines the configuration schema for an application
-// specification.
-message AppSpecConfig {
-  // name is the name of the configuration schema.
-  string name = 1;
-
-  // fields is a list of configuration fields.
-  repeated AppSpecConfigField fields = 2;
-}
-
-// AppSpecConfigField represents a single configuration field in the schema.
-message AppSpecConfigField {
+// AppSpecConfigItem represents a single configuration field in the schema.
+message AppSpecConfigItem {
   // name is the programmatic name of the field.
   string name = 1;
 
@@ -363,16 +307,13 @@ message AppSpecConfigField {
   // description provides a detailed description of the field.
   string description = 8;
 
-  // Enums       types.Labels  `json:"enums,omitempty" toml:"enums,omitempty"`
+  repeated AppSpecConfigItem items = 9;
 }
 
-// ServicePort defines a service port mapping for network access.
-message ServicePort {
-  // name is the descriptive name of the service port.
+message AppDeployServicePort {
   string name = 1;
 
-  // box_port is the port number inside the container/application.
-  uint32 box_port = 2;
+  uint32 port = 2;
 
   // host_port is the port number exposed on the host.
   uint32 host_port = 3;
@@ -381,8 +322,13 @@ message ServicePort {
   string lan_addr = 4;
 
   // wan_addr is the WAN (wide area network) address for external access.
-  string wan_addr = 5;
+  // string wan_addr = 5;
+}
 
-  // app_spec is the application specification this port belongs to.
-  string app_spec = 6;
+message AppReplicaInstance {
+  AppInstance app = 1;
+
+  AppDeployReplica replica = 2;
+
+  string zone_base_domain = 3;
 }

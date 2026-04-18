@@ -14,11 +14,13 @@
 
 package inapi
 
-// AppSpecConfigField type constants
+// AppSpecConfigItem type constants
 const (
 	SpecFieldTypeUnspec = ""       // unspecified type
 	SpecFieldTypeString = "string" // string type
 	SpecFieldTypeSelect = "select" // select type
+
+	SpecFieldTypeGroup = "group" // array type
 
 	SpecFieldTypeText         = "text"          // text type
 	SpecFieldTypeTextJSON     = "text_json"     // json text

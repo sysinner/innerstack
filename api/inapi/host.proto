@@ -19,8 +19,6 @@ package inapi;
 option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
 
-import "common.proto";
-
 // Host represents a physical or virtual machine in the cluster.
 // It contains the host's identity, connection information, operational
 // parameters, and current status.
@@ -37,6 +35,7 @@ message Host {
   // access_key is the exported access key for secure communication.
   string access_key = 8;
 
+  // deploy contains the deployment-related network configuration.
   HostDeploy deploy = 9;
 
   // operate specifies the operational parameters for the host.
@@ -46,14 +45,15 @@ message Host {
   HostStatus status = 30;
 }
 
+// HostDeploy contains the deployment-related network configuration for a host.
 message HostDeploy {
   // vpc_bridge_ip is the host's VPC bridge address (e.g., "192.168.10.3").
   string vpc_bridge_ip = 10;
 
-  // vpc_instance_cidr is the host's VPC instance subnet (e.g.,
-  // "10.10.3.0/24").
+  // vpc_instance_cidr is the host's VPC instance subnet (e.g., "10.10.3.0/24").
   string vpc_instance_cidr = 11;
 
+  // port_used tracks the list of host physical ports currently in use.
   repeated uint32 port_used = 12;
 }
 
@@ -70,30 +70,30 @@ message HostOperate {
   int64 storage_alloc = 3;
 }
 
-// HostPlatform contains information about the host's operating system and
-// hardware.
-message HostPlatform {
-  // os is the operating system name (e.g., "linux", "darwin").
-  string os = 1;
+// // HostPlatform contains information about the host's operating system and
+// // hardware.
+// message HostPlatform {
+//   // os is the operating system name (e.g., "linux", "darwin").
+//   string os = 1;
 
-  // kernel is the kernel version string.
-  string kernel = 2;
+//   // kernel is the kernel version string.
+//   string kernel = 2;
 
-  // arch is the CPU architecture (e.g., "amd64", "arm64").
-  string arch = 3;
-}
+//   // arch is the CPU architecture (e.g., "amd64", "arm64").
+//   string arch = 3;
+// }
 
-// HostVolume represents a storage volume on the host.
-message HostVolume {
-  // name is the name or mount point of the volume.
-  string name = 1;
+// // HostVolume represents a storage volume on the host.
+// message HostVolume {
+//   // name is the name or mount point of the volume.
+//   string name = 1;
 
-  // total is the total capacity of the volume in bytes.
-  uint64 total = 2;
+//   // total is the total capacity of the volume in bytes.
+//   uint64 total = 2;
 
-  // used is the used space on the volume in bytes.
-  uint64 used = 3;
-}
+//   // used is the used space on the volume in bytes.
+//   uint64 used = 3;
+// }
 
 // HostStatus represents the current status and metrics of a host.
 message HostStatus {
@@ -179,27 +179,4 @@ message HostStatus_Container {
 
   // image_num is the number of available images.
   int32 image_num = 5;
-}
-
-// HostService_Zone represents zone information from the host service
-// perspective.
-message HostService_Zone {
-  // meta contains common metadata for the zone.
-  inapi.Common_Meta meta = 2;
-
-  // action specifies the current action on the zone.
-  string action = 3;
-
-  // description provides a human-readable description of the zone.
-  string description = 4;
-}
-
-// HostService_ZoneListRequest is the request message for listing zones.
-message HostService_ZoneListRequest {}
-
-// HostService_ZoneListResponse is the response message containing the list of
-// zones.
-message HostService_ZoneListResponse {
-  // zones is the list of zones available to the host.
-  repeated HostService_Zone zones = 9;
 }

@@ -16,6 +16,13 @@ type KvSet struct {
 	idx     map[string]*KvEntry
 	arr     []*KvEntry
 	version uint64
+	ready   bool
+}
+
+func (it *KvSet) Fresh(fn func() error) {
+	if err := fn(); err == nil && len(it.arr) > 0 {
+		it.ready = true
+	}
 }
 
 func (it *KvSet) Store(key string, meta *kvapi.Meta, val any) {
@@ -73,6 +80,10 @@ func (it *KvSet) Len() int {
 	return len(it.arr)
 }
 
+func (it *KvSet) IsReady() bool {
+	return it.ready
+}
+
 func (it *KvSet) Clear() {
 	it.mu.Lock()
 	defer it.mu.Unlock()
@@ -80,4 +91,5 @@ func (it *KvSet) Clear() {
 	it.idx = map[string]*KvEntry{}
 	it.arr = []*KvEntry{}
 	it.version = 0
+	it.ready = false
 }

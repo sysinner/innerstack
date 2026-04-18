@@ -33,8 +33,6 @@ import (
 var (
 	lastRefreshed int64 = 0
 	forceFreshTTL int64 = 1800
-
-	nextScheduleTasks int = 0
 )
 
 func schedulerRefresh(forceRefresh bool) error {
@@ -87,10 +85,9 @@ func schedulerRefresh(forceRefresh bool) error {
 	var (
 		hostPortMap = map[string][]uint32{}
 
-		instanceMap     = map[string]*inapi.AppInstance{}
-		instanceVersMap = map[string]uint64{}
+		instanceMap = []*appInstanceEntry{}
 
-		activeInstance *inapi.AppInstance
+		activeInstance *appInstanceEntry
 	)
 
 	{
@@ -139,64 +136,57 @@ func schedulerRefresh(forceRefresh bool) error {
 				"instance_cidr", host.Deploy.VpcInstanceCidr)
 
 			if rs := data.Zonelet.NewWriter(
-				inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), host).
+				inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), &host).
 				SetPrevVersion(item.Meta.Version).Exec(); !rs.OK() {
 				return rs.Error()
 			}
 		}
 	}
 
-	{
-		offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
-			SetLimit(inapi.Zonelet_MaxInstances).Exec()
-		if !rs.OK() && !rs.NotFound() {
-			return rs.Error()
-		}
-		for _, item := range rs.Items {
-			var instance inapi.AppInstance
-			if err := item.JsonDecode(&instance); err != nil {
-				continue
-			}
-
-			if instance.Deploy == nil || instance.Spec == nil ||
-				instance.Spec.Resources == nil {
-				slog.Warn("scheduler skip instance with invalid operate or spec",
-					"instance_id", instance.Id)
-				continue
-			}
-
-			if activeInstance == nil {
-				if len(instance.Deploy.Replicas) < int(instance.Deploy.ReplicaCap) {
-					activeInstance = &instance
-				} else {
-					for _, rep := range instance.Deploy.Replicas {
-						if rep.HostId == "" {
-							activeInstance = &instance
-							break
-						}
-					}
-				}
-			}
-			instanceMap[instance.Id] = &instance
-			instanceVersMap[instance.Id] = item.Meta.Version
-
-			for _, rep := range instance.Deploy.Replicas {
-				if rep.HostId == "" {
-					continue
-				}
-				if _, ok := hostPortMap[rep.HostId]; !ok {
-					hostPortMap[rep.HostId] = []uint32{}
-				}
-				for _, sp := range rep.ServicePorts {
-					if sp.HostPort > 0 &&
-						!slices.Contains(hostPortMap[rep.HostId], sp.HostPort) {
-						hostPortMap[rep.HostId] = append(hostPortMap[rep.HostId], sp.HostPort)
-					}
-				}
-			}
+	if forceRefresh || !gAppInstanceSet.IsReady() {
+		if err := gAppInstanceSet.Refresh(); err != nil {
+			return err
 		}
 	}
+
+	gAppInstanceSet.Iter(func(app *appInstanceEntry) bool {
+		if activeInstance == nil {
+			if len(app.Value.Deploy.Replicas) < int(app.Value.Deploy.ReplicaCap) {
+				activeInstance = app
+			} else {
+				for _, rep := range app.Value.Deploy.Replicas {
+					if rep.HostId == "" {
+						activeInstance = app
+						break
+					}
+				}
+			}
+		}
+
+		for _, rep := range app.Value.Deploy.Replicas {
+			if rep.HostId == "" {
+				continue
+			}
+			if _, ok := hostPortMap[rep.HostId]; !ok {
+				hostPortMap[rep.HostId] = []uint32{}
+			}
+			for _, sp := range rep.ServicePorts {
+				if sp.HostPort > 0 &&
+					!slices.Contains(hostPortMap[rep.HostId], sp.HostPort) {
+					hostPortMap[rep.HostId] = append(hostPortMap[rep.HostId], sp.HostPort)
+				}
+			}
+		}
+
+		instanceMap = append(instanceMap, app)
+
+		return true
+	})
+
+	// // Resolve app dependencies for all instances (inject dependent configs/services)
+	// for _, instance := range instanceMap {
+	// 	resolveAppDependencies(instance)
+	// }
 
 	{
 		for hostId, ports := range hostPortMap {
@@ -234,17 +224,17 @@ func schedulerRefresh(forceRefresh bool) error {
 		}
 	}
 
-	for _, instance := range instanceMap {
+	for _, app := range instanceMap {
 
-		ports := map[uint32]*inapi.AppServicePort{}
-		for _, sp := range instance.Spec.ServicePorts {
+		ports := map[uint32]*inapi.AppSpecServicePort{}
+		for _, sp := range app.Value.Spec.ServicePorts {
 			if sp == nil || sp.Port < 1 || sp.Port >= 65536 {
 				continue
 			}
 			ports[sp.Port] = sp
 		}
 
-		for _, rep := range instance.Deploy.Replicas {
+		for _, rep := range app.Value.Deploy.Replicas {
 			if rep.HostId == "" {
 				continue
 			}
@@ -255,11 +245,11 @@ func schedulerRefresh(forceRefresh bool) error {
 			host := kvHost.Value.(*inapi.Host)
 
 			flush := false
-			setPorts := make([]*inapi.ServicePort, 0, len(ports))
+			setPorts := make([]*inapi.AppDeployServicePort, 0, len(ports))
 			for _, sp := range rep.ServicePorts {
-				if _, ok := ports[sp.BoxPort]; ok && sp.HostPort > 0 &&
-					!slices.ContainsFunc(setPorts, func(p *inapi.ServicePort) bool {
-						return p.BoxPort == sp.BoxPort
+				if _, ok := ports[sp.Port]; ok && sp.HostPort > 0 &&
+					!slices.ContainsFunc(setPorts, func(p *inapi.AppDeployServicePort) bool {
+						return p.Port == sp.Port
 					}) {
 					setPorts = append(setPorts, sp)
 				}
@@ -271,8 +261,8 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			for _, sp := range ports {
 
-				if slices.ContainsFunc(setPorts, func(p *inapi.ServicePort) bool {
-					return p.BoxPort == sp.Port
+				if slices.ContainsFunc(setPorts, func(p *inapi.AppDeployServicePort) bool {
+					return p.Port == sp.Port
 				}) {
 					continue
 				}
@@ -291,9 +281,9 @@ func schedulerRefresh(forceRefresh bool) error {
 
 				host.Deploy.PortUsed = append(host.Deploy.PortUsed, hp)
 				slices.Sort(host.Deploy.PortUsed)
-				setPorts = append(setPorts, &inapi.ServicePort{
+				setPorts = append(setPorts, &inapi.AppDeployServicePort{
 					Name:     sp.Name,
-					BoxPort:  sp.Port,
+					Port:     sp.Port,
 					HostPort: hp,
 				})
 				flush = true
@@ -305,20 +295,17 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			rep.ServicePorts = setPorts
 
-			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
-			if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
-				instanceVersMap[instance.Id]).Exec(); !rs.OK() {
+			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
-					"instance_id", instance.Id,
-					"err", rs.ErrorMessage())
-				return rs.Error()
-			} else {
-				slog.Warn("scheduler alloc instance vpc",
-					"instance_id", instance.Id,
-					"rep_id", rep.Id,
-					"ports", setPorts)
-				instanceVersMap[instance.Id] = rs.Item().Meta.Version
+					"instance_id", app.Value.Id,
+					"err", err.Error())
+				return err
 			}
+
+			slog.Warn("scheduler alloc instance vpc",
+				"instance_id", app.Value.Id,
+				"rep_id", rep.Id,
+				"ports", setPorts)
 
 			// Persist host with updated port_used
 			hostKey := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id)
@@ -333,44 +320,43 @@ func schedulerRefresh(forceRefresh bool) error {
 			}
 		}
 
-		if zoneNetMgr.IsReady() {
+		if !zoneNetMgr.IsReady() {
+			continue
+		}
 
-			for _, rep := range instance.Deploy.Replicas {
-				if rep.HostId == "" {
-					continue
-				}
+		for _, rep := range app.Value.Deploy.Replicas {
+			if rep.HostId == "" {
+				continue
+			}
 
-				if rep.VpcIpv4 != "" {
-					if s := zoneNetMgr.VpcInstance(rep.VpcIpv4); s == "" ||
-						s != fmt.Sprintf("%s-%04x", instance.Id, rep.Id) {
-						rep.VpcIpv4 = ""
-					} else {
-						continue
-					}
-				}
-
-				if hostNet := zoneNetMgr.HostNetwork(rep.HostId); hostNet == nil {
-					continue
-				}
-				rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
-					rep.HostId, instance.Id, rep.Id)
-				if rep.VpcIpv4 == "" {
-					continue
-				}
-				key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
-				if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
-					instanceVersMap[instance.Id]).Exec(); !rs.OK() {
-					slog.Warn("scheduler update instance fail",
-						"instance_id", instance.Id,
-						"err", rs.ErrorMessage())
-					return rs.Error()
+			if rep.VpcIpv4 != "" {
+				if s := zoneNetMgr.VpcInstance(rep.VpcIpv4); s == "" ||
+					s != fmt.Sprintf("%s-%04x", app.Value.Id, rep.Id) {
+					rep.VpcIpv4 = ""
 				} else {
-					slog.Warn("scheduler alloc instance vpc",
-						"instance_id", instance.Id,
-						"ip", rep.VpcIpv4)
-					instanceVersMap[instance.Id] = rs.Item().Meta.Version
+					continue
 				}
 			}
+
+			if hostNet := zoneNetMgr.HostNetwork(rep.HostId); hostNet == nil {
+				continue
+			}
+			rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
+				rep.HostId, app.Value.Id, rep.Id)
+			if rep.VpcIpv4 == "" {
+				continue
+			}
+
+			if err := gAppInstanceSet.Flush(app); err != nil {
+				slog.Warn("scheduler update instance fail",
+					"instance_id", app.Value.Id,
+					"err", err.Error())
+				return err
+			}
+
+			slog.Warn("scheduler alloc instance vpc",
+				"instance_id", app.Value.Id,
+				"ip", rep.VpcIpv4)
 		}
 	}
 
@@ -431,15 +417,15 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	// Calculate already allocated resources from existing replicas
-	for _, instance := range instanceMap {
-		for _, rep := range instance.Deploy.Replicas {
+	for _, app := range instanceMap {
+		for _, rep := range app.Value.Deploy.Replicas {
 			if rep.HostId == "" {
 				continue
 			}
 			if host, ok := schedHosts[rep.HostId]; ok {
-				host.CpuAlloc += instance.Deploy.CpuLimit
-				host.MemAlloc += instance.Deploy.MemoryLimit
-				host.Volumes[0].Alloc += instance.Deploy.VolumeLimit
+				host.CpuAlloc += app.Value.Deploy.CpuLimit
+				host.MemAlloc += app.Value.Deploy.MemoryLimit
+				host.Volumes[0].Alloc += app.Value.Deploy.VolumeLimit
 			}
 		}
 	}
@@ -460,48 +446,49 @@ func schedulerRefresh(forceRefresh bool) error {
 	sched := scheduler.NewScheduler()
 
 	// Schedule replicas for each instance
-	for _, instance := range []*inapi.AppInstance{activeInstance} {
+	for _, app := range []*appInstanceEntry{activeInstance} {
 		// Determine replica capacity (default 1, max 128)
-		rc := instance.Deploy.ReplicaCap
-		instance.Deploy.ReplicaCap = max(1, min(128, rc))
+		rc := app.Value.Deploy.ReplicaCap
+		app.Value.Deploy.ReplicaCap = max(1, min(128, rc))
 
-		sort.Slice(instance.Deploy.Replicas, func(i, j int) bool {
-			return instance.Deploy.Replicas[i].Id < instance.Deploy.Replicas[j].Id
+		sort.Slice(app.Value.Deploy.Replicas, func(i, j int) bool {
+			return app.Value.Deploy.Replicas[i].Id < app.Value.Deploy.Replicas[j].Id
 		})
 
-		repLen := uint32(len(instance.Deploy.Replicas))
-		for repId := repLen; repId < instance.Deploy.ReplicaCap; repId++ {
+		repLen := uint32(len(app.Value.Deploy.Replicas))
+		for repId := repLen; repId < app.Value.Deploy.ReplicaCap; repId++ {
 			newReplica := &inapi.AppDeployReplica{
 				Id: repId,
 			}
-			instance.Deploy.Replicas = append(instance.Deploy.Replicas, newReplica)
+			app.Value.Deploy.Replicas = append(app.Value.Deploy.Replicas, newReplica)
 		}
 
 		// Schedule replicas
-		for _, rep := range instance.Deploy.Replicas {
+		for _, rep := range app.Value.Deploy.Replicas {
 			if rep.HostId != "" {
 				continue
 			}
 			srep := &typeScheduler.SchedulePodReplica{
 				RepId: uint64(rep.Id),
-				Cpu:   instance.Deploy.CpuLimit,
-				Mem:   instance.Deploy.MemoryLimit,
-				Vol:   instance.Deploy.VolumeLimit,
+				Cpu:   app.Value.Deploy.CpuLimit,
+				Mem:   app.Value.Deploy.MemoryLimit,
+				Vol:   app.Value.Deploy.VolumeLimit,
 			}
 
 			hit, err := sched.ScheduleHost(srep, schedResources, nil)
 			if err != nil {
 				slog.Warn("scheduler failed",
-					"instance_id", instance.Id,
-					"instance_name", instance.Name,
+					"instance_id", app.Value.Id,
+					"instance_name", app.Value.Name,
+					"sched-hosts", len(schedResources.Hosts),
 					"err", err.Error())
 				break
 			}
 
 			if hit == nil {
 				slog.Warn("scheduler no host fit",
-					"instance_id", instance.Id,
-					"instance_name", instance.Name)
+					"instance_id", app.Value.Id,
+					"instance_name", app.Value.Name)
 				break
 			}
 
@@ -517,13 +504,13 @@ func schedulerRefresh(forceRefresh bool) error {
 			if zoneNetMgr.IsReady() {
 				if hostNet := zoneNetMgr.HostNetwork(hit.HostId); hostNet != nil {
 					rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
-						hit.HostId, instance.Id, rep.Id)
+						hit.HostId, app.Value.Id, rep.Id)
 				}
 			}
 
-			rep.ServicePorts = []*inapi.ServicePort{}
+			rep.ServicePorts = []*inapi.AppDeployServicePort{}
 
-			for _, sp := range instance.Spec.ServicePorts {
+			for _, sp := range app.Value.Spec.ServicePorts {
 				if sp == nil || sp.Port < 1 || sp.Port >= 65536 {
 					continue
 				}
@@ -537,39 +524,37 @@ func schedulerRefresh(forceRefresh bool) error {
 				}
 				host.Deploy.PortUsed = append(host.Deploy.PortUsed, hp)
 				slices.Sort(host.Deploy.PortUsed)
-				rep.ServicePorts = append(rep.ServicePorts, &inapi.ServicePort{
+				rep.ServicePorts = append(rep.ServicePorts, &inapi.AppDeployServicePort{
 					Name:     sp.Name,
-					BoxPort:  sp.Port,
+					Port:     sp.Port,
 					HostPort: hp,
 				})
 			}
 
-			key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
-			if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
-				instanceVersMap[instance.Id]).Exec(); !rs.OK() {
+			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
-					"instance_id", instance.Id,
-					"err", rs.ErrorMessage())
-				return rs.Error()
+					"instance_id", app.Value.Id,
+					"err", err.Error())
+				return err
 			}
 
 			slog.Info("scheduler assigned host",
-				"instance_id", instance.Id,
-				"instance_name", instance.Name,
+				"instance_id", app.Value.Id,
+				"instance_name", app.Value.Name,
 				"replica_id", rep.Id,
 				"host_id", hit.HostId)
 
 			if host, ok := schedHosts[hit.HostId]; ok {
-				host.CpuAlloc += instance.Deploy.CpuLimit
-				host.MemAlloc += instance.Deploy.MemoryLimit
-				host.Volumes[0].Alloc += instance.Deploy.VolumeLimit
+				host.CpuAlloc += app.Value.Deploy.CpuLimit
+				host.MemAlloc += app.Value.Deploy.MemoryLimit
+				host.Volumes[0].Alloc += app.Value.Deploy.VolumeLimit
 			}
 
 			if val := gHostOperateSet.Load(hit.HostId); val != nil {
 				op := val.Value.(*inapi.HostOperate)
-				op.CpuAlloc += instance.Deploy.CpuLimit
-				op.MemAlloc += instance.Deploy.MemoryLimit
-				op.StorageAlloc += instance.Deploy.VolumeLimit
+				op.CpuAlloc += app.Value.Deploy.CpuLimit
+				op.MemAlloc += app.Value.Deploy.MemoryLimit
+				op.StorageAlloc += app.Value.Deploy.VolumeLimit
 			}
 
 			// Persist host with updated port_used

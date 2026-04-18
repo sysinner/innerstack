@@ -24,7 +24,6 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -34,203 +33,21 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// OpLogSets represents a collection of operation log entries, typically used
-// to track the status and progress of batch operations or workflows.
-type OpLogSets struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	// Name identifies this operation log set, typically representing the
-	// operation type or workflow name.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
-	// Version indicates the schema or data version of this log set,
-	// useful for migration and compatibility checking.
-	Version uint32 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
-	// Items contains the list of individual operation log entries
-	// within this set.
-	Items []*OpLogEntry `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`
-}
-
-func (x *OpLogSets) Reset() {
-	*x = OpLogSets{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_stat_proto_msgTypes[0]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *OpLogSets) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpLogSets) ProtoMessage() {}
-
-func (x *OpLogSets) ProtoReflect() protoreflect.Message {
-	mi := &file_stat_proto_msgTypes[0]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpLogSets.ProtoReflect.Descriptor instead.
-func (*OpLogSets) Descriptor() ([]byte, []int) {
-	return file_stat_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *OpLogSets) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *OpLogSets) GetVersion() uint32 {
-	if x != nil {
-		return x.Version
-	}
-	return 0
-}
-
-func (x *OpLogSets) GetItems() []*OpLogEntry {
-	if x != nil {
-		return x.Items
-	}
-	return nil
-}
-
-// OpLogEntry represents a single operation log entry that records
-// the execution status and result of a specific operation.
-type OpLogEntry struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	// Name identifies this specific operation, such as a task name,
-	// step name, or resource identifier.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
-	// Status indicates the current state of the operation.
-	// Common values include "pending", "running", "success", "failed", "cancelled".
-	Status string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
-	// Updated is the Unix timestamp in milliseconds when this entry
-	// was last modified, used for tracking operation progress and timing.
-	Updated uint64 `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
-	// Message provides additional details about the operation result,
-	// error description, or progress information.
-	Message string `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty" toml:"message,omitempty"`
-}
-
-func (x *OpLogEntry) Reset() {
-	*x = OpLogEntry{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_stat_proto_msgTypes[1]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *OpLogEntry) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpLogEntry) ProtoMessage() {}
-
-func (x *OpLogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_stat_proto_msgTypes[1]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpLogEntry.ProtoReflect.Descriptor instead.
-func (*OpLogEntry) Descriptor() ([]byte, []int) {
-	return file_stat_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *OpLogEntry) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *OpLogEntry) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *OpLogEntry) GetUpdated() uint64 {
-	if x != nil {
-		return x.Updated
-	}
-	return 0
-}
-
-func (x *OpLogEntry) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
 var File_stat_proto protoreflect.FileDescriptor
 
 var file_stat_proto_rawDesc = []byte{
 	0x0a, 0x0a, 0x73, 0x74, 0x61, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x05, 0x69, 0x6e,
-	0x61, 0x70, 0x69, 0x22, 0x62, 0x0a, 0x09, 0x4f, 0x70, 0x4c, 0x6f, 0x67, 0x53, 0x65, 0x74, 0x73,
-	0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04,
-	0x6e, 0x61, 0x6d, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18,
-	0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x27,
-	0x0a, 0x05, 0x69, 0x74, 0x65, 0x6d, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x11, 0x2e,
-	0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x4f, 0x70, 0x4c, 0x6f, 0x67, 0x45, 0x6e, 0x74, 0x72, 0x79,
-	0x52, 0x05, 0x69, 0x74, 0x65, 0x6d, 0x73, 0x22, 0x6c, 0x0a, 0x0a, 0x4f, 0x70, 0x4c, 0x6f, 0x67,
-	0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x74, 0x61,
-	0x74, 0x75, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75,
-	0x73, 0x12, 0x18, 0x0a, 0x07, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x18, 0x03, 0x20, 0x01,
-	0x28, 0x04, 0x52, 0x07, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x6d,
-	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x65,
-	0x73, 0x73, 0x61, 0x67, 0x65, 0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x69, 0x6e,
-	0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x61, 0x70, 0x69, 0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x69, 0x6e, 0x61, 0x70,
+	0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
-var (
-	file_stat_proto_rawDescOnce sync.Once
-	file_stat_proto_rawDescData = file_stat_proto_rawDesc
-)
-
-func file_stat_proto_rawDescGZIP() []byte {
-	file_stat_proto_rawDescOnce.Do(func() {
-		file_stat_proto_rawDescData = protoimpl.X.CompressGZIP(file_stat_proto_rawDescData)
-	})
-	return file_stat_proto_rawDescData
-}
-
-var file_stat_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_stat_proto_goTypes = []interface{}{
-	(*OpLogSets)(nil),  // 0: inapi.OpLogSets
-	(*OpLogEntry)(nil), // 1: inapi.OpLogEntry
-}
+var file_stat_proto_goTypes = []interface{}{}
 var file_stat_proto_depIdxs = []int32{
-	1, // 0: inapi.OpLogSets.items:type_name -> inapi.OpLogEntry
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // [0:0] is the sub-list for method output_type
+	0, // [0:0] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_stat_proto_init() }
@@ -238,45 +55,18 @@ func file_stat_proto_init() {
 	if File_stat_proto != nil {
 		return
 	}
-	if !protoimpl.UnsafeEnabled {
-		file_stat_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*OpLogSets); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_stat_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*OpLogEntry); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_stat_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_stat_proto_goTypes,
 		DependencyIndexes: file_stat_proto_depIdxs,
-		MessageInfos:      file_stat_proto_msgTypes,
 	}.Build()
 	File_stat_proto = out.File
 	file_stat_proto_rawDesc = nil

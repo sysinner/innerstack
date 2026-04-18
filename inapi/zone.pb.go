@@ -55,12 +55,12 @@ type Zone struct {
 	//
 	// Must be a private IPv4 /24 network (RFC 1918). Each host node is
 	// assigned a bridge IP whose fourth octet falls within the allocatable
-	// range [3, 252]. Octets 0–2 and 253–255 are reserved for system use.
+	// range [3, 252]. Octets 0-2 and 253-255 are reserved for system use.
 	//
 	//	Example: 192.168.10.0/24
-	//	  192.168.10.3    → host-1 bridge IP   (first allocatable)
+	//	  192.168.10.3    -> host-1 bridge IP   (first allocatable)
 	//	  ...
-	//	  192.168.10.252  → host-250 bridge IP  (last allocatable)
+	//	  192.168.10.252  -> host-250 bridge IP  (last allocatable)
 	//
 	// Allocatable capacity: 250 host nodes per zone.
 	VpcBridgeCidr string `protobuf:"bytes,10,opt,name=vpc_bridge_cidr,json=vpcBridgeCidr,proto3" json:"vpc_bridge_cidr,omitempty" toml:"vpc_bridge_cidr,omitempty"`
@@ -71,23 +71,23 @@ type Zone struct {
 	// a host node's bridge IP fourth octet, and the fourth octet (d)
 	// provides per-host instance addresses:
 	//
-	//	a.b.c.d  →  a.b.{host_index}.{instance_index}
+	//	a.b.c.d  ->  a.b.{host_index}.{instance_index}
 	//
-	// Both c and d are allocated within [3, 252] only. Octets 0–2 and 253–255
+	// Both c and d are allocated within [3, 252] only. Octets 0-2 and 253-255
 	// are reserved for future use.
 	//
 	//	Example: 10.10.0.0/16
-	//	  10.10.3.0/24  → instances on host with bridge 192.168.10.3
-	//	    10.10.3.3   → instance-1 (first allocatable)
+	//	  10.10.3.0/24  -> instances on host with bridge 192.168.10.3
+	//	    10.10.3.3   -> instance-1 (first allocatable)
 	//	    ...
-	//	    10.10.3.252 → instance-250 (last allocatable)
+	//	    10.10.3.252 -> instance-250 (last allocatable)
 	//	  ...
-	//	  10.10.N.d     → instance d on host N  (N, d ∈ [3, 252])
+	//	  10.10.N.d     -> instance d on host N  (N, d in [3, 252])
 	//
-	// Allocatable capacity: 250 hosts × 250 instances/host = 62,500.
+	// Allocatable capacity: 250 hosts * 250 instances/host = 62,500.
 	//
 	// The third octet of the instance subnet and the bridge subnet must
-	// form a bijective mapping (c-instance ↔ c-bridge) managed by the
+	// form a bijective mapping (c-instance <-> c-bridge) managed by the
 	// internal IPAM scheduler.
 	VpcInstanceCidr string `protobuf:"bytes,11,opt,name=vpc_instance_cidr,json=vpcInstanceCidr,proto3" json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
 	// vpc_network_domain is the DNS domain for VPC internal name resolution.
@@ -184,15 +184,22 @@ type ZoneNetworkMap struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	VpcBridgeCidr    string `protobuf:"bytes,2,opt,name=vpc_bridge_cidr,json=vpcBridgeCidr,proto3" json:"vpc_bridge_cidr,omitempty" toml:"vpc_bridge_cidr,omitempty"`
-	VpcInstanceCidr  string `protobuf:"bytes,3,opt,name=vpc_instance_cidr,json=vpcInstanceCidr,proto3" json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
+	// zone-wide VPC bridge subnet (e.g., "192.168.10.0/24")
+	VpcBridgeCidr string `protobuf:"bytes,2,opt,name=vpc_bridge_cidr,json=vpcBridgeCidr,proto3" json:"vpc_bridge_cidr,omitempty" toml:"vpc_bridge_cidr,omitempty"`
+	// zone-wide VPC instance supernet (e.g., "10.10.0.0/16")
+	VpcInstanceCidr string `protobuf:"bytes,3,opt,name=vpc_instance_cidr,json=vpcInstanceCidr,proto3" json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
+	// DNS domain for VPC name resolution
 	VpcNetworkDomain string `protobuf:"bytes,4,opt,name=vpc_network_domain,json=vpcNetworkDomain,proto3" json:"vpc_network_domain,omitempty" toml:"vpc_network_domain,omitempty"`
-	// bridge IP 192.168.10.2 -> 6985b60604d7,10.10.2.0
+	// vpc_bridge_host maps bridge IP last octet to host network info.
+	// Example: key=2 -> host id "6985b60604d7", instance subnet 10.10.2.0
 	VpcBridgeHost map[uint32]*ZoneNetworkMap_Host `protobuf:"bytes,5,rep,name=vpc_bridge_host,json=vpcBridgeHost,proto3" json:"vpc_bridge_host,omitempty" toml:"vpc_bridge_host,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Instance CIDR 10.10.2.3 -> Instance-Replica ID app-699e0d6f3f11-0000
-	VpcInstance   map[uint32]string `protobuf:"bytes,7,rep,name=vpc_instance,json=vpcInstance,proto3" json:"vpc_instance,omitempty" toml:"vpc_instance,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	UpdateVersion uint64            `protobuf:"varint,14,opt,name=update_version,json=updateVersion,proto3" json:"update_version,omitempty" toml:"update_version,omitempty"`
-	Updated       int64             `protobuf:"varint,15,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	// vpc_instance maps instance IP last octet to replica ID.
+	// Example: key corresponding to 10.10.2.3 -> "app-699e0d6f3f11-0000"
+	VpcInstance map[uint32]string `protobuf:"bytes,7,rep,name=vpc_instance,json=vpcInstance,proto3" json:"vpc_instance,omitempty" toml:"vpc_instance,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// monotonic version for incremental sync
+	UpdateVersion uint64 `protobuf:"varint,14,opt,name=update_version,json=updateVersion,proto3" json:"update_version,omitempty" toml:"update_version,omitempty"`
+	// last update unix timestamp (seconds)
+	Updated int64 `protobuf:"varint,15,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
 func (x *ZoneNetworkMap) Reset() {
@@ -276,15 +283,16 @@ func (x *ZoneNetworkMap) GetUpdated() int64 {
 	return 0
 }
 
+// Host represents a host's VPC network identity within the routing table.
 type ZoneNetworkMap_Host struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
-	Peer     uint32 `protobuf:"varint,2,opt,name=peer,proto3" json:"peer,omitempty" toml:"peer,omitempty"`
-	Bridge   uint32 `protobuf:"varint,3,opt,name=bridge,proto3" json:"bridge,omitempty" toml:"bridge,omitempty"`
-	Instance uint32 `protobuf:"varint,4,opt,name=instance,proto3" json:"instance,omitempty" toml:"instance,omitempty"`
+	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`              // host unique identifier
+	Peer     uint32 `protobuf:"varint,2,opt,name=peer,proto3" json:"peer,omitempty" toml:"peer,omitempty"`         // peer address (last octet of bridge IP)
+	Bridge   uint32 `protobuf:"varint,3,opt,name=bridge,proto3" json:"bridge,omitempty" toml:"bridge,omitempty"`     // bridge address (last octet of bridge IP)
+	Instance uint32 `protobuf:"varint,4,opt,name=instance,proto3" json:"instance,omitempty" toml:"instance,omitempty"` // instance subnet prefix (third octet of instance CIDR)
 }
 
 func (x *ZoneNetworkMap_Host) Reset() {

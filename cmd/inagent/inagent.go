@@ -15,22 +15,29 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"runtime"
 
 	"github.com/spf13/cobra"
 
+	"github.com/sysinner/incore/v2/internal/inagent/cli"
 	"github.com/sysinner/incore/v2/internal/inagent/daemon"
 )
 
 var (
 	version = "2.0.0-dev"
-	release = ""
 	Prefix  = "/home/action"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "inagent",
-	Short: "An Efficient Enterprise PaaS Engine",
+	Use:     "inagent",
+	Short:   "An Efficient Enterprise PaaS Engine",
+	Version: version,
+}
+
+func init() {
+	rootCmd.SetVersionTemplate(fmt.Sprintf("inagent %s\n", version))
 }
 
 func main() {
@@ -42,8 +49,12 @@ func main() {
 		"specify the home directory of project")
 
 	rootCmd.AddCommand(daemon.NewAgentDaemonCommand())
+	rootCmd.AddCommand(cli.NewConfigRenderCommand())
+	rootCmd.AddCommand(cli.NewConfigMergeCommand())
+	rootCmd.AddCommand(cli.NewConfigExportCommand())
 
 	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

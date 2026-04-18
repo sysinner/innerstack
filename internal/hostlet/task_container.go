@@ -16,10 +16,12 @@ package hostlet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -262,6 +264,10 @@ func containerStatusRefresh() error {
 	return nil
 }
 
+var (
+	repInstances hostapi.AppReplicaInstanceList
+)
+
 // containerControlRefresh processes app replica state transitions via workflow.
 func containerControlRefresh() error {
 	if !hoststatus.HostReady.Load() ||
@@ -289,9 +295,20 @@ func containerControlRefresh() error {
 			}
 
 			//
-			repInstance := &hostapi.AppReplicaInstance{
-				App:     app,
-				Replica: rep,
+			repInstance := &inapi.AppReplicaInstance{
+				App:            app,
+				Replica:        rep,
+				ZoneBaseDomain: zoneNetworkMap.VpcNetworkDomain,
+			}
+
+			if runtime.GOOS != "linux" {
+				repInstance.Replica.VpcIpv4 = ""
+
+				for _, dep := range repInstance.App.Deploy.Depends {
+					for _, rep := range dep.Replicas {
+						rep.VpcIpv4 = ""
+					}
+				}
 			}
 
 			// Sync actual container state to replica
@@ -321,6 +338,9 @@ func containerControlRefresh() error {
 			// If command is nil, state is already at target (no action needed)
 			// Just update the state and continue
 			if cmd.Command == nil {
+				// Sync app_instance.json to running container when AppSpec changes
+				// but no container spec reset is required
+				containerAppInstanceSync(repInstance)
 				continue
 			}
 
@@ -356,7 +376,7 @@ func containerControlRefresh() error {
 
 // containerStateSync syncs container actual state to replica state.
 // State is already mapped to inapi.OpState* by docker driver.
-func containerStateSync(rep *hostapi.AppReplicaInstance) string {
+func containerStateSync(rep *inapi.AppReplicaInstance) string {
 	ctrInfo, exists := hoststatus.ContainerList.Load(rep.ContainerName())
 	if !exists || ctrInfo == nil {
 		return inapi.OpStateEmpty
@@ -382,7 +402,7 @@ func containerStateSync(rep *hostapi.AppReplicaInstance) string {
 //   - CpuLimit: tolerance 1% (millicores)
 //   - MemoryLimit: tolerance 1% (bytes)
 //   - ServicePorts: port mappings must match
-func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
+func containerSpecReset(rep *inapi.AppReplicaInstance) bool {
 
 	ctrInfo, exists := hoststatus.ContainerList.Load(rep.ContainerName())
 	if !exists || ctrInfo == nil {
@@ -445,12 +465,12 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 	// Check 4: ServicePorts must match (using allocated host ports)
 	if len(rep.Replica.ServicePorts) > 0 {
 		for _, sp := range rep.Replica.ServicePorts {
-			if sp == nil || sp.BoxPort < 1 || sp.HostPort < 1 {
+			if sp == nil || sp.Port < 1 || sp.HostPort < 1 {
 				continue
 			}
-			if binding, bound := info.Ports[int32(sp.BoxPort)]; !bound {
+			if binding, bound := info.Ports[int32(sp.Port)]; !bound {
 				slog.Info("container spec reset: service port not bound",
-					"desired_port", sp.BoxPort,
+					"desired_port", sp.Port,
 					"bound_ports", info.Ports)
 				return true
 			} else if binding.HostPort != int32(sp.HostPort) {
@@ -474,7 +494,7 @@ func containerSpecReset(rep *hostapi.AppReplicaInstance) bool {
 
 // operateContainerStarting handles the start action for a replica.
 // Returns the next state on success or failure.
-func operateContainerStarting(rep *hostapi.AppReplicaInstance) (string, error) {
+func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 	containerName := rep.ContainerName()
 
 	// Check existing container state
@@ -558,7 +578,7 @@ func operateContainerStarting(rep *hostapi.AppReplicaInstance) (string, error) {
 
 // operateContainerStopping handles the stop action for a replica.
 // Returns the next state on success or failure.
-func operateContainerStopping(rep *hostapi.AppReplicaInstance) (string, error) {
+func operateContainerStopping(rep *inapi.AppReplicaInstance) (string, error) {
 	containerName := rep.ContainerName()
 
 	ctrInfo, exists := hoststatus.ContainerList.Load(containerName)
@@ -589,7 +609,7 @@ func operateContainerStopping(rep *hostapi.AppReplicaInstance) (string, error) {
 
 // operateContainerDestroying handles the destroy action for a replica.
 // Returns the next state on success or failure.
-func operateContainerDestroying(rep *hostapi.AppReplicaInstance) (string, error) {
+func operateContainerDestroying(rep *inapi.AppReplicaInstance) (string, error) {
 	containerName := rep.ContainerName()
 
 	ctrInfo, exists := hoststatus.ContainerList.Load(containerName)
@@ -628,8 +648,66 @@ func operateContainerDestroying(rep *hostapi.AppReplicaInstance) (string, error)
 	return inapi.OpStateDestroyed, nil
 }
 
+// containerAppInstanceSync checks if the on-disk app_instance.json differs from
+// the current in-memory AppReplicaInstance and updates it if needed.
+// This ensures that changes to AppSpec are propagated into running containers
+// without requiring a container restart.
+//
+// The file is bind-mounted from host to container, so writing to the host path
+// is immediately visible inside the container.
+func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
+
+	if !repInstances.TryStore(rep) {
+		return
+	}
+
+	podBasePath := config.Config.Hostlet.PodPath
+	if podBasePath == "" {
+		return
+	}
+
+	podPaths := hostapi.NewPodPaths(podBasePath, rep.ContainerName())
+	appInstancePath := podPaths.AppInstanceFile()
+
+	// Read existing file content
+	existingData, err := os.ReadFile(appInstancePath)
+	if err != nil {
+		// File does not exist yet, write it
+		if os.IsNotExist(err) {
+			if writeErr := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); writeErr != nil {
+				slog.Warn("app_instance.json create failed",
+					"path", appInstancePath, "err", writeErr.Error())
+			}
+		}
+		return
+	}
+
+	// Encode current in-memory state
+	newData, err := json.Marshal(rep)
+	if err != nil {
+		slog.Warn("app_instance.json marshal failed", "err", err.Error())
+		return
+	}
+
+	// Compare: only write if content changed to minimize unnecessary disk I/O
+	if string(existingData) == string(newData) {
+		return
+	}
+
+	if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err != nil {
+		slog.Warn("app_instance.json update failed",
+			"path", appInstancePath, "err", err.Error())
+		return
+	}
+
+	slog.Info("app_instance.json updated for AppSpec sync",
+		"app", rep.App.Id,
+		"container", rep.ContainerName(),
+		"path", appInstancePath)
+}
+
 // containerCreate creates a new container for the given replica.
-func containerCreate(rep *hostapi.AppReplicaInstance) error {
+func containerCreate(rep *inapi.AppReplicaInstance) error {
 	containerName := rep.ContainerName()
 
 	if rep.App.Spec.Resources == nil {
@@ -698,9 +776,9 @@ func containerCreate(rep *hostapi.AppReplicaInstance) error {
 
 	// Setup port bindings using allocated host ports from scheduler
 	for _, sp := range rep.Replica.ServicePorts {
-		if sp != nil && sp.BoxPort > 0 && sp.HostPort > 0 {
+		if sp != nil && sp.Port > 0 && sp.HostPort > 0 {
 			opts.Ports = append(opts.Ports, hostapi.PortBinding{
-				ContainerPort: int32(sp.BoxPort),
+				ContainerPort: int32(sp.Port),
 				HostPort:      int32(sp.HostPort),
 				Protocol:      "tcp",
 			})

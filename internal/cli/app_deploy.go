@@ -17,19 +17,17 @@ package cli
 import (
 	"bufio"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/hooto/htoml4g/htoml"
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/internal/inutil/autofill"
 )
 
 func NewAppDeployCommand() *cobra.Command {
@@ -110,12 +108,14 @@ func NewAppDeployCommand() *cobra.Command {
 
 		zc := inapi.NewZoneServiceClient(conn)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		// Fetch existing instance options if updating
-		var existingOptions []*inapi.AppDeployOption
+		// Fetch existing instance info if updating
+		var (
+			existingConfigs []*inapi.AppDeployConfigItem
+			existingDepends []*inapi.AppDeployDepend
+		)
 		if instanceReq.Id != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 			infoResp, err := zc.AppInstanceInfo(ctx, &inapi.AppInstanceInfoRequest{
 				Id: instanceReq.Id,
 			})
@@ -123,40 +123,46 @@ func NewAppDeployCommand() *cobra.Command {
 				return fmt.Errorf("failed to get existing instance info: %w", err)
 			}
 			if infoResp.Instance != nil && infoResp.Instance.Deploy != nil {
-				existingOptions = infoResp.Instance.Deploy.Options
+				existingConfigs = infoResp.Instance.Deploy.Configs
+				existingDepends = infoResp.Instance.Deploy.Depends
 			}
+		}
+
+		// Interactive dependency resolution
+		if spec != nil && len(spec.Depends) > 0 {
+			depBounds, err := promptDependencyInstanceIds(spec.Depends, existingDepends, zc)
+			if err != nil {
+				return fmt.Errorf("dependency resolution failed: %w", err)
+			}
+			instanceReq.Deploy.Depends = depBounds
 		}
 
 		// Interactive config input
-		var options []*inapi.AppDeployOption
-		if !skipConfig && spec != nil && spec.Config != nil && len(spec.Config.Fields) > 0 {
-			fmt.Printf("\nConfig: %s\n", spec.Config.Name)
+		var configs []*inapi.AppDeployConfigItem
+		if !skipConfig && spec != nil && len(spec.Configs) > 0 {
+			fmt.Printf("\nConfig:\n")
 			fmt.Println(strings.Repeat("-", 60))
 
-			cfgValues, err := promptConfigFields(spec.Config.Fields, existingOptions)
+			cfgItems, err := promptConfigItems(spec, existingConfigs)
 			if err != nil {
 				return fmt.Errorf("config input failed: %w", err)
 			}
-
-			options = append(options, &inapi.AppDeployOption{
-				Name:  spec.Config.Name,
-				Items: cfgValues,
-			})
+			configs = cfgItems
 
 			fmt.Println(strings.Repeat("-", 60))
 			fmt.Println("Configuration summary:")
-			for _, item := range cfgValues {
+			for _, item := range cfgItems {
 				fmt.Printf("  %s = %s\n", item.Name, item.Value)
 			}
 			fmt.Println()
-		} else if instanceId != "" && len(existingOptions) > 0 {
-			// Use existing options when skipping config input for update
-			options = existingOptions
+		} else if instanceId != "" && len(existingConfigs) > 0 {
+			// Use existing configs when skipping config input for update
+			configs = existingConfigs
 		}
 
-		// Set deploy options if config was provided
-		if len(options) > 0 {
-			instanceReq.Deploy.Options = options
+		// Set deploy configs if config was provided
+		if len(configs) > 0 {
+			instanceReq.Deploy.Configs = configs
 		}
 
 		// Set deploy action if provided
@@ -164,6 +170,8 @@ func NewAppDeployCommand() *cobra.Command {
 			instanceReq.Deploy.Action = action
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 		instanceResp, err := zc.AppInstanceDeploy(ctx, instanceReq)
 		if err != nil {
 			return fmt.Errorf("failed to deploy app instance: %w", err)
@@ -220,16 +228,16 @@ If --id is provided, the existing app instance will be updated.`,
 	return cmd
 }
 
-// promptConfigFields interactively prompts user for each config field
-// existingOptions is used to provide current values when updating an existing instance
-func promptConfigFields(fields []*inapi.AppSpecConfigField,
-	existingOptions []*inapi.AppDeployOption) ([]*inapi.AppDeployOptionField, error) {
+// promptConfigItems interactively prompts user for each config field
+// existingConfigs is used to provide current values when updating an existing instance
+func promptConfigItems(appSpec *inapi.AppSpec,
+	existingConfigs []*inapi.AppDeployConfigItem) ([]*inapi.AppDeployConfigItem, error) {
 	var (
 		reader  = bufio.NewReader(os.Stdin)
-		results []*inapi.AppDeployOptionField
+		results []*inapi.AppDeployConfigItem
 	)
 
-	for _, field := range fields {
+	for _, field := range appSpec.Configs {
 		if field == nil {
 			continue
 		}
@@ -238,25 +246,19 @@ func promptConfigFields(fields []*inapi.AppSpecConfigField,
 		defaultValue := field.Default
 
 		// Check if there's an existing value for this field
-		if existingOptions != nil {
-			for _, opt := range existingOptions {
-				if opt != nil {
-					for _, item := range opt.Items {
-						if item != nil && item.Name == field.Name && item.Value != "" {
-							defaultValue = item.Value
-							break
-						}
-					}
-				}
+		for _, item := range existingConfigs {
+			if item != nil && item.Name == field.Name && item.Value != "" {
+				defaultValue = item.Value
+				break
 			}
 		}
 
 		if field.AutoFill != "" && defaultValue == field.Default {
-			autoValue, err := generateAutoFillValue(field.AutoFill)
+			autoValue, err := autofill.Generate(field.AutoFill)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate auto-fill value for %s: %w", field.Name, err)
 			}
-			if defaultValue == "" || field.AutoFill != "defval" {
+			if defaultValue == "" || field.AutoFill != autofill.DefVal {
 				defaultValue = autoValue
 			}
 		}
@@ -303,7 +305,7 @@ func promptConfigFields(fields []*inapi.AppSpecConfigField,
 			return nil, fmt.Errorf("field %s is required", field.Name)
 		}
 
-		results = append(results, &inapi.AppDeployOptionField{
+		results = append(results, &inapi.AppDeployConfigItem{
 			Name:  field.Name,
 			Value: value,
 		})
@@ -312,31 +314,174 @@ func promptConfigFields(fields []*inapi.AppSpecConfigField,
 	return results, nil
 }
 
-// generateAutoFillValue generates a value based on the auto_fill type
-func generateAutoFillValue(autoFill string) (string, error) {
-	switch autoFill {
-	case "defval":
-		// Use default value, return empty to indicate using default
-		return "", nil
-	case "hexstr_32":
-		// Generate 32-char hex string (16 random bytes)
-		bytes := make([]byte, 16)
-		if _, err := rand.Read(bytes); err != nil {
-			return "", fmt.Errorf("failed to generate random bytes: %w", err)
-		}
-		return hex.EncodeToString(bytes), nil
-	case "hexstr_16":
-		// Generate 16-char hex string (8 random bytes)
-		bytes := make([]byte, 8)
-		if _, err := rand.Read(bytes); err != nil {
-			return "", fmt.Errorf("failed to generate random bytes: %w", err)
-		}
-		return hex.EncodeToString(bytes), nil
-	case "uuid":
-		// Generate UUID v4 using github.com/google/uuid
-		return uuid.New().String(), nil
-	default:
-		// Unknown auto_fill type, return empty
-		return "", nil
+// promptDependencyInstanceIds interactively prompts the user to select a deployed
+// instance ID for each AppSpec dependency. It fetches the current instance list
+// from the zone and filters candidates by spec.name match.
+// existingDepends provides the current dependency bindings from an existing
+// instance (if updating). Candidates matching existing bindings are marked with
+// "(bound)" and pressing Enter preserves the current binding.
+func promptDependencyInstanceIds(
+	depends []*inapi.AppSpecDepend,
+	existingDepends []*inapi.AppDeployDepend,
+	zc inapi.ZoneServiceClient,
+) ([]*inapi.AppDeployDepend, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	listResp, err := zc.AppInstanceList(ctx, &inapi.AppInstanceListRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list app instances: %w", err)
 	}
+
+	// Build index: spec.name -> []*AppInstance
+	instancesByName := make(map[string][]*inapi.AppInstance)
+	for _, inst := range listResp.Items {
+		if inst == nil || inst.Spec == nil || inst.Spec.Name == "" {
+			continue
+		}
+		instancesByName[inst.Spec.Name] = append(instancesByName[inst.Spec.Name], inst)
+	}
+
+	// Build index: spec.name -> instance_id from existing bindings
+	existingBound := make(map[string]string, len(existingDepends))
+	for _, dep := range existingDepends {
+		if dep != nil && dep.SpecName != "" && dep.InstanceId != "" {
+			existingBound[dep.SpecName] = dep.InstanceId
+		}
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	var results []*inapi.AppDeployDepend
+
+	fmt.Println()
+	fmt.Println("App Dependency Resolution")
+	fmt.Println(strings.Repeat("-", 60))
+
+	for _, dep := range depends {
+		if dep == nil || dep.Name == "" {
+			continue
+		}
+
+		fmt.Println()
+		fmt.Printf("Dependency: %s", dep.Name)
+		if dep.Version != "" {
+			fmt.Printf(" (version: %s)", dep.Version)
+		}
+		fmt.Println()
+
+		boundInstanceID := existingBound[dep.Name]
+		candidates := instancesByName[dep.Name]
+
+		if len(candidates) == 0 {
+			if boundInstanceID != "" {
+				fmt.Printf("  Current binding: %s\n", boundInstanceID)
+				fmt.Printf("  Enter new instance ID (or press Enter to keep): ")
+			} else {
+				fmt.Printf("  WARNING: no deployed instance found for %q\n", dep.Name)
+				fmt.Printf("  Enter instance ID (or leave empty to skip): ")
+			}
+
+			input, err := reader.ReadString('\n')
+			if err != nil {
+				return nil, fmt.Errorf("failed to read input: %w", err)
+			}
+			input = strings.TrimSpace(input)
+
+			if input == "" {
+				if boundInstanceID != "" {
+					fmt.Printf("  Kept binding: %s\n", boundInstanceID)
+					results = append(results, &inapi.AppDeployDepend{
+						SpecName:   dep.Name,
+						InstanceId: boundInstanceID,
+					})
+				} else {
+					fmt.Printf("  Skipped dependency %q\n", dep.Name)
+				}
+				continue
+			}
+			results = append(results, &inapi.AppDeployDepend{
+				SpecName:   dep.Name,
+				InstanceId: input,
+			})
+			continue
+		}
+
+		// Display candidate instances, marking the currently bound one
+		fmt.Println("  Available instances:")
+		for i, inst := range candidates {
+			marker := ""
+			if inst.Id == boundInstanceID {
+				marker = " (bound)"
+			}
+			fmt.Printf("    [%d] ID: %s  Name: %s%s\n", i+1, inst.Id, inst.Name, marker)
+		}
+
+		if len(candidates) == 1 {
+			inst := candidates[0]
+			fmt.Printf("  Auto-selected (only one instance): %s\n", inst.Id)
+			results = append(results, &inapi.AppDeployDepend{
+				SpecName:   dep.Name,
+				InstanceId: inst.Id,
+			})
+			continue
+		}
+
+		// Prompt with context for existing binding
+		if boundInstanceID != "" {
+			fmt.Printf("  Enter number [1-%d] or instance ID (press Enter to keep %s): ",
+				len(candidates), boundInstanceID)
+		} else {
+			fmt.Printf("  Enter number [1-%d] or instance ID: ", len(candidates))
+		}
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("failed to read input: %w", err)
+		}
+		input = strings.TrimSpace(input)
+
+		// Empty input preserves existing binding
+		if input == "" && boundInstanceID != "" {
+			fmt.Printf("  Kept binding: %s\n", boundInstanceID)
+			results = append(results, &inapi.AppDeployDepend{
+				SpecName:   dep.Name,
+				InstanceId: boundInstanceID,
+			})
+			continue
+		}
+
+		// Try to parse as selection number
+		var selectedID string
+		for i, inst := range candidates {
+			if input == fmt.Sprintf("%d", i+1) {
+				selectedID = inst.Id
+				break
+			}
+		}
+
+		// Use as literal instance ID if not a number match
+		if selectedID == "" && input != "" {
+			selectedID = input
+		}
+
+		if selectedID == "" {
+			return nil, fmt.Errorf("no instance selected for dependency %q", dep.Name)
+		}
+
+		results = append(results, &inapi.AppDeployDepend{
+			SpecName:   dep.Name,
+			InstanceId: selectedID,
+		})
+		fmt.Printf("  Selected: %s\n", selectedID)
+	}
+
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println("Dependency summary:")
+	for _, d := range results {
+		fmt.Printf("  %s -> %s\n", d.SpecName, d.InstanceId)
+	}
+	fmt.Println()
+
+	return results, nil
 }

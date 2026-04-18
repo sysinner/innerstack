@@ -17,7 +17,9 @@ package hostapi
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
+	"sync"
 
 	"github.com/sysinner/incore/v2/inapi"
 )
@@ -32,16 +34,30 @@ var (
 	ContainerNameValid = regexp.MustCompile("^app-[a-f0-9]{8,16}-[0-9a-f]{4}$")
 )
 
-// AppReplicaInstance represents an app replica instance with its configuration.
-// This type is moved from inapi package to hostapi for better separation of concerns.
-type AppReplicaInstance struct {
-	App     *inapi.AppInstance      `json:"app"`
-	Replica *inapi.AppDeployReplica `json:"replica"`
+type AppReplicaInstanceList struct {
+	mu    sync.RWMutex
+	index map[string]*inapi.AppReplicaInstance
 }
 
-// ContainerName returns the container name for the app replica instance.
-func (it *AppReplicaInstance) ContainerName() string {
-	return fmt.Sprintf("app-%s-%04x", it.App.Id, it.Replica.Id)
+func (it *AppReplicaInstanceList) TryStore(rep *inapi.AppReplicaInstance) bool {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.index == nil {
+		it.index = map[string]*inapi.AppReplicaInstance{}
+	}
+	item, ok := it.index[rep.ContainerName()]
+	if !ok || rep.App.Deploy.Version > item.App.Deploy.Version {
+		if ok {
+			slog.Info(fmt.Sprintf("app-deploy %s version %d -> %d",
+				rep.ContainerName(), item.App.Deploy.Version, rep.App.Deploy.Version))
+		} else {
+			slog.Info(fmt.Sprintf("app-deploy %s version %d",
+				rep.ContainerName(), rep.App.Deploy.Version))
+		}
+		it.index[rep.ContainerName()] = rep
+		return true
+	}
+	return false
 }
 
 // DriverInfo represents container driver metadata.
