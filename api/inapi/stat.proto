@@ -1,0 +1,56 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+// // OpLogSets represents a collection of operation log entries, typically used
+// // to track the status and progress of batch operations or workflows.
+// message OpLogSets {
+//   // Name identifies this operation log set, typically representing the
+//   // operation type or workflow name.
+//   string name = 1;
+
+//   // Version indicates the schema or data version of this log set,
+//   // useful for migration and compatibility checking.
+//   uint32 version = 3;
+
+//   // Items contains the list of individual operation log entries
+//   // within this set.
+//   repeated OpLogEntry items = 4;
+// }
+
+// // OpLogEntry represents a single operation log entry that records
+// // the execution status and result of a specific operation.
+// message OpLogEntry {
+//   // Name identifies this specific operation, such as a task name,
+//   // step name, or resource identifier.
+//   string name = 1;
+
+//   // Status indicates the current state of the operation.
+//   // Common values include "pending", "running", "success", "failed", "cancelled".
+//   string status = 2;
+
+//   // Updated is the Unix timestamp in milliseconds when this entry
+//   // was last modified, used for tracking operation progress and timing.
+//   uint64 updated = 3;
+
+//   // Message provides additional details about the operation result,
+//   // error description, or progress information.
+//   string message = 4;
+// }

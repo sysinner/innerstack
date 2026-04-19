@@ -1,0 +1,25 @@
+[Unit]
+Description=InnerStack Enterprise PaaS
+After=network.target
+
+[Service]
+Type=simple
+LimitNOFILE=8192
+ExecStart=/opt/instack/bin/inserviced
+ExecReload=/bin/kill -HUP $MAINPID
+
+TimeoutStartSec=0
+
+KillMode=process
+
+Restart=always
+RestartSec=10
+
+StartLimitBurst=3
+StartLimitInterval=60s
+
+StandardOutput=append:/opt/instack/var/log/inservice.log
+StandardError=append:/opt/instack/var/log/inservice-error.log
+
+[Install]
+WantedBy=multi-user.target

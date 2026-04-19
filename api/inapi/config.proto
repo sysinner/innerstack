@@ -1,0 +1,89 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+// // ConfigFieldType enumerates the supported field data types.
+// enum ConfigFieldType {
+//   UnSpec = 0; // unspecified
+
+//   String = 1; // plain string
+//   Select = 2; // single selection from enums
+
+//   Text = 300; // plain text (multi-line)
+//   TextJSON = 301; // JSON formatted text
+//   TextTOML = 302; // TOML formatted text
+//   TextYAML = 303; // YAML formatted text
+//   TextINI = 304; // INI formatted text
+//   TextJavaProperties = 305; // Java Properties formatted text
+//   TextMarkdown = 306; // Markdown formatted text
+
+//   AuthCert = 900; // authentication certificate
+// }
+
+// // ConfigFieldSpec defines a single configuration field in the schema.
+// message ConfigFieldSpec {
+//   // KeyValue is a name-value pair used for enum options.
+//   message KeyValue {
+//     string key = 1; // option key
+//     string value = 2; // option value
+//   }
+
+//   // Validate defines a validation rule for the field.
+//   message Validate {
+//     string name = 1; // rule name, e.g. "required", "pattern"
+//     string expr = 2; // rule expression
+//     string hint = 3; // error hint when validation fails
+//   }
+
+//   string name = 1; // field programmatic name
+//   ConfigFieldType type = 2; // field data type
+//   string title = 3; // human-readable title
+//   string prompt = 4; // placeholder or hint text
+//   string default_value = 5; // default value
+//   string auto_fill = 6; // auto-fill expression
+//   uint64 attrs = 7; // bitwise attribute flags
+//   repeated KeyValue enums = 13; // selectable options for Select type
+//   repeated Validate validates = 14; // validation rules
+//   string description = 15; // detailed description
+// }
+
+// // ConfigSpec defines the configuration schema with a list of fields.
+// message ConfigSpec {
+//   string name = 1; // schema name
+//   string version = 2; // schema version
+//   repeated ConfigFieldSpec fields = 3; // field definitions
+// }
+
+// // ConfigFieldValue holds the runtime value of a single config field.
+// message ConfigFieldValue {
+//   string name = 1; // field name, matching ConfigFieldSpec.name
+//   ConfigFieldType type = 2; // field data type
+//   string value = 3; // field value
+//   uint64 attrs = 7; // bitwise attribute flags
+// }
+
+// // ConfigInstance is a filled configuration instance with concrete field values.
+// message ConfigInstance {
+//   string name = 1; // instance name
+//   string version = 2; // schema version
+//   repeated ConfigFieldValue fields = 3; // field values
+//   int64 created = 4; // creation unix timestamp (seconds)
+//   int64 updated = 5; // last update unix timestamp (seconds)
+// }

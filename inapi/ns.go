@@ -15,257 +15,86 @@
 package inapi
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"path/filepath"
-	"regexp"
 	"strings"
-
-	"github.com/sysinner/incore/inutils"
 )
 
 const (
-	ByteKB int64 = 1024
-	ByteMB       = 1024 * ByteKB
-	ByteGB       = 1024 * ByteMB
-	ByteTB       = 1024 * ByteGB
-	BytePB       = 1024 * ByteTB
-	ByteEB       = 1024 * BytePB
+	HostSetupStart   = "start"
+	HostSetupStop    = "stop"
+	HostSetupDestroy = "destroy"
+
+	// PackageFileChunkSizeDefault is the default chunk size (1MB)
+	PackageFileChunkSizeDefault = int64(1 << 20)
+	// PackageMaxSize is the maximum package size (200MB)
+	PackageMaxSize = int64(200 << 20)
 )
 
-const (
-	BoxImageRepoDefault = "sysinner"
-)
+// func NsGlobalGatewayServiceDomain(name string) []byte {
+// 	return []byte(fmt.Sprintf("v2/service/gateway/domain/%s", name))
+// }
 
-func NsKeyPathLastName(key []byte) string {
-	if n := bytes.LastIndexByte(key, '/'); n > 0 && n+1 < len(key) {
-		return string(key[n+1:])
-	}
-	return string(key)
+func NsZoneletInfo(zone string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/info", zone))
 }
 
-func NsKeyPathFilter(path string) []byte {
-	var (
-		p = strings.Trim(strings.Trim(filepath.Clean(path), "/"), ".")
-		n = strings.Count(p, "/") + 1
-	)
-	if len(path) > 0 && path[len(path)-1] == '/' {
-		return []byte(fmt.Sprintf("%d/%s/", n+1, p))
-	}
-	return []byte(fmt.Sprintf("%d/%s", n, p))
+func NsZoneletLeader(zone string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/leader", zone))
 }
 
-// t2
-func NsGlobalSysZone(name string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/sys/zone/%s", name))
-}
-func NsKvGlobalSysZoneDestroyed(name string) []byte {
-	return []byte(fmt.Sprintf("ing:sys:zone:%s", name))
+func NsZoneletAccessKey(zone, kid string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/ak/%s", zone, kid))
 }
 
-// t2
-func NsGlobalSysCell(zoneId, cellId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/sys/cell/%s/%s", zoneId, cellId))
+// NsZoneletNetworkIPAM returns the KV key for persisting IPAM state.
+func NsZoneletNetworkIPAM(zone string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/network/ipam", zone))
 }
 
-func NsKvGlobalSysCellDestroyed(zoneId, cellId string) []byte {
-	return []byte(fmt.Sprintf("ing:sys:cell:%s:%s", zoneId, cellId))
+func NsZoneletGatewayIngress(zone, name string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/gateway/default/ingress/%s", zone, name))
 }
 
-// t2
-func NsGlobalSysHost(zoneId, hostId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/sys/host/%s/%s", zoneId, hostId))
+func NsHostInfo(zone, host string) []byte {
+	return []byte(fmt.Sprintf("v2/host/%s/info/%s", zone, host))
 }
 
-// t2
-func NsKvGlobalSysHostDestroyed(zoneId, hostId string) []byte {
-	return []byte(fmt.Sprintf("ing:sys:host:rm:%s:%s", zoneId, hostId))
+func NsHostStatus(zone, host string) []byte {
+	return []byte(fmt.Sprintf("v2/host/%s/status/%s", zone, host))
 }
 
-// t2
-func NsGlobalPodSpec(stype, id string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/ps/%s/%s", stype, id))
+func NsAppInstance(zone, id string) []byte {
+	return []byte(fmt.Sprintf("v2/app/instance/%s/%s", zone, id))
 }
 
-// t2
-func NsGlobalBoxImage(name, tag string) []byte {
-	if tag == "" {
-		return []byte(fmt.Sprintf("ing:box:image:%s", name))
-	}
-	return []byte(fmt.Sprintf("ing:box:image:%s:%s", name, tag))
-}
-
-// t2
-func NsGlobalPodInstance(podId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/pi/%s", podId))
-}
-
-// t
-func NsKvGlobalPodUserTransfer(podId string) []byte {
-	return []byte(fmt.Sprintf("ing:pod:ut:%s", podId))
-}
-
-// t2
-func NsKvGlobalPodInstanceDestroyed(podId string) []byte {
-	return []byte(fmt.Sprintf("ing:pod:rm:%s", podId))
-}
-
-// t2
-func NsKvGlobalPodStatus(zoneId, podId string) []byte {
-	return []byte(fmt.Sprintf("ing:z:%s:pst:%s", zoneId, podId))
-}
-
-// t2
-func NsGlobalAppSpec(specId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/as/%s", specId))
-}
-
-// t
-func NsGlobalSysConfig(name string) []byte {
-	return []byte(fmt.Sprintf("ing:sys:config:%s", name))
-}
-
-func DataAppSpecVersionKey(version string) string {
-	if version == "" {
+// PackageId generates a unique package ID from package metadata.
+// Format: {name}_{version}_{os}_{arch}
+func PackageId(pkg *Package) string {
+	if pkg == nil || pkg.Metadata == nil || pkg.Release == nil {
 		return ""
 	}
-	v := NewAppSpecVersion(version)
-	if !v.Valid() {
-		return ""
-	}
-	return v.HexString()
-}
-
-// t2
-func NsKvGlobalAppSpecVersion(specId, version string) []byte {
-	return []byte(fmt.Sprintf("ing:asv:%s:%s", specId, DataAppSpecVersionKey(version)))
-}
-
-// t3
-func NsGlobalAppInstance(appId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/ai/%s", appId))
-}
-
-// t2
-func NsKvGlobalAppInstanceDestroyed(appId string) []byte {
-	return []byte(fmt.Sprintf("ing:app:rm:%s", appId))
-}
-
-// t2
-func NsGlobalResInstance(subPath string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/ing/rs/%s", subPath))
-}
-
-// t
-func NsKvGlobalSetQueuePod(zoneId, cellId, podId string) []byte {
-	return []byte(fmt.Sprintf("ing:queue:pod:%s:%s:%s", zoneId, cellId, podId))
-}
-
-// t2
-func NsZoneSysZone(zoneId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/zone/info", zoneId))
-}
-func NsKvZoneSysZoneDestroyed(zoneId string) []byte {
-	return []byte(fmt.Sprintf("inz:%s:sys:zone:info", zoneId))
-}
-
-// t2
-func NsZoneSysCell(zoneId, cellId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/cell/%s", zoneId, cellId))
-}
-func NsKvZoneSysCellDestroyed(zoneId, cellId string) []byte {
-	return []byte(fmt.Sprintf("inz:%s:sys:cell:%s", zoneId, cellId))
-}
-
-// t2
-func NsZoneSysHost(zoneId, hostId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/host/%s", zoneId, hostId))
-}
-
-// t2
-func NsKvZoneSysHostDestroyed(zoneId, hostId string) []byte {
-	return []byte(fmt.Sprintf("inz:%s:sys:host:rm:%s", zoneId, hostId))
-}
-
-// t2
-func NsZoneSysHostSecretKey(zoneId, hostId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/hostkey/%s", zoneId, hostId))
-}
-
-// t2
-func NsKvZoneSysHostStats(zoneId, hostId string, timo uint32) []byte {
-	if timo == 0 {
-		return []byte(fmt.Sprintf("inz:sys:host:stats:%s:%s:",
-			zoneId, hostId,
-		))
-	}
-	return []byte(fmt.Sprintf("inz:sys:host:stats:%s:%s:%s",
-		zoneId, hostId, inutils.Uint32ToHexString(timo),
+	return strings.ToLower(fmt.Sprintf("%s_%s_%s_%s",
+		pkg.Metadata.Name,
+		pkg.Release.Version,
+		pkg.Release.Os,
+		pkg.Release.Arch,
 	))
 }
 
-func NsKvZoneSysMasterLeader(zoneId string) []byte {
-	return []byte(fmt.Sprintf("inz:sys:zm:leader:%s", zoneId))
+// NsPackageInfo returns the KV key for package metadata.
+// Key: v2/pkg/info/{pkg_id}
+func NsPackageInfo(pkgId string) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/info/%s", pkgId))
 }
 
-// t2
-func NsZoneSysMasterNode(zoneId, nodeId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/zm/node/%s", zoneId, nodeId))
+// NsPackageFileChunk returns the KV key for a specific chunk.
+// Key: v2/pkg/chunk/{pkg_id}/{chunk_index:08d}
+func NsPackageFileChunk(pkgId string, chunkIndex int64) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/%08d", pkgId, chunkIndex))
 }
 
-// t2
-func NsZonePodInstance(zoneId, podId string) []byte {
-	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/pi/%s", zoneId, podId))
-}
-
-// t2
-func NsKvZonePodInstanceDestroy(zoneId, podId string) []byte {
-	return []byte(fmt.Sprintf("inz:pod:rm:%s:%s", zoneId, podId))
-}
-
-// t2
-func NsKvZonePodRepStats(zoneId, podId string, repId uint32, name string, timo uint32) []byte {
-	if timo == 0 {
-		return []byte(fmt.Sprintf("inz:pod:stats:%s:%s:%s:",
-			zoneId, NsZonePodOpRepKey(podId, repId), name))
-	}
-	return []byte(fmt.Sprintf("inz:pod:stats:%s:%s:%s:%s",
-		zoneId, NsZonePodOpRepKey(podId, repId), name, inutils.Uint32ToHexString(timo)),
-	)
-}
-
-func NsZonePodOpRepKey(podId string, repId uint32) string {
-	if repId > 65535 {
-		repId = 65535
-	}
-	bs := make([]byte, 2)
-	binary.BigEndian.PutUint16(bs, uint16(repId))
-	return fmt.Sprintf("%s.%x", podId, bs)
-}
-
-var nsZonePodOpRepKeyReg = regexp.MustCompile("^[a-f0-9]{16,20}.[0-9]{4}$")
-
-func NsZonePodOpRepKeyValid(key string) bool {
-	return nsZonePodOpRepKeyReg.MatchString(key)
-}
-
-// t2
-func NsKvZonePodStatus(zoneId, podId string) []byte {
-	if len(podId) < 8 {
-		return []byte(fmt.Sprintf("inz:pod:status:%s:", zoneId))
-	}
-	return []byte(fmt.Sprintf("inz:pod:status:%s:%s", zoneId, podId))
-}
-
-func NsZoneMailQueue(key string) []byte {
-	return []byte(fmt.Sprintf("inz:msg:queue:%s", key))
-}
-
-// t2
-func NsKvLocalCacheBoundPod(podId string, repId uint32) []byte {
-	if len(podId) < 8 {
-		return []byte("inl:pod:bind:")
-	}
-	return []byte(fmt.Sprintf("inl:pod:bind:%s", NsZonePodOpRepKey(podId, repId)))
+// NsPackageFileChunkPrefix returns the KV key prefix for all chunks of a package.
+// Key: v2/pkg/chunk/{pkg_id}/
+func NsPackageFileChunkPrefix(pkgId string) []byte {
+	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/", pkgId))
 }

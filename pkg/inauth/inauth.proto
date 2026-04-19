@@ -1,0 +1,97 @@
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package sysinner.instack.inauth.v2;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = ".;inauth";
+
+// AccessKey represents a long-lived credential used to authenticate and
+// authorize API requests. Each key consists of a publicly visible ID and a
+// secret that must be kept confidential.
+//
+// AccessKeys are managed by AccessKeyManager and can be of two types:
+//   - "User": represents a human user credential.
+//   - "App":  represents a machine/service credential used for programmatic
+//            access (e.g., gRPC calls between internal services).
+//
+// Authentication flow:
+//   1. The client presents an AccessToken (signed with the AccessKey secret).
+//   2. The server resolves the AccessKey by ID from AccessKeyManager.
+//   3. The token signature is verified against the key's secret.
+//   4. Authorization is checked via roles, permissions, and scopes.
+message AccessKey {
+  // Unique identifier for this access key.
+  // Generated as a semi-sequential hex string (e.g., "67f3a1b2c3d4e5f6").
+  string id = 1;
+
+  // The secret key used to sign AccessToken payloads.
+  // Generated as a 48-character base62 string. Must be kept confidential.
+  string secret = 2;
+
+  // The user or service principal this key belongs to.
+  string user = 3;
+
+  // The type of credential. Accepted values:
+  //   - "User": human user access key (created via NewUserAccessKey).
+  //   - "App":  machine/service access key (created via NewAppAccessKey).
+  //
+  // The type affects token validation; for example, "App" tokens enforce
+  // a strict 60-second issued-at (iat) window to prevent replay attacks.
+  string type = 4;
+
+  // The lifecycle state of this access key (e.g., "active", "disabled").
+  string state = 5;
+
+  // The names of RBAC roles assigned to this key. Role definitions are
+  // registered separately via AccessKeyManager.SetRole() and map to a
+  // set of permissions.
+  repeated string roles = 6;
+
+  // Fine-grained permission scopes granted to this key. Scopes are checked
+  // via the Allow() method, which requires ALL specified scopes to be present.
+  // Example scopes might include resource-level or action-level identifiers.
+  repeated string scopes = 11;
+
+  // Optional. A human-readable description of this access key's purpose.
+  string description = 13;
+}
+
+// Role defines a named collection of permissions in the RBAC (Role-Based
+// Access Control) system. Roles are registered with AccessKeyManager and
+// then referenced by name from AccessKey.roles.
+//
+// Permission resolution flow:
+//   AccessKey.roles → Role lookup → Role.permissions
+message Role {
+  // The unique name identifier of the role (e.g., "admin", "viewer").
+  string name = 1;
+
+  // Optional. A human-readable title for the role. Typically this
+  // is limited to 100 UTF-8 bytes.
+  string title = 2;
+
+  // Optional. A human-readable description for the role.
+  string description = 3;
+
+  // The names of the permissions this role grants when bound to an
+  // AccessKey. Permissions are stored as a set within AccessKeyManager
+  // for efficient lookup.
+  repeated string permissions = 7;
+
+  // The lifecycle state of the role (e.g., "active", "disabled").
+  string state = 10;
+}

@@ -1,0 +1,7 @@
+# Server Settings
+[server]
+
+bind = "127.0.0.1:53"
+
+name_servers = ["119.29.29.29", "8.8.8.8"]
+

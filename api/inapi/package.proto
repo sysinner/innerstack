@@ -1,0 +1,241 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+// Package represents a software package in the package repository.
+// It combines metadata (identity information) with release information
+// (build artifacts for a specific platform).
+//
+// Package Archive Naming Format:
+//   {name}_{version}_{os}_{arch}.{ext}
+//
+// Examples:
+//   myapp_1.0.0_linux_amd64.txz    (xz compression, default)
+//   myapp_1.0.0_linux_amd64.tgz    (gzip compression)
+//   myapp_1.0.0-beta.1_linux_arm64.txz (with pre-release version)
+message Package {
+  // metadata contains the package identity and descriptive information
+  PackageMetadata metadata = 1;
+
+  // release contains build artifact properties for a specific platform
+  PackageRelease release = 2;
+
+  // file contains upload progress information (only during upload)
+  PackageFile file = 3;
+}
+
+// PackageMetadata defines the identity and descriptive information of a package.
+// These fields are platform-independent and define what the package is.
+// Required fields: name, version
+// All other fields are optional.
+message PackageMetadata {
+  // name is the package name (required).
+  // Must be lowercase, start with a letter, and contain only
+  // alphanumeric characters, hyphens, or underscores.
+  // Example: "my-app", "nginx", "postgresql"
+  string name = 1;
+
+  // version is the package core version (required).
+  // Must follow semantic versioning core format (MAJOR.MINOR.PATCH).
+  // Pre-release and build metadata should be specified via --version flag during build.
+  // Examples: "1.0.0", "2.1.0", "0.1.0"
+  string version = 2;
+
+  // authors are the package authors (optional).
+  // Can include name and optional email in format "Name <email>".
+  repeated string authors = 4;
+
+  // description is a short description of the package (optional).
+  // Should be a single line summarizing what the package does.
+  string description = 5;
+
+  // documentation is the URL to package documentation (optional).
+  string documentation = 6;
+
+  // homepage is the URL to the package homepage (optional).
+  string homepage = 7;
+
+  // repository is the URL to the source code repository (optional).
+  // Examples: "https://github.com/user/repo"
+  string repository = 8;
+
+  // license is the package license identifier (optional).
+  // Use SPDX license identifiers when possible.
+  // Examples: "MIT", "Apache-2.0", "GPL-3.0"
+  string license = 9;
+
+  // keywords are search keywords for the package (optional).
+  repeated string keywords = 10;
+
+  // categories are classification categories for the package (optional).
+  // Examples: "database", "web-server", "monitoring"
+  repeated string categories = 11;
+}
+
+// PackageRelease defines build artifact properties for a specific platform.
+// These fields are determined after the build process and identify
+// the physical characteristics of the package distribution.
+message PackageRelease {
+  // version is the full version string for this build.
+  // If build without --version flag, it equals to Metadata.Version (core version only).
+  // If build with --version flag, it can include pre-release and build metadata.
+  // Examples: "1.0.0", "1.0.0-beta.1", "1.0.0-beta.1+build.123"
+  string version = 1;
+
+  // os is the target operating system.
+  // Common values: "linux", "freebsd", "darwin", "all"
+  string os = 4;
+
+  // arch is the target CPU architecture.
+  // Common values: "amd64", "arm64", "src" (source package)
+  string arch = 5;
+
+  // built is the Unix timestamp when the package was built.
+  int64 built = 11;
+
+  // size is the package size in bytes.
+  int64 size = 12;
+
+  // checksum is the SHA-256 checksum of the package archive.
+  string checksum = 13;
+
+  // compress is the compression algorithm used for the package archive.
+  // Valid values: "xz", "gzip", "" (empty for uncompressed)
+  string compress = 14;
+}
+
+// PackageSpecRef is a reference to a package, used for dependencies.
+// It specifies constraints rather than exact matches.
+message PackageSpecRef {
+  // name is the required package name.
+  string name = 1;
+
+  // version is the version constraint (semver range).
+  // Examples: ">=1.0.0", "^2.0.0", "~1.2.0", "1.0.0 - 2.0.0"
+  string version = 2;
+}
+
+// PackageSpec defines the package specification for building.
+// This is the structure used in ipk.toml configuration files.
+message PackageSpec {
+  // metadata contains the package metadata (identity information).
+  // The [metadata] section in ipk.toml.
+  PackageMetadata metadata = 1;
+
+  // build contains the build configuration.
+  // The [build] section in ipk.toml.
+  PackageSpecBuild build = 2;
+
+  // dependencies are the package dependencies (optional).
+  // The [[dependencies]] sections in ipk.toml.
+  repeated PackageSpecRef dependencies = 3;
+}
+
+// PackageSpecBuild defines the build configuration.
+// Specifies how to build the package from source.
+message PackageSpecBuild {
+  // include specifies files/directories to include in the package.
+  // Supports glob patterns. If empty, all files are included by default.
+  // Examples: ["src/**", "lib/**", "config/*"]
+  repeated string include = 1;
+
+  // exclude specifies files/directories to exclude from the package.
+  // Supports glob patterns. Applied after include patterns.
+  // Examples: ["*.test", "node_modules/**", ".git/**"]
+  repeated string exclude = 2;
+
+  // file is the path to a build file (optional).
+  // Alternative to inline script. Examples: "Makefile", "build.sh"
+  string file = 3;
+
+  // script is the build script to execute (optional).
+  // Supports template variables: {{.ipk_dir}}, {{.ipk_build_dir}},
+  // {{.ipk_name}}, {{.ipk_version}}, {{.ipk_release}}, {{.ipk_os}},
+  // {{.ipk_arch}}, {{.ipk_prefix}}
+  string script = 4;
+
+  // env specifies environment variables for the build script.
+  // These are available in addition to IPK_* variables.
+  map<string, string> env = 5;
+
+  // minify_js specifies JavaScript files to minify (glob patterns).
+  // Requires a JavaScript minifier to be available.
+  repeated string minify_js = 9;
+
+  // minify_css specifies CSS files to minify (glob patterns).
+  // Requires a CSS minifier to be available.
+  repeated string minify_css = 10;
+
+  // minify_html specifies HTML/template files to minify (glob patterns).
+  // Also processes .tpl files. Removes whitespace and comments.
+  repeated string minify_html = 11;
+
+  // optimize_png specifies PNG files to optimize (glob patterns).
+  // Uses lossless PNG optimization.
+  repeated string optimize_png = 12;
+}
+
+// PackageFile tracks upload progress for a package.
+// Embedded in Package message during upload process.
+// This represents the entire IPK container file (magic + header + data).
+// Note:
+//   - Size is the entire IPK file size (used for chunk calculation).
+//   - TotalChunks can be calculated: (Size + ChunkSize - 1) / ChunkSize
+//   - Progress can be calculated: len(uploaded_chunks) / total_chunks
+message PackageFile {
+  // state is the current upload state.
+  // Valid values: "", "uploading", "complete", "failed" (see inapi.PackageFileState* constants)
+  string state = 1;
+
+  // size is the entire IPK file size in bytes.
+  int64 size = 2;
+
+  // chunk_size is the size of each chunk in bytes (default: 2MB).
+  int64 chunk_size = 4;
+
+  // uploaded_chunks is the list of uploaded chunk indices.
+  repeated int64 uploaded_chunks = 6;
+
+  // created is the Unix timestamp when the upload started.
+  int64 created = 7;
+
+  // updated is the Unix timestamp of the last update.
+  int64 updated = 8;
+}
+
+// PackageFileChunk represents a single chunk of a package upload.
+// KV key: v2/pkg/chunk/{pkg_id}/{chunk_index:08d}
+//
+// Offset and Size are not stored as they can be calculated:
+//   - Offset = Index * PackageFile.ChunkSize
+//   - Size = len(Data)
+message PackageFileChunk {
+  // index is the chunk index (0-based).
+  int64 index = 1;
+
+  // crc32 is the CRC32 checksum of the chunk data.
+  uint32 crc32 = 2;
+
+  // data is the chunk content.
+  bytes data = 3;
+
+  // uploaded is the Unix timestamp when this chunk was uploaded.
+  int64 uploaded = 4;
+}

@@ -1,0 +1,432 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+import "host.proto";
+import "zone.proto";
+import "app.proto";
+import "gateway.proto";
+import "package.proto";
+
+// ZoneService is the gRPC service for zone-level management.
+// It handles zone initialization, host management, and application deployment.
+service ZoneService {
+  // ZoneInit initializes a new zone with the specified name.
+  rpc ZoneInit(ZoneInitRequest) returns (ZoneInitResponse) {}
+
+  // ZoneInfo retrieves information about the current zone.
+  rpc ZoneInfo(ZoneInfoRequest) returns (ZoneInfoResponse) {}
+
+  // ZoneSet updates zone network configuration.
+  // All three VPC fields (bridge, instance, domain) must be provided together.
+  rpc ZoneSet(ZoneSetRequest) returns (ZoneSetResponse) {}
+
+  // HostJoin registers a new host to join the zone.
+  rpc HostJoin(HostJoinRequest) returns (HostJoinResponse) {}
+
+  // HostList retrieves all hosts in the zone.
+  rpc HostList(HostListRequest) returns (HostListResponse) {}
+
+  // AppInstanceDeploy deploys a new application instance or updates an
+  // existing one.
+  rpc AppInstanceDeploy(AppInstanceDeployRequest)
+      returns (AppInstanceDeployResponse) {}
+
+  // AppInstanceInfo retrieves detailed information about a specific
+  // application instance.
+  rpc AppInstanceInfo(AppInstanceInfoRequest)
+      returns (AppInstanceInfoResponse) {}
+
+  // AppInstanceList retrieves all application instances in the zone.
+  rpc AppInstanceList(AppInstanceListRequest)
+      returns (AppInstanceListResponse) {}
+
+  // AppInstanceDelete deletes an application instance from the zone.
+  rpc AppInstanceDelete(AppInstanceDeleteRequest)
+      returns (AppInstanceDeleteResponse) {}
+
+  // GatewayIngressInfo retrieves details of a specific gateway ingress.
+  rpc GatewayIngressInfo(GatewayIngressInfoRequest)
+      returns (GatewayIngressInfoResponse) {}
+
+  // GatewayIngressList retrieves all gateway ingress entries.
+  rpc GatewayIngressList(GatewayIngressListRequest)
+      returns (GatewayIngressListResponse) {}
+
+  // GatewayIngressSet creates or updates a gateway ingress entry.
+  rpc GatewayIngressSet(GatewayIngressSetRequest)
+      returns (GatewayIngressSetResponse) {}
+
+  // PackagePush uploads a package in chunks.
+  rpc PackagePush(PackagePushRequest) returns (PackagePushResponse) {}
+
+  // PackageList retrieves all packages in the zone.
+  rpc PackageList(PackageListRequest) returns (PackageListResponse) {}
+
+  // PackageDelete deletes a package and all its chunks from the zone.
+  rpc PackageDelete(PackageDeleteRequest) returns (PackageDeleteResponse) {}
+}
+
+// ZoneInternalService is the gRPC service for internal zone communication.
+// It handles host status reporting and package chunk transfer between
+// host machines and the zone leader.
+service ZoneInternalService {
+  // HostStatusUpdate updates the status of a host and receives updated app
+  // instances.
+  rpc HostStatusUpdate(HostStatusUpdateRequest)
+      returns (HostStatusUpdateResponse) {}
+
+  // GatewayIngressDeployList retrieves deployed ingress entries newer than
+  // the given version for incremental sync.
+  rpc GatewayIngressDeployList(GatewayIngressDeployListRequest)
+      returns (GatewayIngressDeployListResponse) {}
+
+  // PackageChunk retrieves a single chunk of a package for download.
+  rpc PackageChunk(PackageChunkRequest) returns (PackageChunkResponse) {}
+}
+
+// HostInternalService is the gRPC service running on each host machine.
+// It handles host-level operations including initialization and status
+// reporting.
+service HostInternalService {
+  // HostInit initializes a new host and registers it with the specified zone.
+  rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
+}
+
+// HostInitRequest is the request message for initializing a host.
+message HostInitRequest {
+  // zone_name is the name of the zone to which the host should be registered.
+  string zone_name = 1;
+
+  // zone_hosts is a list of existing host addresses in the zone for
+  // discovery.
+  repeated string zone_hosts = 2;
+}
+
+// HostInitResponse is the response message after host initialization.
+message HostInitResponse {
+  // host_id is the unique identifier assigned to the newly initialized host.
+  string host_id = 1;
+
+  // status contains the initial status of the host.
+  HostStatus status = 2;
+}
+
+// HostJoinRequest is the request message for a host to join a zone.
+message HostJoinRequest {
+  // addr is the network address of the host joining the zone.
+  string addr = 1;
+
+  // access_key is the authentication access key for joining.
+  string access_key = 2;
+}
+
+// HostJoinResponse is the response message after a host joins a zone.
+message HostJoinResponse {
+  // status contains the current status of the host after joining.
+  HostStatus status = 1;
+}
+
+// HostListRequest is the request message for listing hosts in a zone.
+message HostListRequest {}
+
+// HostListResponse is the response message containing the list of hosts.
+message HostListResponse {
+  // hosts is the list of hosts in the zone.
+  repeated Host hosts = 2;
+}
+
+// HostStatusUpdateRequest is the request message for updating host status.
+message HostStatusUpdateRequest {
+  // host contains the host information to update.
+  Host host = 2;
+
+  // status contains the current status metrics of the host.
+  HostStatus status = 3;
+}
+
+// HostStatusUpdateResponse is the response message after updating host status.
+message HostStatusUpdateResponse {
+  // app_instances is the list of application instances that need to be synced
+  // to the host after the status update.
+  repeated AppInstance app_instances = 2;
+
+  // vpc_bridge_ip is the VPC bridge IP assigned to this host by the zone
+  // leader.
+  string vpc_bridge_ip = 3;
+
+  // vpc_instance_cidr is the VPC instance subnet assigned to this host.
+  string vpc_instance_cidr = 4;
+
+  // zone_network_map contains the distributed VPC routing table.
+  ZoneNetworkMap zone_network_map = 6;
+}
+
+// ZoneInitRequest is the request message for initializing a zone.
+message ZoneInitRequest {
+  // name is the name of the zone to create.
+  string name = 1;
+}
+
+// ZoneInitResponse is the response message after zone initialization.
+message ZoneInitResponse {}
+
+// ZoneInfoRequest is the request message for retrieving zone information.
+message ZoneInfoRequest {}
+
+// ZoneInfoResponse is the response message containing zone information.
+message ZoneInfoResponse {
+  // zone contains the zone information.
+  Zone zone = 1;
+
+  // hosts is the list of hosts belonging to the zone.
+  repeated Host hosts = 2;
+
+  // network_map is the VPC routing table for the zone.
+  ZoneNetworkMap network_map = 3;
+}
+
+// ZoneSetRequest is the request message for updating zone network
+// configuration. All three VPC fields must be provided together; partial
+// updates are not allowed.
+message ZoneSetRequest {
+  // vpc_bridge_cidr is the zone-wide VPC bridge CIDR (e.g., "192.168.10.0/24").
+  string vpc_bridge_cidr = 1;
+
+  // vpc_instance_cidr is the zone-wide VPC instance CIDR (e.g.,
+  // "10.10.0.0/16").
+  string vpc_instance_cidr = 2;
+
+  // vpc_network_domain is the DNS domain name for the zone (e.g., "local").
+  string vpc_network_domain = 3;
+}
+
+// ZoneSetResponse is the response message after updating zone network
+// configuration.
+message ZoneSetResponse {
+  // zone contains the updated zone information.
+  Zone zone = 1;
+}
+
+// AppInstanceDeployRequest is the request message for deploying an application
+// instance.
+message AppInstanceDeployRequest {
+  // id is the unique identifier for the application instance.
+  // If empty, a new ID will be generated.
+  string id = 1;
+
+  // spec defines the application specification including resources,
+  // executors, etc.
+  AppSpec spec = 2;
+
+  // replica_cap specifies the desired number of replicas for the application.
+  uint32 replica_cap = 3;
+
+  // deploy specifies the deployment parameters and desired action.
+  AppDeploy deploy = 4;
+}
+
+// AppInstanceDeployResponse is the response message after deploying an
+// application instance.
+message AppInstanceDeployResponse {
+  // id is the unique identifier of the deployed application instance.
+  string id = 1;
+}
+
+// AppInstanceInfoRequest is the request message for retrieving application
+// instance info.
+message AppInstanceInfoRequest {
+  // id is the unique identifier of the application instance to retrieve.
+  string id = 1;
+}
+
+// AppInstanceInfoResponse is the response message containing application
+// instance info.
+message AppInstanceInfoResponse {
+  // instance contains the application instance information.
+  AppInstance instance = 1;
+}
+
+// AppInstanceListRequest is the request message for listing application
+// instances.
+message AppInstanceListRequest {}
+
+// AppInstanceListResponse is the response message containing the list of
+// application instances.
+message AppInstanceListResponse {
+  // items is the list of application instances.
+  repeated AppInstance items = 1;
+}
+
+// AppInstanceDeleteRequest is the request message for deleting an application
+// instance.
+message AppInstanceDeleteRequest {
+  // id is the unique identifier of the application instance to delete.
+  string id = 1;
+}
+
+// AppInstanceDeleteResponse is the response message after deleting an
+// application instance.
+message AppInstanceDeleteResponse {}
+
+// GatewayIngressListRequest is the request message for listing gateway ingress
+// entries.
+message GatewayIngressListRequest {}
+
+// GatewayIngressListResponse is the response message containing gateway ingress
+// entries.
+message GatewayIngressListResponse {
+  repeated GatewayIngress items = 9; // list of gateway ingress entries
+}
+
+// GatewayIngressInfoRequest is the request message for retrieving a specific
+// ingress.
+message GatewayIngressInfoRequest {
+  string name = 1; // ingress name
+}
+
+// GatewayIngressInfoResponse is the response message containing the ingress
+// details.
+message GatewayIngressInfoResponse {
+  GatewayIngress item = 9; // the requested gateway ingress entry
+}
+
+// GatewayIngressSetRequest is the request message for creating or updating an
+// ingress.
+message GatewayIngressSetRequest {
+  GatewayIngress item = 9; // the gateway ingress entry to create or update
+}
+
+// GatewayIngressSetResponse is the response message after setting an ingress.
+message GatewayIngressSetResponse {
+  GatewayIngress item = 9; // the resulting gateway ingress entry
+}
+
+// GatewayIngressDeployListRequest is the request message for incremental deploy
+// sync.
+message GatewayIngressDeployListRequest {
+  uint64 version = 15; // return only entries newer than this version
+}
+
+// GatewayIngressDeployListResponse is the response message containing deployed
+// entries.
+message GatewayIngressDeployListResponse {
+  repeated GatewayIngressDeploy items = 9; // deployed ingress entries
+  uint64 version = 15; // current latest version for next sync
+}
+
+// PackagePushRequest is the request message for uploading a package chunk.
+message PackagePushRequest {
+  // id is the package ID ({name}_{version}_{os}_{arch}).
+  string id = 1;
+
+  // package contains the package metadata (required on first chunk).
+  Package package = 2;
+
+  // total_size is the total size of the package file in bytes (required on
+  // first chunk).
+  int64 total_size = 3;
+
+  int64 chunk_size = 4; // chunk size in bytes (default: 2MB)
+
+  // chunk contains the chunk data.
+  PackageFileChunk chunk = 5;
+
+  // overwrite allows overwriting an existing package.
+  bool overwrite = 6;
+}
+
+// PackagePushResponse is the response message after uploading a package chunk.
+message PackagePushResponse {
+  // id is the package ID.
+  string id = 1;
+
+  // file contains the upload progress and status information.
+  PackageFile file = 2;
+}
+
+// PackageListRequest is the request message for listing packages.
+message PackageListRequest {
+  // all returns all packages regardless of status when set to true.
+  // Default is false, which returns only complete packages.
+  bool all = 1;
+
+  // name filters packages by exact name match (optional).
+  string name = 2;
+
+  // version filters packages by version with fuzzy matching support
+  // (optional). Examples:
+  //   "2.0" matches "2.0.0", "2.0.1", "2.0.2", etc. (equivalent to "~2.0.x")
+  //   "2.0.0" matches only "2.0.0" exactly
+  string version = 3;
+
+  // os filters packages by target operating system (optional).
+  // Common values: "linux", "freebsd", "darwin"
+  string os = 4;
+
+  // arch filters packages by target CPU architecture (optional).
+  // Common values: "amd64", "arm64"
+  string arch = 5;
+
+  // latest_only returns only the latest version for each (name, os, arch)
+  // combination when set to true. Requires name to be specified. Default is
+  // false, which returns all matching packages.
+  bool latest_only = 6;
+}
+
+// PackageListResponse is the response message containing the list of packages.
+message PackageListResponse {
+  // packages is the list of packages.
+  repeated Package packages = 1;
+}
+
+// PackageDeleteRequest is the request message for deleting a package.
+message PackageDeleteRequest {
+  // id is the package ID ({name}_{version}_{os}_{arch}) to delete.
+  string id = 1;
+}
+
+// PackageDeleteResponse is the response message after deleting a package.
+message PackageDeleteResponse {
+  // id is the package ID that was deleted.
+  string id = 1;
+
+  // chunks_deleted is the number of chunks that were deleted.
+  int32 chunks_deleted = 2;
+}
+
+// PackageChunkRequest is the request message for downloading a package chunk.
+message PackageChunkRequest {
+  // id is the package ID ({name}_{version}_{os}_{arch}).
+  string id = 1;
+
+  // index is the 0-based chunk index to retrieve.
+  int64 index = 2;
+}
+
+// PackageChunkResponse is the response message containing the package chunk.
+message PackageChunkResponse {
+  // chunk contains the chunk data and metadata.
+  PackageFileChunk chunk = 1;
+
+  // file contains the file metadata (size, chunk_size) for calculating
+  // progress.
+  PackageFile file = 2;
+}

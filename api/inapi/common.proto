@@ -1,0 +1,38 @@
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+// Metadata is the standard resource metadata with id, name, timestamps and version.
+message Metadata {
+  string id = 1; // unique identifier
+  string name = 2; // human-readable name
+  string user = 3; // owner or creator
+
+  int64 created = 14; // creation time, unix timestamp in seconds
+  int64 updated = 15; // last update time, unix timestamp in seconds
+
+  uint64 version = 16; // resource version for optimistic concurrency
+}
+
+// Label is a key-value pair for tagging and classification.
+message Label {
+  string name = 1; // label key
+  string value = 2; // label value
+}

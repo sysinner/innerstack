@@ -1,35 +1,44 @@
 PROTOC_CMD = protoc
-PROTOC_ARGS = --proto_path=./api --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./api/*.proto
-PROTOC_RUST_ARGS = --proto_path=./api --rust_out=experimental-codegen=enabled,kernel=cpp:./inapi ./api/*.proto
 
-PROTOC_V2_ARGS = --proto_path=./v2/api/inapi --go_opt=paths=source_relative --go_out=./v2/inapi --go-grpc_out=./v2/inapi ./v2/api/inapi/*.proto
+PROTOC_V2_ARGS = --proto_path=./api/inapi --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./api/inapi/*.proto
+PROTOC_AUTH_ARGS = --proto_path=./pkg/inauth --go_opt=paths=source_relative --go_out=./pkg/inauth --go-grpc_out=./pkg/inauth ./pkg/inauth/inauth.proto
 
 HTOML_TAG_FIX_CMD = htoml-tag-fix
 HTOML_TAG_FIX_ARGS = ./inapi
+HTOML_TAG_FIX_AUTH_ARGS = ./pkg/inauth
 
 LYNKAPI_FILTER_CMD = lynkapi-fitter
-LYNKAPI_FILTER_V2_ARGS = v2/inapi
+LYNKAPI_FILTER_V2_ARGS = inapi
 
-##  RUNC_IMAGE=sysinner/incore-build:0.1
-##  RUNC_PLATFORM=--platform=linux/amd64
-##
-##  RUNC_OK=$(docker images -q "${RUNC_IMAGE}" 2 >/dev/null)
+# GOBUILD_ARGS = -trimpath -ldflags="-s -w"
+GOBUILD_ARGS = -trimpath
 
-.PHONY: api
-api:
-	$(PROTOC_CMD) $(PROTOC_ARGS)
-	$(PROTOC_CMD) $(PROTOC_V2_ARGS)
-	# $(PROTOC_CMD) $(PROTOC_RUST_ARGS)
-	$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_ARGS)
-	$(LYNKAPI_FILTER_CMD) $(LYNKAPI_FILTER_V2_ARGS)
-
-.PHONY: api-in-runc
-api-in-runc:
-	./build/build-runc.sh
-	## docker run --rm -it ${RUNC_PLATFORM} --user "$(shell id -u):$(shell id -g)" -v $(PWD):/build_path -w /build_path ${RUNC_IMAGE}
-
-all: api
+.PHONY: api cli server inagent indns inservice
+all: api cli server inagent
 	@echo ""
 	@echo "build complete"
 	@echo ""
+
+api:
+	$(PROTOC_CMD) $(PROTOC_V2_ARGS)
+	$(PROTOC_CMD) $(PROTOC_AUTH_ARGS)
+	$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_ARGS)
+	$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_AUTH_ARGS)
+	$(LYNKAPI_FILTER_CMD) $(LYNKAPI_FILTER_V2_ARGS)
+
+cli:
+	go build $(GOBUILD_ARGS) -o bin/instack cmd/cli/main.go
+
+server:
+	go build $(GOBUILD_ARGS) -o bin/instackd cmd/server/main.go
+
+indns:
+	go build $(GOBUILD_ARGS) -o bin/indnsd cmd/indns/main.go
+
+inservice:
+	go build $(GOBUILD_ARGS) -o bin/inserviced cmd/inservice/main.go
+
+inagent:
+	GOOS=linux GOARCH=amd64 go build $(GOBUILD_ARGS) -o bin/inagent-linux-amd64 cmd/inagent/inagent.go
+	GOOS=linux GOARCH=arm64 go build $(GOBUILD_ARGS) -o bin/inagent-linux-arm64 cmd/inagent/inagent.go
 

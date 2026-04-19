@@ -1,0 +1,59 @@
+#!/bin/sh
+
+# Exit on error
+set -e
+
+# --- Configuration ---
+TARGET_USER="action"
+TARGET_UID=2048
+HOME_DIR="/home/action"
+AGENT_BIN="$HOME_DIR/.sysinner/inagent"
+
+# 1. Directory Initialization
+mkdir -p "$HOME_DIR" /opt
+
+# 2. Cross-Platform User Creation Logic
+if ! id "$TARGET_USER" >/dev/null 2>&1; then
+    echo "Creating user '$TARGET_USER'..."
+    
+    # Check if the specific UID is already in use
+    UID_OCCUPIED=$(getent passwd "$TARGET_UID" | cut -d: -f1)
+    
+    # Determine the OS type or command availability
+    if command -v useradd >/dev/null 2>&1; then
+        # Standard Linux (Rocky, CentOS, Ubuntu, Debian)
+        if [ -z "$UID_OCCUPIED" ]; then
+            useradd -u "$TARGET_UID" -d "$HOME_DIR" -s /bin/sh "$TARGET_USER"
+        else
+            echo "Warning: UID $TARGET_UID taken by '$UID_OCCUPIED'. Using dynamic UID."
+            useradd -d "$HOME_DIR" -s /bin/sh "$TARGET_USER"
+        fi
+    elif command -v adduser >/dev/null 2>&1; then
+        # Alpine Linux (BusyBox)
+        if [ -z "$UID_OCCUPIED" ]; then
+            # -D: Don't assign a password; -h: Home directory; -u: User ID
+            adduser -u "$TARGET_UID" -h "$HOME_DIR" -s /bin/sh -D "$TARGET_USER"
+        else
+            echo "Warning: UID $TARGET_UID taken. Using dynamic UID on Alpine."
+            adduser -h "$HOME_DIR" -s /bin/sh -D "$TARGET_USER"
+        fi
+    else
+        echo "Error: Neither 'useradd' nor 'adduser' found. Compatibility failure."
+        exit 1
+    fi
+fi
+
+# 3. Ownership and Permissions
+# Ensure the agent binary exists
+if [ ! -f "$AGENT_BIN" ]; then
+    echo "Error: Binary not found at $AGENT_BIN"
+    exit 1
+fi
+
+chmod +x "$AGENT_BIN"
+chown -R "$TARGET_USER":"$TARGET_USER" "$HOME_DIR"
+
+# 4. Final Execution with Signal Propagation
+echo "Starting inagent daemon..."
+# 'exec' ensures 'inagent' inherits PID 1 for proper SIGTERM handling
+exec "$AGENT_BIN" daemon
