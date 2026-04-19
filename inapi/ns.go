@@ -17,8 +17,6 @@ package inapi
 import (
 	"fmt"
 	"strings"
-
-	hauth2 "github.com/hooto/hauth/go/v2"
 )
 
 const (
@@ -30,10 +28,6 @@ const (
 	PackageFileChunkSizeDefault = int64(1 << 20)
 	// PackageMaxSize is the maximum package size (200MB)
 	PackageMaxSize = int64(200 << 20)
-)
-
-var (
-	AuthPermSysAll = hauth2.NewScopeFilter("sys", "*")
 )
 
 // func NsGlobalGatewayServiceDomain(name string) []byte {

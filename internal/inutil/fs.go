@@ -17,6 +17,7 @@ package inutil
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -63,9 +64,19 @@ func FsMakeDir(path string, uid, gid int, mode os.FileMode) error {
 
 func FsWrite(file string, bs []byte) error {
 
-	fp, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0644)
+	fp, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0640)
 	if err != nil {
-		return err
+		if os.IsNotExist(err) {
+			if err = os.Mkdir(filepath.Dir(file), 0640); err != nil {
+				return err
+			}
+			fp, err = os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0640)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 	defer fp.Close()
 

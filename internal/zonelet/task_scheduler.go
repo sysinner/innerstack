@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/sysinner/incore/v2/inapi"
-	typeScheduler "github.com/sysinner/incore/v2/inapi/scheduler"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
@@ -365,8 +364,8 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	var (
-		schedResources = &typeScheduler.ScheduleHostList{}
-		schedHosts     = map[string]*typeScheduler.ScheduleHostItem{}
+		schedResources = &scheduler.ScheduleHostList{}
+		schedHosts     = map[string]*scheduler.ScheduleHostItem{}
 	)
 
 	gHostSet.Iter(func(kvHost *inapi.KvEntry) bool {
@@ -386,7 +385,7 @@ func schedulerRefresh(forceRefresh bool) error {
 
 		host.Operate = &inapi.HostOperate{}
 
-		schedHostItem := &typeScheduler.ScheduleHostItem{
+		schedHostItem := &scheduler.ScheduleHostItem{
 			Id:       host.Id,
 			OpAction: []string{inapi.HostSetupStart},
 
@@ -396,7 +395,7 @@ func schedulerRefresh(forceRefresh bool) error {
 			MemTotal: host.Status.MemTotal,
 			MemUsed:  host.Status.MemUsed,
 
-			Volumes: []*typeScheduler.ScheduleHostVolume{
+			Volumes: []*scheduler.ScheduleHostVolume{
 				{
 					Name:  "default",
 					Total: host.Status.DiskTotalBytes,
@@ -468,7 +467,7 @@ func schedulerRefresh(forceRefresh bool) error {
 			if rep.HostId != "" {
 				continue
 			}
-			srep := &typeScheduler.SchedulePodReplica{
+			srep := &scheduler.SchedulePodReplica{
 				RepId: uint64(rep.Id),
 				Cpu:   app.Value.Deploy.CpuLimit,
 				Mem:   app.Value.Deploy.MemoryLimit,

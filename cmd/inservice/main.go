@@ -84,7 +84,6 @@ func main() {
 
 	{
 		for {
-
 			if err := initSetup(); err != nil {
 				slog.Error("init config fail : " + err.Error())
 				time.Sleep(1e9)
@@ -99,7 +98,6 @@ func main() {
 			slog.Info("domains init done", "num", len(cfg.Domains))
 		}
 	}
-
 	if cfg.Server.DebugPprofEnable {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -109,7 +107,6 @@ func main() {
 
 		slog.Info("pprof enabled")
 	}
-
 	{
 		httpServer = &http.Server{
 			Addr:           fmt.Sprintf(":%d", cfg.Server.HttpPort),
@@ -127,7 +124,6 @@ func main() {
 			httpServer.Shutdown(context.Background())
 		})
 	}
-
 	if cfg.Server.HttpsPort > 0 {
 		httpsServer = &http.Server{
 			Addr:    fmt.Sprintf(":%d", cfg.Server.HttpsPort),
@@ -315,13 +311,10 @@ var (
 	certManager autocert.Manager
 
 	version = "0.11"
-	release = "0"
 
 	cfg Config
 
 	zoneConn *grpc.ClientConn
-
-	mainQuit = false
 )
 
 var (
@@ -356,7 +349,22 @@ var (
 
 func initSetup() error {
 
-	if err := htoml.DecodeFromFile(prefix+"/etc/"+appName+".toml", &cfg); err != nil {
+	prefixes := []string{prefix}
+	if v, err := filepath.Abs(filepath.Dir(os.Args[0])); err == nil && v != prefix {
+		v = strings.TrimSuffix(v, "/bin")
+		prefixes = append(prefixes, v)
+	}
+
+	var err error
+
+	for _, p := range prefixes {
+		if err = htoml.DecodeFromFile(p+"/etc/"+appName+".toml", &cfg); err == nil {
+			prefix = p
+			tlsCacheDir = prefix + "/var/" + appName + "_tls_cache"
+			break
+		}
+	}
+	if err != nil {
 		return err
 	}
 

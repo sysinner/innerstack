@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/sysinner/incore/v2/inapi"
-	typeScheduler "github.com/sysinner/incore/v2/inapi/scheduler"
 )
 
 func TestPriorityList(t *testing.T) {
@@ -87,7 +86,7 @@ func TestPrioritizer(t *testing.T) {
 }
 
 var (
-	hosts typeScheduler.ScheduleHostList
+	hosts ScheduleHostList
 )
 
 func benchInit() {
@@ -98,8 +97,7 @@ func benchInit() {
 
 	// 5000 hosts in one zone-master
 	for i := 0; i < 5000; i++ {
-
-		hosts.Hosts = append(hosts.Hosts, &typeScheduler.ScheduleHostItem{
+		hosts.Hosts = append(hosts.Hosts, &ScheduleHostItem{
 			Id:       fmt.Sprintf("%d", i),
 			OpAction: []string{inapi.HostSetupStart},
 			CpuTotal: 320,
@@ -118,7 +116,7 @@ func Benchmark_Schedule(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 
-		rep := &typeScheduler.SchedulePodReplica{
+		rep := &SchedulePodReplica{
 			RepId: 0,
 			Cpu:   int64(rand.Int63n(160)),
 			Mem:   int64(rand.Int63n(32)),

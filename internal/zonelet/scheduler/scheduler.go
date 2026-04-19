@@ -20,7 +20,6 @@ import (
 	"sort"
 
 	"github.com/sysinner/incore/v2/inapi"
-	typeScheduler "github.com/sysinner/incore/v2/inapi/scheduler"
 )
 
 var (
@@ -32,16 +31,16 @@ var (
 type genericScheduler struct {
 }
 
-func NewScheduler() typeScheduler.Scheduler {
+func NewScheduler() Scheduler {
 	return &genericScheduler{}
 }
 
 func (*genericScheduler) ScheduleHost(
-	rep *typeScheduler.SchedulePodReplica,
-	hostls *typeScheduler.ScheduleHostList,
-	opts *typeScheduler.ScheduleOptions,
+	rep *SchedulePodReplica,
+	hostls *ScheduleHostList,
+	opts *ScheduleOptions,
 ) (
-	hit *typeScheduler.ScheduleHitItem,
+	hit *ScheduleHitItem,
 	err error,
 ) {
 
@@ -70,10 +69,10 @@ func (*genericScheduler) ScheduleHost(
 			continue
 		}
 
-		return &typeScheduler.ScheduleHitItem{
+		return &ScheduleHitItem{
 			HostId: v.Id,
 			Host:   v,
-			Volumes: []*typeScheduler.ScheduleHitVolume{
+			Volumes: []*ScheduleHitVolume{
 				{
 					Name: priorityList[0].volume,
 					Size: rep.Vol,
@@ -86,9 +85,9 @@ func (*genericScheduler) ScheduleHost(
 }
 
 func findHostListThatFit(
-	rep *typeScheduler.SchedulePodReplica,
-	hostls *typeScheduler.ScheduleHostList,
-	opts *typeScheduler.ScheduleOptions,
+	rep *SchedulePodReplica,
+	hostls *ScheduleHostList,
+	opts *ScheduleOptions,
 ) ([]*hostFit, error) {
 
 	var (
@@ -165,8 +164,8 @@ func findHostListThatFit(
 }
 
 func (*genericScheduler) ScheduleHostValid(
-	host *typeScheduler.ScheduleHostItem,
-	entry *typeScheduler.SchedulePodReplica,
+	host *ScheduleHostItem,
+	entry *SchedulePodReplica,
 ) error {
 
 	cpuCap := int64(float64(host.CpuTotal) * cpuOverAlloc)

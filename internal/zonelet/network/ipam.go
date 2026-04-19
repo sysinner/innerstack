@@ -105,7 +105,7 @@ func (nm *NetworkManager) ZoneSetup(zoneName, bridgeCIDR, instanceCIDR, domain s
 		nm.Map = &inapi.ZoneNetworkMap{}
 	}
 
-	if bridgeCIDR != nm.Map.VpcBridgeCidr {
+	if bridgeCIDR != "" && bridgeCIDR != nm.Map.VpcBridgeCidr {
 		ipv4Addr, _, err := net.ParseCIDR(bridgeCIDR)
 		if err != nil {
 			return fmt.Errorf("invalid bridge CIDR %q: %w", bridgeCIDR, err)
@@ -119,7 +119,7 @@ func (nm *NetworkManager) ZoneSetup(zoneName, bridgeCIDR, instanceCIDR, domain s
 		slog.Info("zone vpc bridge CIDR set", "cidr", bridgeCIDR, "bridge", nm.Bridge)
 	}
 
-	if instanceCIDR != nm.Map.VpcInstanceCidr {
+	if instanceCIDR != "" && instanceCIDR != nm.Map.VpcInstanceCidr {
 		ipv4Addr, _, err := net.ParseCIDR(instanceCIDR)
 		if err != nil {
 			return fmt.Errorf("invalid instance CIDR %q: %w", instanceCIDR, err)
@@ -139,10 +139,11 @@ func (nm *NetworkManager) ZoneSetup(zoneName, bridgeCIDR, instanceCIDR, domain s
 		slog.Info("zone vpc domain set", "domain", domain)
 	}
 
-	if nm.Map.UpdateVersion == 0 {
+	if nm.changed {
 		if err := nm.flush(); err != nil {
 			return err
 		}
+		nm.changed = false
 	}
 
 	nm.ready = true

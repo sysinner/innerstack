@@ -54,6 +54,10 @@ func (s *zoneServer) ZoneInit(
 	ctx context.Context, req *inapi.ZoneInitRequest,
 ) (*inapi.ZoneInitResponse, error) {
 
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Zone_Write) {
+		return nil, errors.New("auth fail: missing zone:rw scope")
+	}
+
 	req.Name = strings.ToLower(req.Name)
 
 	if err := inapi.NameValid(req.Name); err != nil {
@@ -156,6 +160,9 @@ func (s *zoneServer) ZoneSet(
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
+	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Zone_Write) {
+		return nil, errors.New("auth fail: missing zone:rw scope")
+	}
 
 	if config.Config.Zonelet.ZoneName == "" {
 		return nil, errors.New("zone not initialized")
@@ -191,6 +198,10 @@ func (s *zoneServer) ZoneSet(
 		return nil, rs.Error()
 	} else if err := rs.Item().JsonDecode(&zone); err != nil {
 		return nil, err
+	}
+
+	if zone.Name == "" {
+		zone.Name = config.Config.Zonelet.ZoneName
 	}
 
 	// Update zone VPC fields

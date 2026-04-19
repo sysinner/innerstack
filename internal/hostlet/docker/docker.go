@@ -426,6 +426,11 @@ func (it *dockerDriver) ContainerCreate(
 		hostConfig.RestartPolicy = drvClient.RestartPolicy{Name: opts.RestartPolicy}
 	}
 
+	// DNS servers
+	if len(opts.DnsServers) > 0 {
+		hostConfig.DNS = opts.DnsServers
+	}
+
 	// Volume mounts
 	if len(opts.Mounts) > 0 {
 		hostConfig.Binds = make([]string, 0, len(opts.Mounts))

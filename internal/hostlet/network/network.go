@@ -159,7 +159,6 @@ func (it *linkManager) VxlanSetup(ip net.IP, vid int, devIP net.IP) error {
 				return err
 			}
 		} else {
-
 			for _, pAddr := range devLink.Addrs {
 				if addr.IPNet.IP.Equal(pAddr.IPNet.IP) {
 					return nil

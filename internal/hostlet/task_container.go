@@ -767,6 +767,9 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		opts.MemoryLimit = rep.App.Deploy.MemoryLimit
 	}
 
+	// DNS servers from host config
+	opts.DnsServers = config.Config.Hostlet.DnsServers
+
 	// VPC networking
 	opts.VpcIPv4 = rep.Replica.VpcIpv4
 	opts.VpcSubnet = config.Config.Hostlet.VpcInstanceCIDR

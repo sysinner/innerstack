@@ -139,7 +139,7 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 				ar := strings.Split(route.Targets[0].Backend, ":")
 				app, ok := apps[ar[0]]
 				if !ok || len(app.Deploy.Replicas) == 0 ||
-					app.Deploy.Action != inapi.GatewayIngressActionEnable {
+					app.Deploy.Action != inapi.OpActionStart {
 					continue
 				}
 
@@ -149,28 +149,23 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 				}
 
 				for _, rep := range app.Deploy.Replicas {
-
-					if rep.State != inapi.GatewayIngressActionEnable {
+					if rep.State != "" && rep.State != inapi.OpActionStart {
 						continue
 					}
-
 					v := gHostSet.Load(rep.HostId)
 					if v == nil {
 						continue
 					}
 					host := v.Value.(*inapi.Host)
-
 					var (
 						hostIp   = ""
 						hostPort = 0
 					)
-
 					if i := strings.IndexByte(host.PeerAddr, ':'); i > 0 {
 						hostIp = host.PeerAddr[:i]
 					} else {
 						hostIp = host.PeerAddr
 					}
-
 					if port := lynkapi.SlicesSearchFunc(rep.ServicePorts, func(a *inapi.AppDeployServicePort) bool {
 						return a.Port == uint32(podPort)
 					}); port != nil {
@@ -178,7 +173,6 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 					} else {
 						continue
 					}
-
 					addr := fmt.Sprintf("%s:%d", hostIp, hostPort)
 					if !slices.ContainsFunc(p.Targets, func(t *inapi.GatewayIngressDeploy_HttpRoute_Target) bool {
 						return t.Backend == addr

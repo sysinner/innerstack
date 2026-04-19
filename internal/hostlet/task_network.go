@@ -32,6 +32,7 @@ var (
 	hostNetworkBridgeCurrent  = ""
 	hostNetworkPeerIP         net.IP
 	zoneNetworkMap            inapi.ZoneNetworkMap
+	hostDNSUpdateSetup        uint64
 	zoneNetworkMapUpdateSetup uint64
 )
 
@@ -40,6 +41,25 @@ const (
 )
 
 func networkRefresh() error {
+
+	if len(config.Config.Hostlet.DnsServers) > 0 &&
+		hostDNSUpdateSetup < zoneNetworkMap.UpdateVersion {
+		dnsConf := ""
+		if len(zoneNetworkMap.VpcInstance) > 0 {
+			for ipn, instanceId := range zoneNetworkMap.VpcInstance {
+				ipb := inetutil.Uint32ToIp(ipn)
+				dnsConf += fmt.Sprintf("[[records]]\nname = \"app-%s.%s\"\nips = [\"%s\"]\n",
+					instanceId, zoneNetworkMap.VpcNetworkDomain, ipb.String())
+			}
+			if len(dnsConf) > 10 {
+				if err := inutil.FsWrite(config.Prefix+"/etc/indns_conf.d/instack.toml",
+					[]byte(dnsConf)); err != nil {
+					return err
+				}
+			}
+		}
+		hostDNSUpdateSetup = zoneNetworkMap.UpdateVersion
+	}
 
 	if runtime.GOOS != "linux" {
 		return nil
@@ -118,21 +138,6 @@ func networkRefresh() error {
 
 			slog.Warn(fmt.Sprintf("network vpc route (%s via %s) replace ok",
 				vpcIP.String(), brIP.String()))
-		}
-
-		dnsConf := ""
-		if len(zoneNetworkMap.VpcInstance) > 0 {
-			for ipn, instanceId := range zoneNetworkMap.VpcInstance {
-				ipb := inetutil.Uint32ToIp(ipn)
-				dnsConf += fmt.Sprintf("[[records]]\nname = \"app-%s.%s\"\nips = [\"%s\"]\n",
-					instanceId, zoneNetworkMap.VpcNetworkDomain, ipb.String())
-			}
-			if len(dnsConf) > 10 {
-				if err := inutil.FsWrite(config.Prefix+"/etc/indns.toml",
-					[]byte(dnsConf)); err != nil {
-					return err
-				}
-			}
 		}
 
 		zoneNetworkMapUpdateSetup = next
