@@ -30,7 +30,23 @@ func (x *AppDeployConfigItem) Item(name string) *AppDeployConfigItem {
 // 	return "", false
 // }
 
+// InstanceId returns the unique identifier of the application instance.
+func (x *AppInstance) InstanceId() string {
+	if x != nil && x.Meta != nil {
+		return x.Meta.Id
+	}
+	return ""
+}
+
+// InstanceName returns the human-readable name of the application instance.
+func (x *AppInstance) InstanceName() string {
+	if x != nil && x.Meta != nil {
+		return x.Meta.Name
+	}
+	return ""
+}
+
 // ContainerName returns the container name for the app replica instance.
 func (it *AppReplicaInstance) ContainerName() string {
-	return fmt.Sprintf("app-%s-%04x", it.App.Id, it.Replica.Id)
+	return fmt.Sprintf("app-%s-%04x", it.App.InstanceId(), it.Replica.Id)
 }

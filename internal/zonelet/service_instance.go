@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,16 +42,28 @@ func (s *zoneServer) AppInstanceDeploy(
 		return nil, errors.New("zonelet leader")
 	}
 
-	// For new instances, spec is required
-	if req.Id == "" && req.Spec == nil {
-		return nil, errors.New("spec is required for new instance")
+	// For new instances, spec and name are required
+	if req.Id == "" {
+		if req.Spec == nil {
+			return nil, errors.New("spec is required for new instance")
+		}
+		if req.Name == "" {
+			return nil, errors.New("name is required for new instance")
+		}
+		if err := inapi.DNSLabelValid(req.Name); err != nil {
+			return nil, fmt.Errorf("name: %w", err)
+		}
+		// Check name uniqueness within the zone
+		if err := validateInstanceNameUnique(req.Name, ""); err != nil {
+			return nil, err
+		}
 	}
 
 	var cpuLimit, memoryLimit, volumeLimit int64
 
 	if req.Spec != nil {
-		if req.Spec.Name == "" {
-			return nil, errors.New("spec.name is required")
+		if err := inapi.DNSLabelValid(req.Spec.Name); err != nil {
+			return nil, fmt.Errorf("spec.name: %w", err)
 		}
 
 		if req.Spec.Resources == nil {
@@ -148,6 +160,13 @@ func (s *zoneServer) AppInstanceDeploy(
 
 		instance = &existingInstance
 
+		// Name is immutable after creation
+		if req.Name != "" && req.Name != instance.InstanceName() {
+			return nil, fmt.Errorf(
+				"instance name is immutable: cannot change from %q to %q",
+				instance.InstanceName(), req.Name)
+		}
+
 		// Update spec only if provided
 		if req.Spec != nil {
 			instance.Spec = req.Spec
@@ -186,7 +205,7 @@ func (s *zoneServer) AppInstanceDeploy(
 		// Resolve config field auto-fill values
 		resolveDeployConfigFields(instance)
 
-		instance.Deploy.Version += 1
+		instance.Deploy.Revision += 1
 
 		// Detect dependency changes for reverse-reference updates
 		prevDepIDs := deployDependInstanceIDs(existingInstance.Deploy)
@@ -206,7 +225,7 @@ func (s *zoneServer) AppInstanceDeploy(
 
 		slog.Warn("zonelet app-instance-update",
 			"instance_id", req.Id,
-			"instance_name", instance.Name,
+			"instance_name", instance.InstanceName(),
 			"replica_cap", instance.Deploy.ReplicaCap,
 			"action", instance.Deploy.Action,
 		)
@@ -234,8 +253,10 @@ func (s *zoneServer) AppInstanceDeploy(
 		}
 
 		instance = &inapi.AppInstance{
-			Id:     inutil.SeqRandHexString(4, 8),
-			Name:   req.Spec.Name,
+			Meta: &inapi.Metadata{
+				Id:   inutil.SeqRandHexString(4, 8),
+				Name: req.Name,
+			},
 			Deploy: deploy,
 			Spec:   req.Spec,
 		}
@@ -243,7 +264,7 @@ func (s *zoneServer) AppInstanceDeploy(
 		// Resolve config field auto-fill values
 		resolveDeployConfigFields(instance)
 
-		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.Id)
+		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.InstanceId())
 
 		if rs := data.Zonelet.NewWriter(key, instance).
 			SetCreateOnly(true).Exec(); !rs.OK() {
@@ -252,15 +273,15 @@ func (s *zoneServer) AppInstanceDeploy(
 
 		// Update reverse references (ref_by_instance_ids) on dependent instances
 		depIDs := deployDependInstanceIDs(deploy)
-		if err := s.updateDependencyReverseRefs(instance.Id, nil, depIDs); err != nil {
+		if err := s.updateDependencyReverseRefs(instance.InstanceId(), nil, depIDs); err != nil {
 			slog.Error("zonelet app-instance-deploy: failed to update reverse refs",
-				"instance_id", instance.Id,
+				"instance_id", instance.InstanceId(),
 				"err", err.Error())
 		}
 
 		slog.Warn("zonelet app-instance-deploy",
-			"instance_id", instance.Id,
-			"instance_name", instance.Name,
+			"instance_id", instance.InstanceId(),
+			"instance_name", instance.InstanceName(),
 			"replica_cap", instance.Deploy.ReplicaCap,
 		)
 	}
@@ -268,7 +289,7 @@ func (s *zoneServer) AppInstanceDeploy(
 	status.Zonelet_ForceRefresh.Store(true)
 
 	return &inapi.AppInstanceDeployResponse{
-		Id: instance.Id,
+		Id: instance.InstanceId(),
 	}, nil
 }
 
@@ -364,6 +385,29 @@ func (s *zoneServer) AppInstanceDelete(
 	status.Zonelet_ForceRefresh.Store(true)
 
 	return &inapi.AppInstanceDeleteResponse{}, nil
+}
+
+// validateInstanceNameUnique checks that no other app instance in the zone
+// has the given name. The excludeID parameter allows excluding the current
+// instance (used for update scenarios, though name changes are not allowed).
+func validateInstanceNameUnique(name, excludeID string) error {
+	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+
+	for _, item := range rs.Items {
+		var inst inapi.AppInstance
+		if err := item.JsonDecode(&inst); err != nil {
+			continue
+		}
+		if inst.Meta == nil || inst.Meta.Name != name {
+			continue
+		}
+		if excludeID != "" && inst.InstanceId() == excludeID {
+			continue
+		}
+		return fmt.Errorf("app name %q already in use by instance %s", name, inst.InstanceId())
+	}
+	return nil
 }
 
 // validateAppDependencies checks that all app-level dependencies

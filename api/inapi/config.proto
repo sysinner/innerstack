@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,8 +79,8 @@ option go_package = "./;inapi";
 //   uint64 attrs = 7; // bitwise attribute flags
 // }
 
-// // ConfigInstance is a filled configuration instance with concrete field values.
-// message ConfigInstance {
+// // ConfigInstance is a filled configuration instance with concrete field
+// values. message ConfigInstance {
 //   string name = 1; // instance name
 //   string version = 2; // schema version
 //   repeated ConfigFieldValue fields = 3; // field values

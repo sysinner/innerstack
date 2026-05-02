@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -167,7 +167,7 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 
 	sets := map[string]string{}
 
-	sets["app.id"] = app.App.Id
+	sets["app.id"] = app.App.InstanceId()
 	sets["app.replica.rep_id"] = fmt.Sprintf("%d", app.Replica.Id)
 	sets["app.deploy.replica_cap"] = fmt.Sprintf("%d", app.App.Deploy.ReplicaCap)
 
@@ -218,7 +218,7 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 				if app.ZoneBaseDomain != "" {
 					endpointExport(
 						fmt.Sprintf("deps.%s.net.%s.service", dep.SpecName, sp.Name),
-						dep.InstanceId, dep.SpecName, sp.Port)
+						dep.InstanceId, app.ZoneBaseDomain, sp.Port)
 				}
 			}
 		}
@@ -251,7 +251,7 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 		if app.ZoneBaseDomain != "" {
 			endpointExport(
 				fmt.Sprintf("self.net.%s.service", sp.Name),
-				app.App.Id, app.ZoneBaseDomain, sp.Port)
+				app.App.InstanceId(), app.ZoneBaseDomain, sp.Port)
 		}
 	}
 

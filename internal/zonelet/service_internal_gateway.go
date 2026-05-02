@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 ) (*inapi.GatewayIngressDeployListResponse, error) {
 
 	rsp := &inapi.GatewayIngressDeployListResponse{
-		Version: 1,
+		Revision: 1,
 	}
 
 	if !status.IsZoneletLeader() {
@@ -96,21 +96,21 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 			if err := v.JsonDecode(&app); err != nil {
 				continue
 			}
-			app.Version = v.Meta.Version
+			app.Revision = v.Meta.Version
 
-			apps[app.Id] = &app
+			apps[app.InstanceId()] = &app
 		}
 	}
 
 	for _, item := range items {
 
-		if req.Version > 0 && req.Version >= item.Meta.Version {
+		if req.Revision > 0 && req.Revision >= item.Meta.Version {
 			continue
 		}
 
 		deploy := &inapi.GatewayIngressDeploy{
-			Domain:  item.Domain,
-			Version: item.Meta.Version,
+			Domain:   item.Domain,
+			Revision: item.Meta.Version,
 		}
 
 		for _, route := range item.Routes {

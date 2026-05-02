@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
+
 	"github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
@@ -41,11 +42,11 @@ func (it *appInstanceSet) Flush(app *appInstanceEntry) error {
 	it.mu.Lock()
 	defer it.mu.Unlock()
 
-	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, app.Value.Id)
+	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, app.Value.InstanceId())
 	if rs := data.Zonelet.NewWriter(key, app.Value).SetPrevVersion(
 		app.Meta.Version).Exec(); !rs.OK() {
 		slog.Warn("update instance fail",
-			"instance_id", app.Value.Id,
+			"instance_id", app.Value.InstanceId(),
 			"err", rs.ErrorMessage())
 		return rs.Error()
 	} else {
@@ -74,7 +75,7 @@ func (it *appInstanceSet) Refresh() error {
 		if instance.Deploy == nil || instance.Spec == nil ||
 			instance.Spec.Resources == nil {
 			slog.Warn("refresh instance with invalid deploy or spec",
-				"instance_id", instance.Id)
+				"instance_id", instance.InstanceId())
 			continue
 		}
 
@@ -102,7 +103,7 @@ func (it *appInstanceSet) store(app *inapi.AppInstance, meta *kvapi.Meta) {
 	}
 
 	if app != nil && meta != nil {
-		entry, ok := it.idx[app.Id]
+		entry, ok := it.idx[app.InstanceId()]
 		if ok && meta.Version <= entry.Meta.Version {
 			return
 		} else if ok {
@@ -113,7 +114,7 @@ func (it *appInstanceSet) store(app *inapi.AppInstance, meta *kvapi.Meta) {
 				Meta:  meta,
 				Value: app,
 			}
-			it.idx[app.Id] = entry
+			it.idx[app.InstanceId()] = entry
 			it.arr = append(it.arr, entry)
 		}
 		it.version = max(it.version, meta.Version)

@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -241,6 +241,10 @@ message AppInstanceDeployRequest {
 
   // deploy specifies the deployment parameters and desired action.
   AppDeploy deploy = 4;
+
+  // name is the instance name. For new instances, it defaults to spec.name.
+  // Must be unique within the zone. Immutable after creation.
+  string name = 5;
 }
 
 // AppInstanceDeployResponse is the response message after deploying an
@@ -322,14 +326,14 @@ message GatewayIngressSetResponse {
 // GatewayIngressDeployListRequest is the request message for incremental deploy
 // sync.
 message GatewayIngressDeployListRequest {
-  uint64 version = 15; // return only entries newer than this version
+  uint64 revision = 10; // return only entries newer than this revision
 }
 
 // GatewayIngressDeployListResponse is the response message containing deployed
 // entries.
 message GatewayIngressDeployListResponse {
   repeated GatewayIngressDeploy items = 9; // deployed ingress entries
-  uint64 version = 15; // current latest version for next sync
+  uint64 revision = 10; // current latest revision for next sync
 }
 
 // PackagePushRequest is the request message for uploading a package chunk.

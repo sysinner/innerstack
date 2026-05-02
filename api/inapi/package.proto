@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,10 +41,9 @@ message Package {
   PackageFile file = 3;
 }
 
-// PackageMetadata defines the identity and descriptive information of a package.
-// These fields are platform-independent and define what the package is.
-// Required fields: name, version
-// All other fields are optional.
+// PackageMetadata defines the identity and descriptive information of a
+// package. These fields are platform-independent and define what the package
+// is. Required fields: name, version All other fields are optional.
 message PackageMetadata {
   // name is the package name (required).
   // Must be lowercase, start with a letter, and contain only
@@ -54,8 +53,8 @@ message PackageMetadata {
 
   // version is the package core version (required).
   // Must follow semantic versioning core format (MAJOR.MINOR.PATCH).
-  // Pre-release and build metadata should be specified via --version flag during build.
-  // Examples: "1.0.0", "2.1.0", "0.1.0"
+  // Pre-release and build metadata should be specified via --version flag
+  // during build. Examples: "1.0.0", "2.1.0", "0.1.0"
   string version = 2;
 
   // authors are the package authors (optional).
@@ -94,9 +93,9 @@ message PackageMetadata {
 // the physical characteristics of the package distribution.
 message PackageRelease {
   // version is the full version string for this build.
-  // If build without --version flag, it equals to Metadata.Version (core version only).
-  // If build with --version flag, it can include pre-release and build metadata.
-  // Examples: "1.0.0", "1.0.0-beta.1", "1.0.0-beta.1+build.123"
+  // If build without --version flag, it equals to Metadata.Version (core
+  // version only). If build with --version flag, it can include pre-release and
+  // build metadata. Examples: "1.0.0", "1.0.0-beta.1", "1.0.0-beta.1+build.123"
   string version = 1;
 
   // os is the target operating system.
@@ -201,7 +200,8 @@ message PackageSpecBuild {
 //   - Progress can be calculated: len(uploaded_chunks) / total_chunks
 message PackageFile {
   // state is the current upload state.
-  // Valid values: "", "uploading", "complete", "failed" (see inapi.PackageFileState* constants)
+  // Valid values: "", "uploading", "complete", "failed" (see
+  // inapi.PackageFileState* constants)
   string state = 1;
 
   // size is the entire IPK file size in bytes.

@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,11 +88,10 @@ message Zone {
 message ZoneNetworkMap {
   // Host represents a host's VPC network identity within the routing table.
   message Host {
-    string id = 1;     // host unique identifier
-    uint32 peer = 2;   // peer address (last octet of bridge IP)
-    uint32 bridge = 3; // bridge address (last octet of bridge IP)
-    uint32 instance =
-        4; // instance subnet prefix (third octet of instance CIDR)
+    string id = 1;        // host unique identifier
+    fixed32 peer = 2;     // peer address
+    fixed32 bridge = 3;   // bridge address
+    fixed32 instance = 4; // instance subnet address
   }
 
   // zone-wide VPC bridge subnet (e.g., "192.168.10.0/24")
@@ -104,17 +103,18 @@ message ZoneNetworkMap {
   // DNS domain for VPC name resolution
   string vpc_network_domain = 4;
 
-  // vpc_bridge_host maps bridge IP last octet to host network info.
-  // Example: key=2 -> host id "6985b60604d7", instance subnet 10.10.2.0
-  map<uint32, Host> vpc_bridge_host = 5;
+  // vpc_bridge_host maps bridge IP to host network info.
+  // Example: key=3232238090 -> host id "6985b60604d7", instance
+  // subnet 10.10.2.0
+  map<fixed32, Host> vpc_bridge_host = 5;
 
   // vpc_instance maps instance IP last octet to replica ID.
-  // Example: key corresponding to 10.10.2.3 -> "app-699e0d6f3f11-0000"
-  map<uint32, string> vpc_instance = 7;
+  // Example: key corresponding to 10.10.2.3 -> "699e0d6f3f11-0000"
+  map<fixed32, string> vpc_instance = 7;
 
-  // monotonic version for incremental sync
-  uint64 update_version = 14;
+  // monotonic revision for incremental sync
+  uint64 revision = 8;
 
   // last update unix timestamp (seconds)
-  int64 updated = 15;
+  int64 updated = 13;
 }

@@ -14,7 +14,7 @@ LYNKAPI_FILTER_V2_ARGS = inapi
 GOBUILD_ARGS = -trimpath
 
 .PHONY: api cli server inagent indns inservice
-all: api cli server inagent
+all: api cli server inagent indns inservice
 	@echo ""
 	@echo "build complete"
 	@echo ""

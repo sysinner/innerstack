@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,10 +24,18 @@ import (
 	en_translations "github.com/go-playground/validator/v10/translations/en"
 )
 
+// dnsLabelRegexp matches a single RFC 1123 DNS label:
+// - lowercase letters, digits, and hyphens only
+// - must not start or end with a hyphen
+var dnsLabelRegexp = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
 type Validator func(string) error
 
 var (
 	NameValid Validator
+
+	// RFC 1123 DNS label
+	DNSLabelValid Validator
 
 	Ip4AddrValid Validator
 
@@ -49,8 +57,16 @@ func init() {
 
 	en_translations.RegisterDefaultTranslations(validate, trans)
 
+	// Register custom RFC 1123 label validator
+	validate.RegisterValidation("dns_label", func(fl validator.FieldLevel) bool {
+		return dnsLabelRegexp.MatchString(fl.Field().String())
+	})
+
 	//
 	NameValid = newValidator("required,min=3,max=20,alphanum")
+
+	// RFC 1123
+	DNSLabelValid = newValidator("required,dns_label,min=3,max=63")
 
 	//
 	Ip4AddrValid = newValidator("required,tcp4_addr")

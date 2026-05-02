@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ const (
 func networkRefresh() error {
 
 	if len(config.Config.Hostlet.DnsServers) > 0 &&
-		hostDNSUpdateSetup < zoneNetworkMap.UpdateVersion {
+		hostDNSUpdateSetup < zoneNetworkMap.Revision {
 		dnsConf := ""
 		if len(zoneNetworkMap.VpcInstance) > 0 {
 			for ipn, instanceId := range zoneNetworkMap.VpcInstance {
@@ -58,7 +58,7 @@ func networkRefresh() error {
 				}
 			}
 		}
-		hostDNSUpdateSetup = zoneNetworkMap.UpdateVersion
+		hostDNSUpdateSetup = zoneNetworkMap.Revision
 	}
 
 	if runtime.GOOS != "linux" {
@@ -107,11 +107,11 @@ func networkRefresh() error {
 		hostNetworkBridgeCurrent = config.Config.Hostlet.VpcBridgeIP
 	}
 
-	if zoneNetworkMapUpdateSetup < zoneNetworkMap.UpdateVersion {
+	if zoneNetworkMapUpdateSetup < zoneNetworkMap.Revision {
 
-		next := zoneNetworkMap.UpdateVersion
+		next := zoneNetworkMap.Revision
 
-		for _, hostNet := range zoneNetworkMap.VpcBridgeHost {
+		for bridge, hostNet := range zoneNetworkMap.VpcBridgeHost {
 
 			if hostNet.Peer == inetutil.BytesToUint32(hostNetworkPeerIP) {
 				continue
@@ -128,7 +128,7 @@ func networkRefresh() error {
 				inetutil.Uint32ToIp(hostNet.Peer).String()))
 
 			//
-			brIP := inetutil.Uint32ToIp(hostNet.Bridge)
+			brIP := inetutil.Uint32ToIp(bridge)
 			vpcIP := inetutil.Uint32ToIp(hostNet.Instance)
 			if err := network.LinkManager.RouteReplace(vpcIP, brIP); err != nil {
 				slog.Warn(fmt.Sprintf("network vpc route (%s via %s) replace error %s",

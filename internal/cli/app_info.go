@@ -90,7 +90,7 @@ func NewAppInfoCommand() *cobra.Command {
 			}...)
 
 			values := []any{
-				resp.Instance.Id, resp.Instance.Name,
+				resp.Instance.InstanceId(), resp.Instance.InstanceName(),
 				inutil.PrettyCPUs(resp.Instance.Deploy.CpuLimit),
 				inutil.PrettyBytes(resp.Instance.Deploy.MemoryLimit, 1024),
 				inutil.PrettyBytes(resp.Instance.Deploy.VolumeLimit, 1024),

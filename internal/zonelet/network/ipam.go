@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -429,7 +429,7 @@ func (nm *NetworkManager) flush() error {
 	}
 
 	nm.Map.Updated = time.Now().Unix()
-	nm.Map.UpdateVersion += 1
+	nm.Map.Revision += 1
 
 	key := inapi.NsZoneletNetworkIPAM(nm.zoneName)
 	if rs := data.Zonelet.NewWriter(key, nm.Map).Exec(); !rs.OK() {

@@ -100,7 +100,7 @@ func NewAppListCommand() *cobra.Command {
 				}
 
 				values := []any{
-					v.Id, v.Name,
+					v.InstanceId(), v.InstanceName(),
 					inutil.PrettyCPUs(v.Deploy.CpuLimit),
 					inutil.PrettyBytes(v.Deploy.MemoryLimit, 1024),
 					inutil.PrettyBytes(v.Deploy.VolumeLimit, 1024),

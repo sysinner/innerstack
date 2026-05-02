@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -115,6 +115,6 @@ message GatewayIngressDeploy {
   // routes are the HTTP routing rules for this domain.
   repeated HttpRoute routes = 4;
 
-  // version is a monotonically increasing revision number for this deployment.
-  uint64 version = 5;
+  // revision is a monotonically increasing revision number for this deployment.
+  uint64 revision = 5;
 }

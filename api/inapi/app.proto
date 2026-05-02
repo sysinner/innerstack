@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,24 +16,21 @@ syntax = "proto3";
 
 package inapi;
 
-import "common.proto";
-
 option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
+
+import "common.proto";
 
 // AppInstance represents a deployed application instance in the cluster.
 // It is the top-level resource that encapsulates the application specification,
 // operational parameters, and current status.
 message AppInstance {
-  // id is the unique identifier of the application instance.
-  string id = 1;
+  // meta contains the standard resource metadata (id, name, etc.).
+  Metadata meta = 1;
 
-  // name is the human-readable name of the application instance.
-  string name = 2;
+  // todo map<string, string> labels = 6;
 
-  // map<string, string> labels = 6;
-
-  // map<string, string> annotations = 7;
+  // todo map<string, string> annotations = 7;
 
   // spec defines the desired state and configuration of the application.
   AppSpec spec = 10;
@@ -42,15 +39,15 @@ message AppInstance {
   AppDeploy deploy = 20;
 
   // status reflects the current observed state of the application instance.
-  AppStatus status = 30;
+  // AppStatus status = 30;
 
-  // version is an internal revision number for data synchronization.
-  uint64 version = 31;
+  // revision is an internal revision number for data synchronization.
+  uint64 revision = 21;
 
   // ref_by_instances records IDs of other app instances that reference
   // this instance as a dependency. Maintained by the zonelet to track
   // reverse dependency links.
-  repeated string ref_by_instances = 32;
+  repeated string ref_by_instances = 22;
 }
 
 // AppSpec defines the specification of an application, including its resources,
@@ -62,8 +59,12 @@ message AppSpec {
   // name is the unique name of the application specification.
   string name = 2;
 
+  // version is the semantic version of the application specification,
+  // following the SemVer format (e.g., "1.0.0", "2.1.3-beta").
+  string version = 3;
+
   // description provides a human-readable description of the application.
-  string description = 3;
+  string description = 4;
 
   // image specifies the container image to use (e.g., docker image).
   string image = 5;
@@ -174,8 +175,8 @@ message AppDeploy {
   // Valid values: start, stop, destroy.
   string action = 1;
 
-  // version is the operational version for optimistic concurrency control.
-  uint64 version = 2;
+  // revision is the operational revision for optimistic concurrency control.
+  uint64 revision = 2;
 
   // cpu_limit specifies the CPU limit in millicores (e.g., 500 = 0.5 cores).
   int64 cpu_limit = 10;
@@ -200,7 +201,6 @@ message AppDeploy {
   repeated AppDeployDepend depends = 21;
 }
 
-
 // AppDeployConfigItem represents a single field in a deployment config.
 message AppDeployConfigItem {
   // name is the name of the field.
@@ -212,7 +212,7 @@ message AppDeployConfigItem {
   // type specifies the data type of the field.
   string type = 3;
 
-   // items is a list of fields within this config group.
+  // items is a list of fields within this config group.
   repeated AppDeployConfigItem items = 9;
 }
 
@@ -254,31 +254,32 @@ message AppDeployReplica {
   repeated AppDeployServicePort service_ports = 5;
 }
 
-// AppStatus represents the current observed status of an application.
-message AppStatus {
-  // id is the unique identifier of the application.
-  string id = 1;
+// // AppStatus represents the current observed status of an application.
+// message AppStatus {
+//   // id is the unique identifier of the application.
+//   string id = 1;
 
-  // replicas is a list of status information for each replica.
-  repeated AppReplicaStatus replicas = 20;
-}
+//   // replicas is a list of status information for each replica.
+//   repeated AppReplicaStatus replicas = 20;
+// }
 
-// AppReplicaStatus represents the status of a single application replica.
-message AppReplicaStatus {
-  // id is the unique identifier of the replica.
-  uint32 id = 1;
+// // AppReplicaStatus represents the status of a single application replica.
+// message AppReplicaStatus {
+//   // id is the unique identifier of the replica.
+//   uint32 id = 1;
 
-  // host_id is the ID of the host where the replica runs.
-  string host_id = 2;
+//   // host_id is the ID of the host where the replica runs.
+//   string host_id = 2;
 
-  // state represents the current status of the replica.
-  // Valid values: starting, running, stopping, stopped, destroying, destroyed,
-  // failed.
-  string state = 3;
+//   // state represents the current status of the replica.
+//   // Valid values: starting, running, stopping, stopped, destroying,
+//   destroyed,
+//   // failed.
+//   string state = 3;
 
-  // attrs is a list of additional attributes describing the replica state.
-  repeated string attrs = 4;
-}
+//   // attrs is a list of additional attributes describing the replica state.
+//   repeated string attrs = 4;
+// }
 
 // AppSpecConfigItem represents a single configuration field in the schema.
 message AppSpecConfigItem {
@@ -302,7 +303,7 @@ message AppSpecConfigItem {
   string auto_fill = 6;
 
   // validates is a list of validation rules for the field.
-  repeated Label validates = 7;
+  // repeated Label validates = 7;
 
   // description provides a detailed description of the field.
   string description = 8;

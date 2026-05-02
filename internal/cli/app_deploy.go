@@ -128,6 +128,19 @@ func NewAppDeployCommand() *cobra.Command {
 			}
 		}
 
+		reader := bufio.NewReader(os.Stdin)
+
+		// Interactive app name confirmation for new instance (first prompt)
+		if instanceReq.Id == "" {
+			defaultName := ""
+			if spec != nil {
+				defaultName = spec.Name
+			}
+			if err := promptAppName(reader, defaultName, instanceReq); err != nil {
+				return err
+			}
+		}
+
 		// Interactive dependency resolution
 		if spec != nil && len(spec.Depends) > 0 {
 			depBounds, err := promptDependencyInstanceIds(spec.Depends, existingDepends, zc)
@@ -170,17 +183,34 @@ func NewAppDeployCommand() *cobra.Command {
 			instanceReq.Deploy.Action = action
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		instanceResp, err := zc.AppInstanceDeploy(ctx, instanceReq)
-		if err != nil {
-			return fmt.Errorf("failed to deploy app instance: %w", err)
-		}
+		// Submit loop: retry on app name conflict
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			instanceResp, err := zc.AppInstanceDeploy(ctx, instanceReq)
+			cancel()
 
-		if instanceId != "" {
-			fmt.Printf("App instance '%s' updated successfully\n", instanceResp.Id)
-		} else {
-			fmt.Printf("App instance '%s' deployed successfully\n", instanceResp.Id)
+			if err != nil {
+				errMsg := err.Error()
+				if instanceReq.Id == "" && strings.Contains(errMsg, "already in use") {
+					fmt.Printf("\n  Error: %s\n", errMsg)
+					defaultName := ""
+					if spec != nil {
+						defaultName = spec.Name
+					}
+					if err := promptAppName(reader, defaultName, instanceReq); err != nil {
+						return err
+					}
+					continue
+				}
+				return fmt.Errorf("failed to deploy app instance: %w", err)
+			}
+
+			if instanceId != "" {
+				fmt.Printf("App instance '%s' updated successfully\n", instanceResp.Id)
+			} else {
+				fmt.Printf("App instance '%s' deployed successfully\n", instanceResp.Id)
+			}
+			break
 		}
 
 		return nil
@@ -226,6 +256,45 @@ If --id is provided, the existing app instance will be updated.`,
 		"", "Deploy action (start, stop, destroy)")
 
 	return cmd
+}
+
+// promptAppName interactively prompts for an app instance name.
+// It displays the defaultName as a hint and sets req.Name on success.
+func promptAppName(reader *bufio.Reader, defaultName string, req *inapi.AppInstanceDeployRequest) error {
+	fmt.Println()
+	fmt.Println("App Name")
+	fmt.Println(strings.Repeat("-", 60))
+
+	for {
+		if defaultName != "" {
+			fmt.Printf("  Enter app name [%s]: ", defaultName)
+		} else {
+			fmt.Printf("  Enter app name: ")
+		}
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read input: %w", err)
+		}
+		input = strings.TrimSpace(input)
+
+		appName := input
+		if appName == "" {
+			appName = defaultName
+		}
+		if appName == "" {
+			fmt.Println("  Error: app name is required")
+			continue
+		}
+
+		req.Name = appName
+		fmt.Printf("  App name: %s\n", appName)
+		break
+	}
+
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println()
+	return nil
 }
 
 // promptConfigItems interactively prompts user for each config field
@@ -411,18 +480,18 @@ func promptDependencyInstanceIds(
 		fmt.Println("  Available instances:")
 		for i, inst := range candidates {
 			marker := ""
-			if inst.Id == boundInstanceID {
+			if inst.InstanceId() == boundInstanceID {
 				marker = " (bound)"
 			}
-			fmt.Printf("    [%d] ID: %s  Name: %s%s\n", i+1, inst.Id, inst.Name, marker)
+			fmt.Printf("    [%d] ID: %s  Name: %s%s\n", i+1, inst.InstanceId(), inst.InstanceName(), marker)
 		}
 
 		if len(candidates) == 1 {
 			inst := candidates[0]
-			fmt.Printf("  Auto-selected (only one instance): %s\n", inst.Id)
+			fmt.Printf("  Auto-selected (only one instance): %s\n", inst.InstanceId())
 			results = append(results, &inapi.AppDeployDepend{
 				SpecName:   dep.Name,
-				InstanceId: inst.Id,
+				InstanceId: inst.InstanceId(),
 			})
 			continue
 		}
@@ -455,7 +524,7 @@ func promptDependencyInstanceIds(
 		var selectedID string
 		for i, inst := range candidates {
 			if input == fmt.Sprintf("%d", i+1) {
-				selectedID = inst.Id
+				selectedID = inst.InstanceId()
 				break
 			}
 		}

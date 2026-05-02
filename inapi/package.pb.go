@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,10 +113,9 @@ func (x *Package) GetFile() *PackageFile {
 	return nil
 }
 
-// PackageMetadata defines the identity and descriptive information of a package.
-// These fields are platform-independent and define what the package is.
-// Required fields: name, version
-// All other fields are optional.
+// PackageMetadata defines the identity and descriptive information of a
+// package. These fields are platform-independent and define what the package
+// is. Required fields: name, version All other fields are optional.
 type PackageMetadata struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -129,8 +128,8 @@ type PackageMetadata struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
 	// version is the package core version (required).
 	// Must follow semantic versioning core format (MAJOR.MINOR.PATCH).
-	// Pre-release and build metadata should be specified via --version flag during build.
-	// Examples: "1.0.0", "2.1.0", "0.1.0"
+	// Pre-release and build metadata should be specified via --version flag
+	// during build. Examples: "1.0.0", "2.1.0", "0.1.0"
 	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
 	// authors are the package authors (optional).
 	// Can include name and optional email in format "Name <email>".
@@ -267,9 +266,9 @@ type PackageRelease struct {
 	unknownFields protoimpl.UnknownFields
 
 	// version is the full version string for this build.
-	// If build without --version flag, it equals to Metadata.Version (core version only).
-	// If build with --version flag, it can include pre-release and build metadata.
-	// Examples: "1.0.0", "1.0.0-beta.1", "1.0.0-beta.1+build.123"
+	// If build without --version flag, it equals to Metadata.Version (core
+	// version only). If build with --version flag, it can include pre-release and
+	// build metadata. Examples: "1.0.0", "1.0.0-beta.1", "1.0.0-beta.1+build.123"
 	Version string `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
 	// os is the target operating system.
 	// Common values: "linux", "freebsd", "darwin", "all"
@@ -648,7 +647,8 @@ type PackageFile struct {
 	unknownFields protoimpl.UnknownFields
 
 	// state is the current upload state.
-	// Valid values: "", "uploading", "complete", "failed" (see inapi.PackageFileState* constants)
+	// Valid values: "", "uploading", "complete", "failed" (see
+	// inapi.PackageFileState* constants)
 	State string `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty" toml:"state,omitempty"`
 	// size is the entire IPK file size in bytes.
 	Size int64 `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty" toml:"size,omitempty"`

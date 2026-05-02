@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,13 +46,13 @@ func (it *AppReplicaInstanceList) TryStore(rep *inapi.AppReplicaInstance) bool {
 		it.index = map[string]*inapi.AppReplicaInstance{}
 	}
 	item, ok := it.index[rep.ContainerName()]
-	if !ok || rep.App.Deploy.Version > item.App.Deploy.Version {
+	if !ok || rep.App.Deploy.Revision > item.App.Deploy.Revision {
 		if ok {
-			slog.Info(fmt.Sprintf("app-deploy %s version %d -> %d",
-				rep.ContainerName(), item.App.Deploy.Version, rep.App.Deploy.Version))
+			slog.Info(fmt.Sprintf("app-deploy %s revision %d -> %d",
+				rep.ContainerName(), item.App.Deploy.Revision, rep.App.Deploy.Revision))
 		} else {
-			slog.Info(fmt.Sprintf("app-deploy %s version %d",
-				rep.ContainerName(), rep.App.Deploy.Version))
+			slog.Info(fmt.Sprintf("app-deploy %s revision %d",
+				rep.ContainerName(), rep.App.Deploy.Revision))
 		}
 		it.index[rep.ContainerName()] = rep
 		return true

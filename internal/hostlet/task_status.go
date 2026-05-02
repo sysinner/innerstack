@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -208,7 +208,7 @@ func statusRefresh() error {
 	}
 
 	for _, app := range resp.AppInstances {
-		hoststatus.ActiveAppList.Store(app.Id, app)
+		hoststatus.ActiveAppList.Store(app.InstanceId(), app)
 	}
 
 	cfgFlush := false
@@ -224,7 +224,7 @@ func statusRefresh() error {
 	}
 
 	if resp.ZoneNetworkMap != nil &&
-		resp.ZoneNetworkMap.UpdateVersion > zoneNetworkMap.UpdateVersion {
+		resp.ZoneNetworkMap.Revision > zoneNetworkMap.Revision {
 		if resp.ZoneNetworkMap.VpcNetworkDomain != "" &&
 			resp.ZoneNetworkMap.VpcNetworkDomain != config.Config.Hostlet.VpcNetworkDomain {
 			config.Config.Hostlet.VpcNetworkDomain = resp.ZoneNetworkMap.VpcNetworkDomain

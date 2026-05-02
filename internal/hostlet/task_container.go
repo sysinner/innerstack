@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -350,7 +350,7 @@ func containerControlRefresh() error {
 			nextState, err := cmd.Command(repInstance)
 			if err != nil {
 				slog.Warn("app deploy command failed",
-					"app", app.Id,
+					"app", app.InstanceId(),
 					"replica", rep.Id,
 					"state", currentState,
 					"action", app.Deploy.Action,
@@ -358,7 +358,7 @@ func containerControlRefresh() error {
 					"error", err)
 			} else {
 				slog.Info("app deploy command succeeded",
-					"app", app.Id,
+					"app", app.InstanceId(),
 					"replica", rep.Id,
 					"state", currentState,
 					"action", app.Deploy.Action,
@@ -701,7 +701,7 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 	}
 
 	slog.Info("app_instance.json updated for AppSpec sync",
-		"app", rep.App.Id,
+		"app", rep.App.InstanceId(),
 		"container", rep.ContainerName(),
 		"path", appInstancePath)
 }
@@ -742,7 +742,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	pkgMounts, err := EnsurePackages(rep.App)
 	if err != nil {
 		slog.Warn("package preparation failed",
-			"app", rep.App.Id,
+			"app", rep.App.InstanceId(),
 			"error", err)
 		return fmt.Errorf("package preparation failed: %w", err)
 	}
@@ -752,11 +752,11 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		Image:         image,
 		RestartPolicy: "always",
 		Labels: map[string]string{
-			"app_id":     rep.App.Id,
+			"app_id":     rep.App.InstanceId(),
 			"app_rep_id": fmt.Sprintf("%d", rep.Replica.Id),
 		},
 		Env: []string{
-			fmt.Sprintf("APP_ID=%s", rep.App.Id),
+			fmt.Sprintf("APP_ID=%s", rep.App.InstanceId()),
 			fmt.Sprintf("APP_REP_ID=%d", rep.Replica.Id),
 			fmt.Sprintf("APP_HOST_ID=%s", config.Config.Hostlet.HostId),
 		},

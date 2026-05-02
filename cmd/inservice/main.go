@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2015 Eryx <evorui at gmail dot com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -187,7 +187,7 @@ type Config struct {
 	Domains      []*inapi.GatewayIngressDeploy `toml:"domains"`
 	indexDomains map[string]*DomainEntry       `toml:"-"`
 
-	lastVersion     uint64
+	lastRevision    uint64
 	lastFullUpdated int64
 }
 
@@ -258,7 +258,7 @@ type DomainEntry struct {
 	mu          sync.RWMutex
 	indexRoutes map[string]*DomainEntryRoute
 
-	setupVersion uint64
+	setupRevision uint64
 }
 
 type DomainEntryRoute struct {
@@ -460,10 +460,10 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 	if len(domains) == 0 && zoneConn != nil {
 
 		if cfg.lastFullUpdated+600 < tn {
-			req.Version = 0
+			req.Revision = 0
 			cfg.lastFullUpdated = tn
 		} else {
-			req.Version = cfg.lastVersion
+			req.Revision = cfg.lastRevision
 		}
 
 		zc := inapi.NewZoneInternalServiceClient(zoneConn)
@@ -480,7 +480,7 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 			return nil
 		}
 
-		if req.Version == 0 && len(cfg.Domains) > 0 {
+		if req.Revision == 0 && len(cfg.Domains) > 0 {
 			r := float64(len(rspList.Items)) / float64(len(cfg.Domains))
 			if r < 0.5 {
 				slog.Info(fmt.Sprintf("fetch domains %d/%d, skip", len(rspList.Items), len(cfg.Domains)))
@@ -490,8 +490,8 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 
 		domains = rspList.Items
 
-		slog.Info(fmt.Sprintf("req version %d, fetch domains %d",
-			req.Version, len(rspList.Items)))
+		slog.Info(fmt.Sprintf("req revision %d, fetch domains %d",
+			req.Revision, len(rspList.Items)))
 	}
 
 	var (
@@ -521,7 +521,7 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 		flush = true
 		domainEntry.Routes = nil
 		domainEntry.indexRoutes = map[string]*DomainEntryRoute{}
-		domainEntry.setupVersion = domain.Version
+		domainEntry.setupRevision = domain.Revision
 
 		for _, route := range prevRoutes {
 			switch route.Type {
@@ -624,9 +624,9 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 				domain.Domain, len(domain.Routes)))
 		}
 
-		cfg.lastVersion = max(cfg.lastVersion, domain.Version)
+		cfg.lastRevision = max(cfg.lastRevision, domain.Revision)
 
-		if !added || domain.Version > domainEntry.setupVersion {
+		if !added || domain.Revision > domainEntry.setupRevision {
 			domainFresh(domainEntry, domain)
 		}
 
@@ -651,7 +651,7 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 		newDomains = append(newDomains, domain)
 	}
 
-	if req.Version == 0 &&
+	if req.Revision == 0 &&
 		(len(newDomains) != len(cfg.indexDomains) ||
 			len(newDomains) != len(cfg.Domains)) {
 
