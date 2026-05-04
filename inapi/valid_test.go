@@ -64,3 +64,44 @@ func TestDNSNameValid(t *testing.T) {
 		})
 	}
 }
+
+func TestSemverValid(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		// valid cases
+		{"valid basic", "1.0.0", false},
+		{"valid zero version", "0.0.0", false},
+		{"valid patch", "0.1.0", false},
+		{"valid large numbers", "100.200.300", false},
+		{"valid with pre-release", "1.0.0-alpha", false},
+		{"valid with pre-release numeric", "1.0.0-alpha.1", false},
+		{"valid with pre-release and build", "1.0.0-beta.1+build.123", false},
+		{"valid with build only", "1.0.0+build.42", false},
+		{"valid pre-release hyphen", "1.0.0-alpha-beta", false},
+
+		// invalid cases
+		{"empty string", "", true},
+		{"missing patch", "1.0", true},
+		{"missing minor and patch", "1", true},
+		{"text only", "latest", true},
+		{"with v prefix", "v1.0.0", true},
+		{"leading zeros major", "01.0.0", true},
+		{"leading zeros minor", "1.01.0", true},
+		{"leading zeros patch", "1.0.01", true},
+		{"extra segment", "1.0.0.0", true},
+		{"spaces around", " 1.0.0", true},
+		{"random string", "not-a-version", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := SemverValid(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SemverValid(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}

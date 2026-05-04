@@ -66,6 +66,12 @@ func (s *zoneServer) AppInstanceDeploy(
 			return nil, fmt.Errorf("spec.name: %w", err)
 		}
 
+		if req.Spec.Version != "" {
+			if err := inapi.SemverValid(req.Spec.Version); err != nil {
+				return nil, fmt.Errorf("spec.version: %w", err)
+			}
+		}
+
 		if req.Spec.Resources == nil {
 			return nil, errors.New("spec.resources is required")
 		}

@@ -16,12 +16,14 @@ package inapi
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	en_translations "github.com/go-playground/validator/v10/translations/en"
+	"golang.org/x/mod/semver"
 )
 
 // dnsLabelRegexp matches a single RFC 1123 DNS label:
@@ -80,6 +82,43 @@ func newValidator(rule string) Validator {
 		}
 		return nil
 	}
+}
+
+// SemverValid checks whether the given version string is a valid semantic version.
+// The version must follow the full SemVer 2.0 format: MAJOR.MINOR.PATCH with
+// optional pre-release (-alpha.1) and build (+build.123) tags.
+// Note: golang.org/x/mod/semver requires a "v" prefix for canonical comparison,
+// so we prepend "v" before validation.
+func SemverValid(version string) error {
+	if version == "" {
+		return errors.New("version is required")
+	}
+
+	v := "v" + version
+	if !semver.IsValid(v) {
+		return fmt.Errorf("invalid semver format: %q (expected MAJOR.MINOR.PATCH)", version)
+	}
+
+	// golang.org/x/mod/semver treats "v1" and "v1.0" as valid, but we require
+	// the strict MAJOR.MINOR.PATCH format (core must contain exactly 2 dots).
+	core := version
+	for i := 0; i < len(core); i++ {
+		if core[i] == '-' || core[i] == '+' {
+			core = core[:i]
+			break
+		}
+	}
+	dotCount := 0
+	for _, c := range core {
+		if c == '.' {
+			dotCount++
+		}
+	}
+	if dotCount != 2 {
+		return fmt.Errorf("invalid semver format: %q (expected MAJOR.MINOR.PATCH)", version)
+	}
+
+	return nil
 }
 
 // ValidateTaskTrigger validates that exactly one trigger field is set in a task.
