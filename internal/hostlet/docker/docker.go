@@ -360,6 +360,11 @@ func (it *dockerDriver) ContainerInspect(
 		}
 	}
 
+	// Extract volume binds from HostConfig
+	if len(container.HostConfig.Binds) > 0 {
+		info.Binds = container.HostConfig.Binds
+	}
+
 	// Extract IP from network settings, prefer VPC network
 	if container.NetworkSettings != nil {
 		for netName, net := range container.NetworkSettings.Networks {

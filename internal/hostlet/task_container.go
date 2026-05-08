@@ -21,8 +21,11 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/sysinner/incore/v2/inapi"
@@ -37,14 +40,30 @@ var (
 	hostSrcPaths = hostapi.NewHostSourcePaths(config.Prefix)
 )
 
+// lxcfsBinPaths defines lxcfs binary path and its corresponding proc directory.
+var lxcfsBinPaths = [][]string{
+	{"/usr/bin/lxcfs", "/var/lib/lxcfs/proc/"},
+}
+
+// lxcfsProcEntries lists /proc files that lxcfs overrides for container isolation.
+var lxcfsProcEntries = []string{
+	"cpuinfo", "diskstats", "meminfo", "stat", "swaps", "uptime", "slabinfo",
+}
+
+// lxcfsSysEntries lists /sys paths that lxcfs overrides for container isolation.
+var lxcfsSysEntries = [][]string{
+	{"/var/lib/lxcfs/sys/devices/system/cpu", "/sys/devices/system/cpu"},
+}
+
 const (
 	defaultContainerTimeout = 30 * time.Second
 	imagePullTimeout        = 5 * time.Minute
 )
 
 var (
-	ctrDriver  hostapi.Driver
-	ctrDrivers []hostapi.Driver
+	ctrDriver    hostapi.Driver
+	ctrDrivers   []hostapi.Driver
+	lxcfsEnabled atomic.Bool
 )
 
 // Workflow State Machine:
@@ -105,6 +124,10 @@ func taskContainerInit() {
 		operateContainerStarting)
 	hoststatus.AppWorkflow.Register(
 		inapi.OpStateFailed, inapi.OpActionStart, inapi.OpStateStarting,
+		operateContainerStarting)
+	// Re-attempt starting if previous start was interrupted
+	hoststatus.AppWorkflow.Register(
+		inapi.OpStateStarting, inapi.OpActionStart, inapi.OpStateStarting,
 		operateContainerStarting)
 	// Already in target state - no action needed
 	hoststatus.AppWorkflow.Register(
@@ -196,8 +219,66 @@ func containerRefresh() error {
 	return nil
 }
 
+// lxcfsDetect checks if an lxcfs binary is running on the host.
+// It sets lxcfsEnabled to true if config enables it and the process is detected.
+func lxcfsDetect() {
+	if !config.Config.Hostlet.LxcFsEnable || lxcfsEnabled.Load() {
+		return
+	}
+	for _, vp := range lxcfsBinPaths {
+		out, err := exec.Command("pidof", vp[0]).Output()
+		if err != nil {
+			continue
+		}
+		if pid, _ := strconv.Atoi(strings.TrimSpace(string(out))); pid > 0 {
+			lxcfsEnabled.Store(true)
+			slog.Info("lxcfs detected", "binary", vp[0])
+			return
+		}
+	}
+}
+
+// lxcfsMounts returns volume mounts for lxcfs proc entries if lxcfs is enabled.
+// It detects the running lxcfs binary and generates read-only mounts for each
+// /proc entry (cpuinfo, meminfo, etc.) to provide container-level resource isolation.
+func lxcfsMounts() []hostapi.MountBind {
+	if !lxcfsEnabled.Load() {
+		return nil
+	}
+	for _, vp := range lxcfsBinPaths {
+		out, err := exec.Command("pidof", vp[0]).Output()
+		if err != nil {
+			continue
+		}
+		if pid, _ := strconv.Atoi(strings.TrimSpace(string(out))); pid > 0 {
+			mounts := make([]hostapi.MountBind, 0, len(lxcfsProcEntries)+len(lxcfsSysEntries))
+			for _, entry := range lxcfsProcEntries {
+				mounts = append(mounts, hostapi.MountBind{
+					HostPath:      vp[1] + entry,
+					ContainerPath: "/proc/" + entry,
+					ReadOnly:      false,
+				})
+			}
+			for _, entry := range lxcfsSysEntries {
+				mounts = append(mounts, hostapi.MountBind{
+					HostPath:      entry[0],
+					ContainerPath: entry[1],
+					ReadOnly:      false,
+				})
+			}
+			return mounts
+		}
+	}
+	// Process was previously detected but is no longer running
+	lxcfsEnabled.Store(false)
+	return nil
+}
+
 // containerStatusRefresh initializes driver and refreshes container/image cache.
 func containerStatusRefresh() error {
+	// Detect lxcfs availability on each refresh cycle
+	lxcfsDetect()
+
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 	defer cancel()
 
@@ -394,6 +475,22 @@ func containerStateSync(rep *inapi.AppReplicaInstance) string {
 	return inapi.OpStateEmpty
 }
 
+// containerHasLxcfsMounts checks whether the container's current binds include
+// lxcfs proc entries by looking for "/proc/<entry>" container paths.
+func containerHasLxcfsMounts(binds []string) bool {
+	for _, bind := range binds {
+		for _, entry := range lxcfsProcEntries {
+			target := "/proc/" + entry
+			// Bind format: host_path:container_path[:ro]
+			parts := strings.SplitN(bind, ":", 3)
+			if len(parts) >= 2 && parts[1] == target {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // containerSpecReset checks if container spec differs from desired config.
 // Returns true if container needs to be recreated.
 //
@@ -402,6 +499,7 @@ func containerStateSync(rep *inapi.AppReplicaInstance) string {
 //   - CpuLimit: tolerance 1% (millicores)
 //   - MemoryLimit: tolerance 1% (bytes)
 //   - ServicePorts: port mappings must match
+//   - LxcfsMounts: must match current lxcfs enabled state
 func containerSpecReset(rep *inapi.AppReplicaInstance) bool {
 
 	ctrInfo, exists := hoststatus.ContainerList.Load(rep.ContainerName())
@@ -424,6 +522,7 @@ func containerSpecReset(rep *inapi.AppReplicaInstance) bool {
 			info.MemoryLimit = ifo.MemoryLimit
 			info.Ports = ifo.Ports
 			info.IP = ifo.IP
+			info.Binds = ifo.Binds
 			info.LastInspectTime = tn
 		}
 		cancel()
@@ -486,6 +585,17 @@ func containerSpecReset(rep *inapi.AppReplicaInstance) bool {
 		slog.Info("container spec reset: vpc_ipv4",
 			"vpc_ipv4", rep.Replica.VpcIpv4,
 			"container_ip", info.IP)
+		return true
+	}
+
+	// Check lxcfs mount state: container must have lxcfs mounts when enabled,
+	// and must not have them when disabled.
+	hasLxcfsBinds := containerHasLxcfsMounts(info.Binds)
+	wantLxcfsBinds := lxcfsEnabled.Load()
+	if hasLxcfsBinds != wantLxcfsBinds {
+		slog.Info("container spec reset: lxcfs mounts mismatch",
+			"has_lxcfs_binds", hasLxcfsBinds,
+			"want_lxcfs_binds", wantLxcfsBinds)
 		return true
 	}
 
@@ -831,6 +941,11 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 			})
 		}
 
+		// Mount lxcfs volumes for container resource isolation
+		if lxcfsVols := lxcfsMounts(); len(lxcfsVols) > 0 {
+			opts.Mounts = append(opts.Mounts, lxcfsVols...)
+		}
+
 		// Create sysinner directory and files
 		sysinnerPath := podPaths.SysinnerDir()
 		if err := os.MkdirAll(sysinnerPath, 0755); err == nil {
@@ -860,8 +975,8 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 			}
 			srcInagentPath := hostSrcPaths.InagentSrc(arch)
 			inagentPath := podPaths.InagentFile()
-			if inagentData, err := os.ReadFile(srcInagentPath); err == nil {
-				if err := os.WriteFile(inagentPath, inagentData, 0755); err == nil {
+			if _, err := os.Stat(srcInagentPath); err == nil {
+				if _, err = exec.Command("install", srcInagentPath, inagentPath).Output(); err == nil {
 					slog.Debug("inagent binary copied", "path", inagentPath, "arch", arch)
 				} else {
 					slog.Warn("failed to write inagent binary", "error", err)

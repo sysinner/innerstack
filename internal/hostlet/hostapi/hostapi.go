@@ -88,6 +88,7 @@ type ContainerInfo struct {
 	Labels      map[string]string     `json:"labels,omitempty"`
 	CpuLimit    int64                 `json:"cpu_limit,omitempty"`    // CPU limit (millicores)
 	MemoryLimit int64                 `json:"memory_limit,omitempty"` // memory limit (bytes)
+	Binds       []string              `json:"binds,omitempty"`        // volume binds from HostConfig
 
 	LastInspectTime int64 `json:"-"`
 }

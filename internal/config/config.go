@@ -66,6 +66,8 @@ type HostletConfig struct {
 
 	PodPath string `json:"pod_path" toml:"pod_path"`
 
+	LxcFsEnable bool `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
+
 	VpcBridgeIP     string `json:"vpc_bridge_ip,omitempty" toml:"vpc_bridge_ip,omitempty"`
 	VpcInstanceCIDR string `json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
 
