@@ -54,6 +54,9 @@ func Run() {
 	tc := time.NewTimer(5e9)
 	defer tc.Stop()
 
+	tq := time.NewTimer(10e9)
+	defer tq.Stop()
+
 	for {
 		select {
 		case <-signals.Done():
@@ -73,6 +76,12 @@ func Run() {
 				slog.Error("hostlet", "err", err.Error())
 			}
 			tc.Reset(5e9)
+
+		case <-tq.C:
+			if err := xfsQuotaRefresh(); err != nil {
+				slog.Error("hostlet quota refresh", "err", err.Error())
+			}
+			tq.Reset(10e9)
 		}
 	}
 }

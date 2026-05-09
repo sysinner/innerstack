@@ -754,6 +754,10 @@ func operateContainerDestroying(rep *inapi.AppReplicaInstance) (string, error) {
 	cancel()
 
 	hoststatus.ContainerList.Delete(containerName)
+
+	// Clean up XFS quota project for this container
+	quotaCleanupContainer(containerName)
+
 	slog.Info("container destroyed", "container", containerName)
 	return inapi.OpStateDestroyed, nil
 }
