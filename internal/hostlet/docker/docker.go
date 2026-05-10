@@ -17,11 +17,14 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	drvClient "github.com/fsouza/go-dockerclient"
 
@@ -43,8 +46,13 @@ var (
 	clientUnixSockAddr                = "unix:///var/run/docker.sock"
 )
 
+// cfgStorageOptSizeEnable controls whether StorageOpt size is set on create.
+// Disabled automatically when the backing filesystem does not support it.
+var cfgStorageOptSizeEnable = true
+
 func init() {
 	if runtime.GOOS == "darwin" {
+		cfgStorageOptSizeEnable = false
 		if up, err := os.UserHomeDir(); err == nil {
 			clientUnixSockAddr = "unix://" + up + "/.docker/run/docker.sock"
 		}
@@ -67,7 +75,17 @@ func (it *dockerDriver) Name() string {
 	return "docker"
 }
 
-func (it *dockerDriver) init() error {
+// resetClient clears the cached Docker client so the next operation
+// will re-establish the connection.
+func (it *dockerDriver) resetClient() {
+	it.mu.Lock()
+	it.client = nil
+	it.mu.Unlock()
+}
+
+// initClientWithRetry tries to create and validate a Docker client with retries.
+// It uses exponential-like backoff (1s, 2s, 3s) across 3 attempts.
+func (it *dockerDriver) initClientWithRetry() error {
 	it.mu.Lock()
 	defer it.mu.Unlock()
 
@@ -75,15 +93,34 @@ func (it *dockerDriver) init() error {
 		return nil
 	}
 
-	client, err := drvClient.NewClient(clientUnixSockAddr)
-	if err != nil {
-		return err
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		client, err := drvClient.NewClient(clientUnixSockAddr)
+		if err != nil {
+			slog.Warn("docker client connect error",
+				"attempt", i+1, "error", err)
+			if i < maxRetries-1 {
+				time.Sleep(time.Duration(i+1) * time.Second)
+			}
+			continue
+		}
+		if err := client.Ping(); err != nil {
+			slog.Warn("docker client ping error",
+				"attempt", i+1, "error", err)
+			if i < maxRetries-1 {
+				time.Sleep(time.Duration(i+1) * time.Second)
+			}
+			continue
+		}
+		it.client = client
+		return nil
 	}
-	if err := client.Ping(); err != nil {
-		return err
-	}
-	it.client = client
-	return nil
+
+	return errors.New("docker: failed to connect after retries")
+}
+
+func (it *dockerDriver) init() error {
+	return it.initClientWithRetry()
 }
 
 const vpcNetworkName = "invpc2_docker"
@@ -117,7 +154,6 @@ func (it *dockerDriver) ensureVpcNetwork(ctx context.Context, subnet string) err
 	for _, net := range networks {
 		if net.Name == vpcNetworkName {
 			if len(net.IPAM.Config) > 0 && net.IPAM.Config[0].Subnet == subnet {
-				// Network exists with correct subnet, cache and return
 				it.vpcSubnet = subnet
 				it.vpcNetworkID = net.ID
 				return nil
@@ -153,6 +189,8 @@ func (it *dockerDriver) ensureVpcNetwork(ctx context.Context, subnet string) err
 }
 
 func (it *dockerDriver) Info(ctx context.Context) (*hostapi.DriverInfo, error) {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return nil, err
 	}
@@ -167,7 +205,12 @@ func (it *dockerDriver) Info(ctx context.Context) (*hostapi.DriverInfo, error) {
 		info.Kernel = version.Get("KernelVersion")
 	}
 
-	if env, err := it.client.Info(); err == nil {
+	if env, err := it.client.Info(); err != nil {
+		// Connection lost, reset client for next retry cycle
+		slog.Warn("docker Info failed, resetting client", "error", err)
+		it.resetClient()
+		return nil, fmt.Errorf("[docker.Info] docker info failed: %w", err)
+	} else {
 		info.ContainerNum = env.Containers
 		info.ImageNum = env.Images
 	}
@@ -176,13 +219,22 @@ func (it *dockerDriver) Info(ctx context.Context) (*hostapi.DriverInfo, error) {
 }
 
 func (it *dockerDriver) Ping(ctx context.Context) error {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return err
 	}
-	return it.client.Ping()
+	if err := it.client.Ping(); err != nil {
+		// Connection lost, reset client for next retry cycle
+		it.resetClient()
+		return err
+	}
+	return nil
 }
 
 func (it *dockerDriver) ImageList(ctx context.Context) ([]*hostapi.ImageInfo, error) {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return nil, err
 	}
@@ -214,6 +266,8 @@ func (it *dockerDriver) ImageList(ctx context.Context) ([]*hostapi.ImageInfo, er
 }
 
 func (it *dockerDriver) ContainerList(ctx context.Context) ([]*hostapi.ContainerInfo, error) {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return nil, err
 	}
@@ -285,6 +339,8 @@ func (it *dockerDriver) ContainerList(ctx context.Context) ([]*hostapi.Container
 func (it *dockerDriver) ContainerInspect(
 	ctx context.Context, nameOrId string,
 ) (*hostapi.ContainerInfo, error) {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return nil, err
 	}
@@ -383,9 +439,26 @@ func (it *dockerDriver) ContainerInspect(
 	return info, nil
 }
 
+// isDockerError checks if a Docker API error message contains any of the
+// given substrings, enabling graceful handling of common container states.
+func isDockerError(err error, substrings ...string) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, sub := range substrings {
+		if strings.Contains(msg, sub) {
+			return true
+		}
+	}
+	return false
+}
+
 func (it *dockerDriver) ContainerCreate(
 	ctx context.Context, opts *hostapi.ContainerCreateOptions,
 ) (*hostapi.ContainerInfo, error) {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return nil, err
 	}
@@ -397,6 +470,11 @@ func (it *dockerDriver) ContainerCreate(
 		Labels: opts.Labels,
 	}
 
+	// Set hostname if provided
+	if opts.Hostname != "" {
+		config.Hostname = opts.Hostname
+	}
+
 	hostConfig := &drvClient.HostConfig{}
 
 	// CPU limit: NanoCPUs (1e9 = 1 CPU)
@@ -404,9 +482,27 @@ func (it *dockerDriver) ContainerCreate(
 		hostConfig.NanoCPUs = opts.CpuLimit * 1e6
 	}
 
-	// Memory limit (bytes)
+	// Memory limit (bytes), disable swap by setting MemorySwap == Memory
 	if opts.MemoryLimit > 0 {
 		hostConfig.Memory = opts.MemoryLimit
+		hostConfig.MemorySwap = opts.MemoryLimit
+		hostConfig.ShmSize = opts.MemoryLimit / 2
+	}
+
+	// PidsLimit restricts the number of processes inside the container
+	pidsLimit := int64(100)
+	hostConfig.PidsLimit = &pidsLimit
+
+	// Ulimits: raise nofile for container processes
+	hostConfig.Ulimits = []drvClient.ULimit{
+		{Name: "nofile", Soft: 10000, Hard: 10000},
+	}
+
+	// StorageOpt: set rootfs size when backing filesystem supports it
+	if cfgStorageOptSizeEnable {
+		hostConfig.StorageOpt = map[string]string{
+			"size": "10G",
+		}
 	}
 
 	// Port bindings
@@ -434,7 +530,11 @@ func (it *dockerDriver) ContainerCreate(
 	// DNS servers
 	if len(opts.DnsServers) > 0 {
 		hostConfig.DNS = opts.DnsServers
+		config.DNS = opts.DnsServers
 	}
+
+	// Extra hosts (added to /etc/hosts)
+	// TODO: add extra hosts support when needed
 
 	// Volume mounts
 	if len(opts.Mounts) > 0 {
@@ -465,6 +565,12 @@ func (it *dockerDriver) ContainerCreate(
 		}
 	}
 
+	// Non-Linux: clear CPU set, force root user
+	if runtime.GOOS != "linux" {
+		hostConfig.CPUSetCPUs = ""
+		config.User = "root"
+	}
+
 	container, err := it.client.CreateContainer(drvClient.CreateContainerOptions{
 		Name:             opts.Name,
 		Config:           config,
@@ -473,7 +579,31 @@ func (it *dockerDriver) ContainerCreate(
 		Context:          ctx,
 	})
 	if err != nil {
-		return nil, err
+		// Graceful handling: "container already exists" is not a fatal error
+		if isDockerError(err, "container already exists") {
+			slog.Warn("container already exists, fetching existing",
+				"container", opts.Name)
+			if existing, inspectErr := it.client.InspectContainerWithOptions(
+				drvClient.InspectContainerOptions{ID: opts.Name}); inspectErr == nil {
+				return &hostapi.ContainerInfo{
+					ID:      existing.ID,
+					Name:    opts.Name,
+					Image:   opts.Image,
+					State:   inapi.OpStateStarting,
+					Created: existing.Created.Unix(),
+					Labels:  opts.Labels,
+				}, nil
+			}
+		}
+
+		// Auto-disable StorageOpt when backing filesystem does not support it
+		if isDockerError(err, "storage-opt") {
+			cfgStorageOptSizeEnable = false
+			slog.Warn("disabled StorageOpt (backing filesystem unsupported)",
+				"error", err)
+		}
+
+		return nil, fmt.Errorf("[docker.ContainerCreate] create container %s failed: %w", opts.Name, err)
 	}
 
 	return &hostapi.ContainerInfo{
@@ -487,36 +617,190 @@ func (it *dockerDriver) ContainerCreate(
 }
 
 func (it *dockerDriver) ContainerStart(ctx context.Context, nameOrId string) error {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return err
 	}
-	return it.client.StartContainerWithContext(nameOrId, nil, ctx)
+
+	err := it.client.StartContainerWithContext(nameOrId, nil, ctx)
+	if err != nil {
+		// OCI runtime failures often indicate a corrupted container config.
+		// Remove the container so the next refresh cycle recreates it.
+		if isDockerError(err,
+			"OCI runtime create failed",
+			"storage-opt",
+		) {
+			slog.Warn("container start OCI/storage error, removing for re-creation",
+				"container", nameOrId, "error", err)
+			if rmErr := it.client.RemoveContainer(drvClient.RemoveContainerOptions{
+				ID: nameOrId, Force: true, Context: ctx,
+			}); rmErr != nil {
+				slog.Warn("container remove after start failure also failed",
+					"container", nameOrId, "remove_error", rmErr)
+			}
+			time.Sleep(1 * time.Second)
+		}
+
+		// "No such container" means the container is gone externally
+		if isDockerError(err,
+			"No such container",
+			"no such file or directory",
+		) {
+			slog.Warn("container disappeared before start",
+				"container", nameOrId)
+		}
+
+		return fmt.Errorf("[docker.ContainerStart] start %s failed: %w", nameOrId, err)
+	}
+
+	return nil
 }
 
 func (it *dockerDriver) ContainerStop(ctx context.Context, nameOrId string) error {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return err
 	}
-	return it.client.StopContainerWithContext(nameOrId, 10, ctx)
+
+	err := it.client.StopContainerWithContext(nameOrId, 10, ctx)
+	if err != nil {
+		// Graceful handling: container already gone or not running
+		if isDockerError(err,
+			"No such container",
+			"Container not running",
+		) {
+			slog.Debug("container stop skipped (already gone or not running)",
+				"container", nameOrId, "error", err)
+			return nil
+		}
+		return fmt.Errorf("[docker.ContainerStop] stop %s failed: %w", nameOrId, err)
+	}
+
+	return nil
 }
 
 func (it *dockerDriver) ContainerRemove(ctx context.Context, nameOrId string) error {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return err
 	}
-	return it.client.RemoveContainer(drvClient.RemoveContainerOptions{
+
+	err := it.client.RemoveContainer(drvClient.RemoveContainerOptions{
 		ID:      nameOrId,
 		Force:   true,
 		Context: ctx,
 	})
+	if err != nil {
+		// Graceful handling: container already gone
+		if isDockerError(err, "No such container") {
+			slog.Debug("container remove skipped (already gone)",
+				"container", nameOrId)
+			return nil
+		}
+		return fmt.Errorf("[docker.ContainerRemove] remove %s failed: %w", nameOrId, err)
+	}
+
+	return nil
 }
 
 func (it *dockerDriver) ImagePull(ctx context.Context, image string) error {
+	defer recoverPanic()
+
 	if err := it.init(); err != nil {
 		return err
 	}
-	return it.client.PullImage(drvClient.PullImageOptions{
+	if err := it.client.PullImage(drvClient.PullImageOptions{
 		Repository: image,
 		Context:    ctx,
-	}, drvClient.AuthConfiguration{})
+	}, drvClient.AuthConfiguration{}); err != nil {
+		return fmt.Errorf("[docker.ImagePull] pull %s failed: %w", image, err)
+	}
+	return nil
+}
+
+// ContainerStats fetches resource usage statistics for a running container.
+// Returns a snapshot of CPU, memory, network and block I/O metrics.
+func (it *dockerDriver) ContainerStats(
+	ctx context.Context, nameOrId string,
+) (*hostapi.ContainerStats, error) {
+	defer recoverPanic()
+
+	if err := it.init(); err != nil {
+		return nil, err
+	}
+
+	statsTimeout := 3 * time.Second
+	statsBuf := make(chan *drvClient.Stats, 2)
+
+	if err := it.client.Stats(drvClient.StatsOptions{
+		ID:                nameOrId,
+		Stats:             statsBuf,
+		Stream:            false,
+		Timeout:           statsTimeout,
+		InactivityTimeout: statsTimeout,
+		Context:           ctx,
+	}); err != nil {
+		return nil, fmt.Errorf("[docker.ContainerStats] stats %s failed: %w", nameOrId, err)
+	}
+
+	stats, ok := <-statsBuf
+	if !ok || stats == nil {
+		return nil, errors.New("docker stats: timeout, no data received")
+	}
+
+	result := &hostapi.ContainerStats{
+		Time: time.Now().Unix(),
+	}
+
+	// Memory
+	result.MemoryUsage = int64(stats.MemoryStats.Usage)
+	result.MemoryCache = int64(stats.MemoryStats.Stats.Cache)
+
+	// CPU
+	result.CpuTotalUsage = int64(stats.CPUStats.CPUUsage.TotalUsage)
+
+	// Network I/O
+	for _, v := range stats.Networks {
+		result.NetRxBytes += int64(v.RxBytes)
+		result.NetTxBytes += int64(v.TxBytes)
+	}
+
+	// Block I/O
+	for _, v := range stats.BlkioStats.IOServiceBytesRecursive {
+		switch v.Op {
+		case "Read":
+			result.BlkReadBytes += int64(v.Value)
+		case "Write":
+			result.BlkWriteBytes += int64(v.Value)
+		}
+	}
+	for _, v := range stats.BlkioStats.IOServicedRecursive {
+		switch v.Op {
+		case "Read":
+			result.BlkReadOps += int64(v.Value)
+		case "Write":
+			result.BlkWriteOps += int64(v.Value)
+		}
+	}
+
+	return result, nil
+}
+
+// recoverPanic is a defensive measure against unexpected panics in the Docker
+// client library. It logs the panic and prevents the hostlet from crashing.
+func recoverPanic() {
+	if r := recover(); r != nil {
+		slog.Error("docker driver panic recovered",
+			"error", r, "stack", string(debugStack()))
+	}
+}
+
+// debugStack returns a goroutine stack trace (lightweight wrapper).
+func debugStack() []byte {
+	buf := make([]byte, 4096)
+	n := runtime.Stack(buf, false)
+	return buf[:n]
 }

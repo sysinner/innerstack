@@ -125,13 +125,19 @@ func (s *zoneInternalServer) HostStatusUpdate(
 					if rep.HostId == "" {
 						continue
 					}
-					peerIp, ok := zoneNetMgr.HostPeerIp(rep.HostId)
-					if !ok {
-						continue
-					}
 
 					rep2 := proto.Clone(rep).(*inapi.AppDeployReplica)
-					rep2.HostIpv4 = peerIp
+
+					// Try VPC peer IP first, fallback to host LAN address
+					if peerIp, ok := zoneNetMgr.HostPeerIp(rep.HostId); ok {
+						rep2.HostIpv4 = peerIp
+					} else if kvDepHost := gHostSet.Load(rep.HostId); kvDepHost != nil {
+						if depHost, ok := kvDepHost.Value.(*inapi.Host); ok && depHost.PeerAddr != "" {
+							if ip, err := inetutil.ParsePrivateAddress(depHost.PeerAddr); err == nil {
+								rep2.HostIpv4 = inetutil.IP4ToString(ip)
+							}
+						}
+					}
 
 					dep.Replicas = append(dep.Replicas, rep2)
 				}

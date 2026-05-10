@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -350,6 +351,10 @@ func quotaKeeperInit() error {
 		quotaInited = true
 	}()
 
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+
 	// Verify xfs_quota command is available
 	if _, err := exec.Command(quotaCmd, "-V").CombinedOutput(); err != nil {
 		return errors.New("command " + quotaCmd + " not found")
@@ -425,6 +430,11 @@ func quotaKeeperInit() error {
 //     configured volume limits.
 //  5. Clean up quota limits for inactive containers (zero out limits).
 func xfsQuotaRefresh() error {
+
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+
 	if err := quotaKeeperInit(); err != nil {
 		slog.Warn("xfsquota: init failed", "error", err)
 		return nil

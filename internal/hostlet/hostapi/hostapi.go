@@ -128,6 +128,7 @@ type ContainerCreateOptions struct {
 	Cmd           []string          // entrypoint command
 	Env           []string          // environment variables
 	Labels        map[string]string // metadata labels
+	Hostname      string            // container hostname
 	CpuLimit      int64             // CPU limit (millicores, 1000 = 1 core)
 	MemoryLimit   int64             // memory limit (bytes)
 	Ports         []PortBinding     // port mappings
@@ -136,6 +137,20 @@ type ContainerCreateOptions struct {
 	DnsServers    []string          // DNS servers for container
 	VpcIPv4       string            // VPC IP to assign to container
 	VpcSubnet     string            // VPC subnet CIDR for Docker network creation
+}
+
+// ContainerStats holds a snapshot of resource usage statistics for a container.
+type ContainerStats struct {
+	Time          int64 `json:"time"`            // unix timestamp (seconds)
+	CpuTotalUsage int64 `json:"cpu_total_usage"` // CPU total usage (nanoseconds)
+	MemoryUsage   int64 `json:"memory_usage"`    // memory usage (bytes)
+	MemoryCache   int64 `json:"memory_cache"`    // memory cache (bytes)
+	NetRxBytes    int64 `json:"net_rx_bytes"`    // network received bytes
+	NetTxBytes    int64 `json:"net_tx_bytes"`    // network transmitted bytes
+	BlkReadBytes  int64 `json:"blk_read_bytes"`  // block device read bytes
+	BlkWriteBytes int64 `json:"blk_write_bytes"` // block device write bytes
+	BlkReadOps    int64 `json:"blk_read_ops"`    // block device read operations
+	BlkWriteOps   int64 `json:"blk_write_ops"`   // block device write operations
 }
 
 // Driver defines the container runtime driver interface.

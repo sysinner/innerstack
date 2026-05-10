@@ -7,10 +7,11 @@ set -e
 TARGET_USER="action"
 TARGET_UID=2048
 HOME_DIR="/home/action"
+OPT_DIR="/opt"
 AGENT_BIN="$HOME_DIR/.sysinner/inagent"
 
 # 1. Directory Initialization
-mkdir -p "$HOME_DIR" /opt
+mkdir -p "$HOME_DIR" "$OPT_DIR"
 
 # 2. Cross-Platform User Creation Logic
 if ! id "$TARGET_USER" >/dev/null 2>&1; then
@@ -52,6 +53,7 @@ fi
 
 chmod +x "$AGENT_BIN"
 chown -R "$TARGET_USER":"$TARGET_USER" "$HOME_DIR"
+chown -R "$TARGET_USER":"$TARGET_USER" "$OPT_DIR"
 
 # 4. Final Execution with Signal Propagation
 echo "Starting inagent daemon..."

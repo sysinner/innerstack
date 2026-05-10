@@ -294,6 +294,11 @@ func (nm *NetworkManager) RefreshHostNetwork(zone string, host *inapi.Host) (boo
 	nm.mu.Lock()
 	defer nm.mu.Unlock()
 
+	if nm.hostPeerIpv4 == nil {
+		nm.hostPeerIpv4 = map[string]string{}
+	}
+	nm.hostPeerIpv4[host.Id] = inetutil.IP4ToString(peerIp)
+
 	if !nm.ready {
 		return false, nil
 	}
@@ -301,11 +306,6 @@ func (nm *NetworkManager) RefreshHostNetwork(zone string, host *inapi.Host) (boo
 	nm.init()
 
 	hostNet := nm.Hosts[host.Id]
-
-	if nm.hostPeerIpv4 == nil {
-		nm.hostPeerIpv4 = map[string]string{}
-	}
-	nm.hostPeerIpv4[host.Id] = inetutil.IP4ToString(peerIp)
 
 	if hostNet != nil &&
 		inetutil.Uint32ToIpv4(hostNet.Bridge) == host.Deploy.VpcBridgeIp &&
