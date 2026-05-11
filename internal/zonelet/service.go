@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/auth"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/config"

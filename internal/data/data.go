@@ -22,7 +22,7 @@ import (
 	"github.com/lynkdb/kvgo/v2/pkg/kvrep"
 	"github.com/lynkdb/kvgo/v2/pkg/storage"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 )
 

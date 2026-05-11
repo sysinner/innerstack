@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/inutil"
 )
 

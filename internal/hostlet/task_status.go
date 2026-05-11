@@ -31,7 +31,7 @@ import (
 	ps_net "github.com/shirou/gopsutil/v4/net"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"

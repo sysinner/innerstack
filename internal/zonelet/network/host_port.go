@@ -18,7 +18,7 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 // HostPortAlloc allocates a host port from the allocation range.

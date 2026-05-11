@@ -47,7 +47,7 @@ import (
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/inutil/tplrender"
 	"github.com/sysinner/incore/v2/pkg/inauth"
@@ -297,7 +297,7 @@ func (it *DomainEntry) lookup(urlPath string) *DomainEntryRoute {
 }
 
 var (
-	appName = "inservice"
+	appName = "ingate"
 
 	prefix = "/opt/instack"
 

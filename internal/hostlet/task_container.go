@@ -28,7 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/docker"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
@@ -952,46 +952,48 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 
 		// Create sysinner directory and files
 		sysinnerPath := podPaths.SysinnerDir()
-		if err := os.MkdirAll(sysinnerPath, 0755); err == nil {
-			// Write app_instance.json
-			appInstancePath := podPaths.AppInstanceFile()
-			if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err == nil {
-				slog.Debug("app_instance.json created", "path", appInstancePath)
-			} else {
-				slog.Warn("app_instance.json create faild",
-					"path", appInstancePath, "err", err.Error())
-			}
-
-			// Write ininit script (embedded)
-			ininitPath := podPaths.IninitFile()
-			if err := os.WriteFile(ininitPath, ininitScript, 0755); err == nil {
-				slog.Debug("ininit script written", "path", ininitPath)
-			} else {
-				slog.Warn("failed to write ininit script", "error", err)
-			}
-
-			// Copy inagent binary based on architecture (amd64/arm64)
-			arch := "amd64"
-			if info, ok := hoststatus.StatusSet.Load("docker"); ok {
-				if driverInfo, ok := info.(*hostapi.DriverInfo); ok && driverInfo.Arch != "" {
-					arch = driverInfo.Arch
-				}
-			}
-			srcInagentPath := hostSrcPaths.InagentSrc(arch)
-			inagentPath := podPaths.InagentFile()
-			if _, err := os.Stat(srcInagentPath); err == nil {
-				if _, err = exec.Command("install", srcInagentPath, inagentPath).Output(); err == nil {
-					slog.Debug("inagent binary copied", "path", inagentPath, "arch", arch)
-				} else {
-					slog.Warn("failed to write inagent binary", "error", err)
-				}
-			} else {
-				slog.Warn("failed to read inagent binary", "path", srcInagentPath, "error", err)
-			}
-
-			// Set container command to run ininit
-			opts.Cmd = hostapi.ContainerCmd()
+		if err := os.MkdirAll(sysinnerPath, 0755); err != nil {
+			return fmt.Errorf("[containerCreate] mkdir sysinner failed: %w", err)
 		}
+
+		// Write app_instance.json
+		appInstancePath := podPaths.AppInstanceFile()
+		if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err != nil {
+			slog.Warn("app_instance.json create failed",
+				"path", appInstancePath, "err", err.Error())
+		} else {
+			slog.Debug("app_instance.json created", "path", appInstancePath)
+		}
+
+		// Write ininit script (embedded).
+		// This is a critical file required by the container entrypoint;
+		// failure here will cause the container to crash on start.
+		ininitPath := podPaths.IninitFile()
+		if err := os.WriteFile(ininitPath, ininitScript, 0755); err != nil {
+			return fmt.Errorf("[containerCreate] write ininit script failed: %w", err)
+		}
+		slog.Debug("ininit script written", "path", ininitPath)
+
+		// Copy inagent binary based on architecture (amd64/arm64).
+		// This binary is required by the ininit script; failure is fatal.
+		arch := "amd64"
+		if info, ok := hoststatus.StatusSet.Load("docker"); ok {
+			if driverInfo, ok := info.(*hostapi.DriverInfo); ok && driverInfo.Arch != "" {
+				arch = driverInfo.Arch
+			}
+		}
+		srcInagentPath := hostSrcPaths.InagentSrc(arch)
+		inagentPath := podPaths.InagentFile()
+		if _, err := os.Stat(srcInagentPath); err != nil {
+			return fmt.Errorf("[containerCreate] inagent source binary not found at %s: %w", srcInagentPath, err)
+		}
+		if _, err = exec.Command("install", srcInagentPath, inagentPath).Output(); err != nil {
+			return fmt.Errorf("[containerCreate] copy inagent binary failed: %w", err)
+		}
+		slog.Debug("inagent binary copied", "path", inagentPath, "arch", arch)
+
+		// Set container command to run ininit
+		opts.Cmd = hostapi.ContainerCmd()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)

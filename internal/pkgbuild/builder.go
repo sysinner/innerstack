@@ -30,7 +30,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 const (

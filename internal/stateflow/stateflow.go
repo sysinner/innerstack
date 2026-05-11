@@ -22,7 +22,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 // AppStateCommand defines the function signature for app state operations

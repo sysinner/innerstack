@@ -34,7 +34,7 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	ps_disk "github.com/shirou/gopsutil/v4/disk"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"

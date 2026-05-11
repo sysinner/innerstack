@@ -28,7 +28,7 @@ import (
 
 	drvClient "github.com/fsouza/go-dockerclient"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 )
 

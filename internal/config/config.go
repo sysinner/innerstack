@@ -26,7 +26,7 @@ import (
 
 	"github.com/hooto/htoml4g/htoml"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inlog"
@@ -145,7 +145,7 @@ func Setup(ver, rel string) error {
 		ak := inauth.NewAccessKey()
 		Config.Zonelet.AccessKeys = append(Config.Zonelet.AccessKeys, &AccessKeyPublic{
 			AccessKey:   ak.Export(),
-			Description: "for inservice daemon",
+			Description: "for ingate daemon",
 		})
 	}
 

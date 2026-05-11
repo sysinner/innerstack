@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 var (

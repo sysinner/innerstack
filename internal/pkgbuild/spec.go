@@ -24,7 +24,7 @@ import (
 	"github.com/hooto/htoml4g/htoml"
 	"golang.org/x/mod/semver"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 // ValidOS defines the supported operating systems

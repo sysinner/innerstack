@@ -24,7 +24,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/sysinner/incore/v2/inapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/pkg/inetutil"
 )
