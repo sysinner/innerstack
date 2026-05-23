@@ -26,21 +26,20 @@ import (
 	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 func NewHostListCommand() *cobra.Command {
 
 	var (
-		zoneAddr string
 		showJson bool
 	)
 
 	run := func(cmd *cobra.Command, args []string) error {
 
-		zone, err := Config.Zone(zoneAddr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -158,7 +157,6 @@ func NewHostListCommand() *cobra.Command {
 		RunE:  run,
 	}
 
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "", "Zone server address")
 	cmd.Flags().BoolVarP(&showJson, "show-json", "j", false, "show raw response with json")
 
 	return cmd

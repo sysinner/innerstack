@@ -38,6 +38,8 @@ type ConfigZone struct {
 	AK   string `toml:"access_key"`
 }
 
+const AppName = "instack"
+
 const configFileName = "instack_config.toml"
 
 // Config is the loaded configuration
@@ -49,6 +51,8 @@ var configPaths = []string{
 }
 
 var defaultConfigPath = configFileName
+
+var loadedConfigPath string
 
 // AccessKey parses the AK string (ak_{id}_{secret}) into an AccessKey
 func (c *ConfigZone) AccessKey() (*inauth.AccessKey, error) {
@@ -70,6 +74,7 @@ func Setup() error {
 
 	for _, path := range configPaths {
 		if err := htoml.DecodeFromFile(path, &Config); err == nil {
+			loadedConfigPath = path
 			return os.Chmod(path, 0644)
 		} else if !os.IsNotExist(err) {
 			return err
@@ -79,8 +84,12 @@ func Setup() error {
 	return errors.New(configFileName + " file not found")
 }
 
-// Zone returns the zone config by name
+// Zone returns the zone config by name, or the current zone if name is empty.
 func (it *ConfigCommon) Zone(name string) (*ConfigZone, error) {
+
+	if name == "" {
+		name = it.CurrentZone
+	}
 
 	if name == "" && len(Config.Zones) > 0 {
 		return Config.Zones[0], nil
@@ -92,5 +101,10 @@ func (it *ConfigCommon) Zone(name string) (*ConfigZone, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("zone (%s) access_key not found in %s", name, defaultConfigPath)
+	return nil, fmt.Errorf("zone (%s) access_key not found in %s", name, loadedConfigPath)
+}
+
+// Flush writes the current configuration back to the config file.
+func Flush() error {
+	return htoml.EncodeToFile(Config, loadedConfigPath)
 }

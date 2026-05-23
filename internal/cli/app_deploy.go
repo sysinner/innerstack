@@ -25,15 +25,14 @@ import (
 	"github.com/hooto/htoml4g/htoml"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/inutil/autofill"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 func NewAppDeployCommand() *cobra.Command {
 
 	var (
-		zoneAddr   string
 		specFile   string
 		instanceId string
 		replicaCap uint32
@@ -90,7 +89,7 @@ func NewAppDeployCommand() *cobra.Command {
 			Deploy:     &inapi.AppDeploy{},
 		}
 
-		zone, err := Config.Zone(zoneAddr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -242,8 +241,6 @@ If --id is provided, the existing app instance will be updated.`,
   app deploy --id <instance_id> --action start`,
 	}
 
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a",
-		"", "Zone server address (overrides profile)")
 	cmd.Flags().StringVarP(&specFile, "spec", "s",
 		"", "Path to app spec file (TOML format, required)")
 	cmd.Flags().StringVarP(&instanceId, "id", "i",

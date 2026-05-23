@@ -44,8 +44,11 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
 	"github.com/sysinner/incore/v2/internal/cli"
 )
+
+const AppName = "instack"
 
 // main is the entry point of the Instack CLI application.
 // It initializes the root command and registers all subcommands
@@ -55,7 +58,7 @@ func main() {
 	// rootCmd is the base command for the Instack CLI.
 	// When called without any subcommands, it displays a welcome message.
 	var rootCmd = &cobra.Command{
-		Use: "instack",
+		Use: AppName,
 		// SilenceUsage: true,
 	}
 
@@ -67,7 +70,7 @@ func main() {
 				os.Exit(1)
 			}
 
-			if _, err := cli.Config.Zone(""); err != nil {
+			if _, err := cli.Config.Zone(""); err != nil && len(cli.Config.Zones) == 0 {
 				fmt.Fprintf(os.Stderr, "Init Config Fail : no zone setup\n")
 				os.Exit(1)
 			}
@@ -75,6 +78,8 @@ func main() {
 
 		cobra.OnInitialize(initConfig)
 	}
+
+	rootCmd.AddCommand(cli.NewLoginCommand(rootCmd))
 
 	// Register zone management commands
 	// - zone-init: Initialize a new zone with specified configuration

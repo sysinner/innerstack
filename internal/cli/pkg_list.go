@@ -25,9 +25,9 @@ import (
 	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 // NewPkgListCommand creates the "pkg-list" command for listing packages.
@@ -35,7 +35,6 @@ import (
 func NewPkgListCommand() *cobra.Command {
 
 	var (
-		addr       string
 		showJson   bool
 		showAll    bool
 		filterName string
@@ -46,7 +45,7 @@ func NewPkgListCommand() *cobra.Command {
 	)
 
 	runE := func(cmd *cobra.Command, args []string) error {
-		zone, err := Config.Zone(addr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -94,7 +93,7 @@ func NewPkgListCommand() *cobra.Command {
 			})
 
 			// Define table columns
-			headers := []any{"Name", "Version", "OS", "Arch", "Size", "Built", "Updated"}
+			headers := []any{"Name", "Version", "OS", "Arch", "Size", "Built"}
 			if showAll {
 				// Show upload progress column when --all flag is set
 				headers = append(headers, "Progress")
@@ -110,13 +109,7 @@ func NewPkgListCommand() *cobra.Command {
 				// Format build timestamp
 				builtStr := "-"
 				if pkg.Release.Built > 0 {
-					builtStr = time.Unix(pkg.Release.Built, 0).Format("2006-01-02 15:04")
-				}
-
-				// Format update timestamp
-				updatedStr := "-"
-				if pkg.File.Updated > 0 {
-					updatedStr = time.Unix(pkg.File.Updated, 0).Format("2006-01-02 15:04")
+					builtStr = time.Unix(pkg.Release.Built, 0).Format("2006-01-02")
 				}
 
 				// Build row data
@@ -127,7 +120,6 @@ func NewPkgListCommand() *cobra.Command {
 					pkg.Release.Arch,
 					inutil.PrettyBytes(pkg.Release.Size, 1024),
 					builtStr,
-					updatedStr,
 				}
 
 				// Calculate and append upload progress if --all flag is set
@@ -142,6 +134,7 @@ func NewPkgListCommand() *cobra.Command {
 						row = append(row, "0%")
 					}
 				}
+
 				tableBase.Append(row...)
 			}
 
@@ -208,7 +201,6 @@ Filter options:
   cli pkg-list --json`,
 	}
 
-	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 	cmd.Flags().BoolVarP(&showJson, "json", "j", false, "Output in JSON format")
 	cmd.Flags().BoolVarP(&showAll, "all", "", false, "Show all packages including incomplete uploads")
 	cmd.Flags().StringVar(&filterName, "name", "", "Filter by package name (exact match)")

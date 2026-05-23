@@ -28,6 +28,8 @@ const accessKeyPrefix = "ak_"
 var (
 	akIdValid     = regexp.MustCompile("^[0-9a-f]{12,32}$")
 	akSecretValid = regexp.MustCompile("^[0-9a-zA-Z]{16,64}$")
+
+	akDefault = NewAccessKey()
 )
 
 func NewAccessKey() *AccessKey {

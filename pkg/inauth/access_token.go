@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -37,7 +38,26 @@ type AccessToken struct {
 	Claims AuthClaims
 }
 
-func NewAccessToken(accessToken string) (*AccessToken, error) {
+func NewAccessToken() *AccessToken {
+
+	tn := time.Now().Unix()
+
+	at := &AccessToken{
+		Header: TokenHeader{
+			Alg: DefaultSigner.Name(),
+		},
+		Claims: AuthClaims{
+			Iat:   tn,
+			Exp:   tn + appAuthExp,
+			State: uuid.NewString(),
+		},
+		signer: DefaultSigner,
+	}
+
+	return at
+}
+
+func ParseAccessToken(accessToken string) (*AccessToken, error) {
 	n := strings.LastIndexByte(accessToken, '.')
 	if n < 0 {
 		return nil, errors.New("invalid access_token")
@@ -75,7 +95,7 @@ func NewAccessToken(accessToken string) (*AccessToken, error) {
 	return av, nil
 }
 
-func NewAccessTokenWithContext(ctx context.Context) (*AccessToken, error) {
+func ParseAccessTokenWithContext(ctx context.Context) (*AccessToken, error) {
 
 	if ctx == nil {
 		return nil, errors.New("context not found")
@@ -87,12 +107,12 @@ func NewAccessTokenWithContext(ctx context.Context) (*AccessToken, error) {
 	}
 
 	//
-	t, ok := md[appHttpHeaderName]
+	t, ok := md[AppHttpHeaderKey]
 	if !ok || len(t) == 0 || len(t[0]) < 5 {
 		return nil, errors.New("token not found")
 	}
 
-	token, err := NewAccessToken(t[0])
+	token, err := ParseAccessToken(t[0])
 	if err != nil {
 		return nil, err
 	}
@@ -108,11 +128,6 @@ func (it *AccessToken) String() string {
 	return it.raw
 }
 
-const (
-	AccessKeyStateActive   = "active"
-	AccessKeyStateDisabled = "disabled"
-)
-
 func (it *AccessToken) Verify(keyMgr *AccessKeyManager) (*AccessKey, error) {
 
 	ak := keyMgr.Key(it.Header.Kid)
@@ -120,7 +135,7 @@ func (it *AccessToken) Verify(keyMgr *AccessKeyManager) (*AccessKey, error) {
 		return nil, fmt.Errorf("access-key(%s) not found", it.Header.Kid)
 	}
 
-	if ak.State == AccessKeyStateDisabled {
+	if ak.State == AccessKey_State_Disable {
 		return nil, fmt.Errorf("access-key(%s) is disabled", it.Header.Kid)
 	}
 
@@ -143,4 +158,50 @@ func (it *AccessToken) Verify(keyMgr *AccessKeyManager) (*AccessKey, error) {
 	}
 
 	return ak, nil
+}
+
+func (it *AccessToken) SignToken(keyMgr *AccessKeyManager) (string, error) {
+
+	var ak *AccessKey
+
+	if it.Header.Kid == "" {
+		ak = keyMgr.RandKey()
+		it.Header.Kid = ak.Id
+	} else {
+		ak = keyMgr.Key(it.Header.Kid)
+		if ak == nil {
+			return "", fmt.Errorf("access-key(%s) not found", it.Header.Kid)
+		}
+	}
+
+	if ak.State == AccessKey_State_Disable {
+		return "", fmt.Errorf("access-key(%s) is disabled", it.Header.Kid)
+	}
+
+	tn := time.Now().Unix()
+
+	if it.Claims.Iat == 0 {
+		it.Claims.Iat = tn
+	}
+
+	if it.Claims.Exp <= it.Claims.Iat {
+		it.Claims.Exp = it.Claims.Iat + appAuthExp
+	}
+
+	if it.signer == nil || it.signer.Name() != it.Header.Alg {
+		it.Header.Alg = DefaultSigner.Name()
+		it.signer = Signers.Signer(it.Header.Alg)
+	}
+
+	signingString := bytesEncode(jsonEncode(it.Header)) + "." +
+		bytesEncode(jsonEncode(it.Claims))
+
+	bs, err := it.signer.Sign(signingString, ak.Secret)
+	if err != nil {
+		return "", nil
+	}
+
+	signString := bytesEncode(bs)
+
+	return signingString + "." + signString, nil
 }

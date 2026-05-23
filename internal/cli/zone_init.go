@@ -21,15 +21,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 func NewZoneInitCommand() *cobra.Command {
 
 	var (
 		name string
-		addr string
 	)
 
 	var initZoneRun = func(cmd *cobra.Command, args []string) error {
@@ -38,7 +37,7 @@ func NewZoneInitCommand() *cobra.Command {
 			return fmt.Errorf("zone name : %s", err.Error())
 		}
 
-		zone, err := Config.Zone(addr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -92,7 +91,6 @@ This command connects to the zonelet server and creates a new zone configuration
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Zone name (required)")
-	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 
 	// Mark name as required parameter
 	cmd.MarkFlagRequired("name")

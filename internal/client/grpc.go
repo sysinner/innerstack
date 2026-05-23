@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/sysinner/incore/v2/pkg/inauth"
 )
@@ -28,13 +29,21 @@ const (
 )
 
 var (
-	rpcClientConns = map[string]*grpc.ClientConn{}
+	rpcClientConns = map[string]*ClientConn{}
 	rpcClientMu    sync.Mutex
 )
 
+type ClientConn struct {
+	*grpc.ClientConn
+}
+
+func (c *ClientConn) Close() error {
+	return nil // c.ClientConn.Close()
+}
+
 func Connect(addr string,
 	ak *inauth.AccessKey,
-	forceNew bool) (*grpc.ClientConn, error) {
+	forceNew bool) (*ClientConn, error) {
 
 	ck := fmt.Sprintf("%s", addr)
 	if ak != nil {
@@ -46,7 +55,9 @@ func Connect(addr string,
 
 	if c, ok := rpcClientConns[ck]; ok {
 		if forceNew {
-			c.Close()
+			if c.ClientConn != nil {
+				c.ClientConn.Close()
+			}
 			c = nil
 			delete(rpcClientConns, ck)
 		} else {
@@ -64,14 +75,16 @@ func Connect(addr string,
 			grpc.WithPerRPCCredentials(inauth.NewGrpcAppCredential(ak)))
 	}
 
-	dialOptions = append(dialOptions, grpc.WithInsecure())
+	dialOptions = append(dialOptions,
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
 
-	c, err := grpc.Dial(addr, dialOptions...)
+	c, err := grpc.NewClient(addr, dialOptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	rpcClientConns[ck] = c
+	cc := &ClientConn{c}
+	rpcClientConns[ck] = cc
 
-	return c, nil
+	return cc, nil
 }

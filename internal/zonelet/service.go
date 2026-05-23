@@ -24,12 +24,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/auth"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inetutil"
 )
@@ -48,6 +48,14 @@ type zoneServer struct {
 
 func NewServer() inapi.ZoneServiceServer {
 	return &zoneServer{}
+}
+
+// Ping is a simple health-check endpoint that returns "pong".
+// No authentication is required for this endpoint.
+func (s *zoneServer) Ping(
+	_ context.Context, _ *inapi.PingRequest,
+) (*inapi.PingResponse, error) {
+	return &inapi.PingResponse{Message: "pong"}, nil
 }
 
 func (s *zoneServer) ZoneInit(

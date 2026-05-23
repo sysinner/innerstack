@@ -22,19 +22,15 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 func NewZoneInfoCommand() *cobra.Command {
 
-	var (
-		addr string
-	)
-
 	var run = func(cmd *cobra.Command, args []string) error {
 
-		zone, err := Config.Zone(addr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -75,8 +71,6 @@ func NewZoneInfoCommand() *cobra.Command {
 		Short: "Show zone information",
 		RunE:  run,
 	}
-
-	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 
 	return cmd
 }

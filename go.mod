@@ -6,6 +6,7 @@ go 1.26.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/c-bata/go-prompt v0.2.6
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/fsouza/go-dockerclient v1.13.1
 	github.com/go-playground/locales v0.14.1
@@ -13,10 +14,12 @@ require (
 	github.com/go-playground/validator/v10 v10.30.2
 	github.com/google/uuid v1.6.0
 	github.com/hooto/hflag4g v0.10.1
+	github.com/hooto/hlog4g v0.9.5
 	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/htoml4g v0.9.5
 	github.com/lynkdb/kvgo/v2 v2.0.15
 	github.com/lynkdb/lynkapi v0.0.11
+	github.com/mattn/go-shellwords v1.0.13
 	github.com/miekg/dns v1.1.72
 	github.com/olekukonko/tablewriter v1.1.4
 	github.com/pelletier/go-toml/v2 v2.3.0
@@ -65,7 +68,6 @@ require (
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/hooto/hauth/go v0.1.5 // indirect
 	github.com/hooto/hauth/go/v2 v2.0.0-20260125120444-4cbf92d8d081 // indirect
-	github.com/hooto/hlog4g v0.9.5 // indirect
 	github.com/hooto/httpsrv v0.12.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
@@ -76,6 +78,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
+	github.com/mattn/go-tty v0.0.3 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
 	github.com/moby/moby/api v1.54.1 // indirect
 	github.com/moby/moby/client v0.4.0 // indirect
@@ -91,6 +94,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pkg/term v1.2.0-beta.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect

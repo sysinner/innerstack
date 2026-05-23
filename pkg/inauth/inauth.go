@@ -14,16 +14,36 @@
 
 package inauth
 
-const (
-	appHttpHeaderName = "x-inauth2"
+type TokenHeader struct {
+	Alg string `json:"alg" toml:"alg"`
 
-	appAuthContextKey = "inauth_ctx"
+	Typ string `json:"typ,omitempty" toml:"typ,omitempty"`
 
-	userAppAuthTtlMin int64 = 600        // seconds
-	userAppAuthTtlMax int64 = 86400 * 30 // seconds
+	// AccessKey ID
+	Kid string `json:"kid,omitempty" toml:"kid,omitempty"`
+}
 
-	appAuthExp int64 = 60
-)
+type AuthClaims struct {
+	// JWT ID
+	Jti string `json:"jti,omitempty" toml:"jti,omitempty"`
+
+	// issuer
+	// Iss string `json:"iss,omitempty" toml:"iss,omitempty"`
+
+	// Issued At Time
+	Iat int64 `json:"iat" toml:"iat"`
+
+	// Expire time
+	Exp int64 `json:"exp" toml:"exp"`
+
+	// user id
+	Sub string `json:"sub,omitempty" toml:"sub,omitempty"`
+
+	// app id
+	// Aud string `json:"aud,omitempty" toml:"aud,omitempty"`
+
+	State string `json:"state,omitempty" toml:"state,omitempty"`
+}
 
 type AppCredential interface {
 	AuthToken() string
@@ -35,17 +55,22 @@ type AppValidator interface {
 	Allow(scopes ...string) bool
 }
 
-type TokenHeader struct {
-	Alg string `json:"alg" toml:"alg"`
-	Typ string `json:"typ,omitempty" toml:"typ,omitempty"`
-	Kid string `json:"kid,omitempty" toml:"kid,omitempty"`
+/**
+type UserValidator interface {
+	Valid() error
+	AccessToken() *AccessToken
+	// Verify(keyMgr *AccessKeyManager) error
+	// AccessKey() *AccessKey
+	Allow(user string, scopes ...string) bool
 }
+*/
 
-type AuthClaims struct {
-	Jti string `json:"jti,omitempty" toml:"jti,omitempty"` // JWT ID
-	Iat int64  `json:"iat" toml:"iat"`                     // Issued At Time
-	Exp int64  `json:"exp" toml:"exp"`
-	Sub string `json:"sub,omitempty" toml:"sub,omitempty"`
+type SessionManager interface {
+	// Allow(user string, scopes ...string) bool
 
-	State string `json:"state,omitempty" toml:"state,omitempty"`
+	IsLogin(accessToken string) (*AccessToken, error)
+
+	Token(jti string) *SessionToken
+
+	RefreshToken(accessToken string, token *IdentityToken) (*SessionToken, error)
 }

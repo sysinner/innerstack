@@ -37,7 +37,7 @@ func (s grpcAppCredential) GetRequestMetadata(
 	ctx context.Context, uri ...string,
 ) (map[string]string, error) {
 	return map[string]string{
-		appHttpHeaderName: s.ac.AuthToken(),
+		AppHttpHeaderKey: s.ac.AuthToken(),
 	}, nil
 }
 
@@ -60,7 +60,7 @@ func NewGrpcAppValidator(ctx context.Context, keyMgr *AccessKeyManager) (AppVali
 		return nil, status.Errorf(codes.Unauthenticated, "metadata is not provided")
 	}
 
-	values := md[appHttpHeaderName]
+	values := md[AppHttpHeaderKey]
 	if len(values) == 0 {
 		return nil, status.Errorf(codes.Unauthenticated, "authorization token is missing")
 	}

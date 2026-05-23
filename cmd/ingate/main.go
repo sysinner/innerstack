@@ -45,11 +45,10 @@ import (
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/time/rate"
-	"google.golang.org/grpc"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/inutil/tplrender"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inlog"
 	"github.com/sysinner/incore/v2/pkg/signals"
@@ -314,7 +313,7 @@ var (
 
 	cfg Config
 
-	zoneConn *grpc.ClientConn
+	zoneConn *client.ClientConn
 )
 
 var (

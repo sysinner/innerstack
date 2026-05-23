@@ -22,14 +22,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 func NewZoneSetCommand() *cobra.Command {
 
 	var (
-		addr             string
 		vpcBridgeCidr    string
 		vpcInstanceCidr  string
 		vpcNetworkDomain string
@@ -42,7 +41,7 @@ func NewZoneSetCommand() *cobra.Command {
 			return fmt.Errorf("all three flags are required: --bridge, --instance, --domain")
 		}
 
-		zone, err := Config.Zone(addr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -109,7 +108,6 @@ VPC Network Rules:
     --domain local`,
 	}
 
-	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 	cmd.Flags().StringVarP(&vpcBridgeCidr, "bridge", "b", "192.168.10.0/24", "VPC bridge CIDR (e.g., 192.168.10.0/24) (required)")
 	cmd.Flags().StringVarP(&vpcInstanceCidr, "instance", "i", "10.10.0.0/16", "VPC instance CIDR (e.g., 10.10.0.0/16) (required)")
 	cmd.Flags().StringVarP(&vpcNetworkDomain, "domain", "d", "local", "VPC network domain (e.g., local) (required)")

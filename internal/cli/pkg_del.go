@@ -21,17 +21,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 // NewPkgDelCommand creates the "pkg-del" command for deleting packages.
 // Removes a package and all its associated data chunks from the server.
 func NewPkgDelCommand() *cobra.Command {
-
-	var (
-		addr string
-	)
 
 	var runE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -44,7 +40,7 @@ func NewPkgDelCommand() *cobra.Command {
 			return fmt.Errorf("package ID cannot be empty")
 		}
 
-		zone, err := Config.Zone(addr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -103,8 +99,6 @@ WARNING: This operation is irreversible. All package data will be permanently re
   # Delete from remote server
   cli pkg-del myapp_1.0.0_linux_amd64 --addr 192.168.1.100:9533`,
 	}
-
-	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zonelet server address")
 
 	return cmd
 }

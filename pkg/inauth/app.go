@@ -98,7 +98,7 @@ type appValidator struct {
 
 func NewAppValidator(token string) (AppValidator, error) {
 
-	at, err := NewAccessToken(token)
+	at, err := ParseAccessToken(token)
 	if err != nil {
 		return nil, err
 	}

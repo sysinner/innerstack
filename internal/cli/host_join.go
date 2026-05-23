@@ -22,21 +22,20 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 func NewHostJoinCommand() *cobra.Command {
 
 	var (
-		zoneAddr      string
 		hostAddr      string
 		hostAccessKey string
 	)
 
 	run := func(cmd *cobra.Command, args []string) error {
 
-		zone, err := Config.Zone(zoneAddr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -84,7 +83,6 @@ func NewHostJoinCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&hostAddr, "addr", "a", "", "Host address (required)")
 	cmd.Flags().StringVarP(&hostAccessKey, "access-key", "k", "", "Host Access Key (required)")
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "z", "", "Zone server address")
 
 	cmd.MarkFlagRequired("addr")
 	cmd.MarkFlagRequired("access-key")

@@ -30,8 +30,8 @@ import (
 	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 var (
@@ -41,7 +41,6 @@ var (
 func NewGatewayIngressSetCommand() *cobra.Command {
 
 	var (
-		zoneAddr    string
 		domain      string
 		description string
 		action      string
@@ -65,7 +64,7 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 			},
 		}
 
-		zone, err := Config.Zone(zoneAddr)
+		zone, err := Config.Zone("")
 		if err != nil {
 			return err
 		}
@@ -159,7 +158,6 @@ func NewGatewayIngressSetCommand() *cobra.Command {
   instack gw-ingress-set --domain example.com --routes`,
 	}
 
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "", "Zone server address")
 	cmd.Flags().StringVarP(&domain, "domain", "d", "", "Domain name for the ingress (required)")
 	cmd.Flags().StringVarP(&description, "description", "", "", "Description of the ingress")
 	cmd.Flags().StringVarP(&action, "action", "", inapi.GatewayIngressActionEnable, "Action for the ingress (enable|disable)")

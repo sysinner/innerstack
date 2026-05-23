@@ -33,6 +33,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	ZoneService_Ping_FullMethodName               = "/inapi.ZoneService/Ping"
 	ZoneService_ZoneInit_FullMethodName           = "/inapi.ZoneService/ZoneInit"
 	ZoneService_ZoneInfo_FullMethodName           = "/inapi.ZoneService/ZoneInfo"
 	ZoneService_ZoneSet_FullMethodName            = "/inapi.ZoneService/ZoneSet"
@@ -54,6 +55,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ZoneServiceClient interface {
+	// Ping checks server connectivity and authentication.
+	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 	// ZoneInit initializes a new zone with the specified name.
 	ZoneInit(ctx context.Context, in *ZoneInitRequest, opts ...grpc.CallOption) (*ZoneInitResponse, error)
 	// ZoneInfo retrieves information about the current zone.
@@ -95,6 +98,15 @@ type zoneServiceClient struct {
 
 func NewZoneServiceClient(cc grpc.ClientConnInterface) ZoneServiceClient {
 	return &zoneServiceClient{cc}
+}
+
+func (c *zoneServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
+	out := new(PingResponse)
+	err := c.cc.Invoke(ctx, ZoneService_Ping_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *zoneServiceClient) ZoneInit(ctx context.Context, in *ZoneInitRequest, opts ...grpc.CallOption) (*ZoneInitResponse, error) {
@@ -236,6 +248,8 @@ func (c *zoneServiceClient) PackageDelete(ctx context.Context, in *PackageDelete
 // All implementations must embed UnimplementedZoneServiceServer
 // for forward compatibility
 type ZoneServiceServer interface {
+	// Ping checks server connectivity and authentication.
+	Ping(context.Context, *PingRequest) (*PingResponse, error)
 	// ZoneInit initializes a new zone with the specified name.
 	ZoneInit(context.Context, *ZoneInitRequest) (*ZoneInitResponse, error)
 	// ZoneInfo retrieves information about the current zone.
@@ -276,6 +290,9 @@ type ZoneServiceServer interface {
 type UnimplementedZoneServiceServer struct {
 }
 
+func (UnimplementedZoneServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
+}
 func (UnimplementedZoneServiceServer) ZoneInit(context.Context, *ZoneInitRequest) (*ZoneInitResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ZoneInit not implemented")
 }
@@ -332,6 +349,24 @@ type UnsafeZoneServiceServer interface {
 
 func RegisterZoneServiceServer(s grpc.ServiceRegistrar, srv ZoneServiceServer) {
 	s.RegisterService(&ZoneService_ServiceDesc, srv)
+}
+
+func _ZoneService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_Ping_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).Ping(ctx, req.(*PingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ZoneService_ZoneInit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -611,6 +646,10 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "inapi.ZoneService",
 	HandlerType: (*ZoneServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Ping",
+			Handler:    _ZoneService_Ping_Handler,
+		},
 		{
 			MethodName: "ZoneInit",
 			Handler:    _ZoneService_ZoneInit_Handler,

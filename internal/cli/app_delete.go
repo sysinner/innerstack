@@ -21,14 +21,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 func NewAppDeleteCommand() *cobra.Command {
 
 	var (
-		zoneAddr   string
 		instanceId string
 	)
 
@@ -82,7 +81,6 @@ This action cannot be undone.`,
   app delete --id <instance-id>`,
 	}
 
-	cmd.Flags().StringVarP(&zoneAddr, "zone-addr", "a", "", "Zone server address")
 	cmd.Flags().StringVarP(&instanceId, "id", "i", "", "App instance ID (required)")
 
 	cmd.MarkFlagRequired("id")

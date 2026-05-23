@@ -23,9 +23,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 )
 
@@ -64,9 +64,19 @@ func Setup() error {
 	return nil
 }
 
+// noAuthMethods defines gRPC methods that do not require authentication.
+var noAuthMethods = map[string]bool{
+	"/inapi.ZoneService/Ping": true,
+}
+
 // GrpcAuthInterceptor returns a gRPC unary interceptor for authentication
 func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
+		// Skip authentication for whitelisted methods (e.g. health-check)
+		if noAuthMethods[info.FullMethod] {
+			return handler(ctx, req)
+		}
 
 		// Validate the gRPC credential
 		if av, err := inauth.NewGrpcAppValidator(ctx, am.keyMgr); err != nil {

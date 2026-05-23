@@ -92,3 +92,15 @@ func (it *AccessKeyManager) SetRole(r *Role) *AccessKeyManager {
 
 	return it
 }
+
+func (it *AccessKeyManager) RandKey() *AccessKey {
+
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+
+	for _, key := range it.items {
+		return key
+	}
+
+	return akDefault
+}

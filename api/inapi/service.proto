@@ -28,6 +28,9 @@ import "package.proto";
 // ZoneService is the gRPC service for zone-level management.
 // It handles zone initialization, host management, and application deployment.
 service ZoneService {
+  // Ping checks server connectivity and authentication.
+  rpc Ping(PingRequest) returns (PingResponse) {}
+
   // ZoneInit initializes a new zone with the specified name.
   rpc ZoneInit(ZoneInitRequest) returns (ZoneInitResponse) {}
 
@@ -84,6 +87,7 @@ service ZoneService {
   rpc PackageDelete(PackageDeleteRequest) returns (PackageDeleteResponse) {}
 }
 
+
 // ZoneInternalService is the gRPC service for internal zone communication.
 // It handles host status reporting and package chunk transfer between
 // host machines and the zone leader.
@@ -108,6 +112,14 @@ service ZoneInternalService {
 service HostInternalService {
   // HostInit initializes a new host and registers it with the specified zone.
   rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
+}
+
+// PingRequest is an empty request for connectivity checking.
+message PingRequest {}
+
+// PingResponse contains the pong reply from the server.
+message PingResponse {
+  string message = 1; // e.g., "pong"
 }
 
 // HostInitRequest is the request message for initializing a host.
