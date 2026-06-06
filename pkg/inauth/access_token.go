@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -93,6 +94,19 @@ func ParseAccessToken(accessToken string) (*AccessToken, error) {
 	av.signer = Signers.Signer(av.Header.Alg)
 
 	return av, nil
+}
+
+func ParseAccessTokenWithHttpRequest(req *http.Request) (*AccessToken, error) {
+	if req == nil {
+		return nil, errors.New("http request not found")
+	}
+
+	t := req.Header.Get(AppHttpHeaderKey)
+	if t == "" {
+		return nil, errors.New("token not found")
+	}
+
+	return ParseAccessToken(t)
 }
 
 func ParseAccessTokenWithContext(ctx context.Context) (*AccessToken, error) {

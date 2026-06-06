@@ -25,6 +25,8 @@ type IdentityToken struct {
 	// Type string `json:"type,omitempty" toml:"type,omitempty"`
 
 	Scopes []string `json:"scopes,omitempty" toml:"scopes,omitempty"`
+
+	Permissions []string `json:"permissions,omitempty" toml:"permissions,omitempty"`
 }
 
 func (it *IdentityToken) Allow(user string, scopes ...string) bool {

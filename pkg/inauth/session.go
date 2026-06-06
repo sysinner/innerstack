@@ -14,9 +14,30 @@
 
 package inauth
 
+import (
+	"slices"
+)
+
 type SessionToken struct {
 	AccessToken   *AccessToken   `json:"access_token" toml:"access_token"`
 	IdentityToken *IdentityToken `json:"identity_token" toml:"identity_token"`
+}
+
+func (it *SessionToken) Allow(user string, permission string) bool {
+
+	if it == nil || it.AccessToken == nil || it.IdentityToken == nil {
+		return false
+	}
+
+	if user != "" && it.AccessToken.Claims.Sub != user {
+		return false
+	}
+
+	if slices.Contains(it.IdentityToken.Permissions, permission) {
+		return true
+	}
+
+	return false
 }
 
 /**
