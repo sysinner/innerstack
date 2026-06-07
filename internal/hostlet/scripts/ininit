@@ -57,5 +57,13 @@ chown -R "$TARGET_USER":"$TARGET_USER" "$OPT_DIR"
 
 # 4. Final Execution with Signal Propagation
 echo "Starting inagent daemon..."
-# 'exec' ensures 'inagent' inherits PID 1 for proper SIGTERM handling
-exec "$AGENT_BIN" daemon
+
+# # 'exec' ensures 'inagent' inherits PID 1 for proper SIGTERM handling
+# exec "$AGENT_BIN" daemon
+
+# Forward SIGTERM/SIGINT to the daemon process
+trap 'kill -TERM $CHILD 2>/dev/null; wait $CHILD 2>/dev/null' TERM INT
+
+"$AGENT_BIN" daemon &
+CHILD=$!
+wait $CHILD

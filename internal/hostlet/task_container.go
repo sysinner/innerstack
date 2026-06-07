@@ -28,17 +28,19 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/docker"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
-var (
-	hostSrcPaths = hostapi.NewHostSourcePaths(config.Prefix)
-)
+// hostSrcPaths returns source file paths based on the current config prefix.
+// Must be called after config.Setup() to get the correct installation prefix.
+func hostSrcPaths() *hostapi.HostSourcePaths {
+	return hostapi.NewHostSourcePaths(config.Prefix)
+}
 
 // lxcfsBinPaths defines lxcfs binary path and its corresponding proc directory.
 var lxcfsBinPaths = [][]string{
@@ -982,7 +984,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 				arch = driverInfo.Arch
 			}
 		}
-		srcInagentPath := hostSrcPaths.InagentSrc(arch)
+		srcInagentPath := hostSrcPaths().InagentSrc(arch)
 		inagentPath := podPaths.InagentFile()
 		if _, err := os.Stat(srcInagentPath); err != nil {
 			return fmt.Errorf("[containerCreate] inagent source binary not found at %s: %w", srcInagentPath, err)

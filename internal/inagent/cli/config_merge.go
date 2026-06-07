@@ -19,6 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -40,11 +42,6 @@ func NewConfigMergeCommand() *cobra.Command {
 
 		argWithConfigField = strings.TrimLeft(argWithConfigField, "cfg/")
 		if argWithConfigField == "" {
-			return errors.New("invalid --with-config-field value")
-		}
-
-		withConfigFields := strings.Split(argWithConfigField, ".")
-		if len(withConfigFields) < 2 {
 			return errors.New("invalid --with-config-field value")
 		}
 
@@ -74,40 +71,68 @@ func NewConfigMergeCommand() *cobra.Command {
 		slog.Info("load config field value : " + field.Value)
 
 		cg := viper.New()
-		// cg.SetKeysCaseSensitive(true)
 
-		switch field.Type {
-		case inapi.SpecFieldTypeTextJSON:
-			cg.SetConfigType("json")
+		fieldType := field.Type
+		// Infer type from target config file extension when field type is empty
+		if fieldType == "" {
+			switch ext := strings.ToLower(filepath.Ext(argConfig)); ext {
+			case ".json":
+				fieldType = inapi.SpecFieldTypeTextJSON
+			case ".toml":
+				fieldType = inapi.SpecFieldTypeTextTOML
+			case ".yaml", ".yml":
+				fieldType = inapi.SpecFieldTypeTextYAML
+			case ".ini", ".cfg", ".conf":
+				fieldType = inapi.SpecFieldTypeTextINI
+			case ".properties":
+				fieldType = inapi.SpecFieldTypeTextJavaProp
+			default:
+				return fmt.Errorf("cannot infer config type from file extension %q and field type is empty", ext)
+			}
+			slog.Info("inferred config type from file extension", "type", fieldType)
+		}
 
-		case inapi.SpecFieldTypeTextTOML:
-			cg.SetConfigType("toml")
-
-		case inapi.SpecFieldTypeTextYAML:
-			cg.SetConfigType("yaml")
-
+		switch fieldType {
 		case inapi.SpecFieldTypeTextINI:
-			cg.SetConfigType("ini")
+			// viper does not natively support INI format.
+			// Write the rendered config value directly to the target file.
+			if err := os.WriteFile(argConfig, []byte(field.Value), 0644); err != nil {
+				return fmt.Errorf("write config file failed: %w", err)
+			}
+			slog.Info("config file written", "path", argConfig)
 
-		case inapi.SpecFieldTypeTextJavaProp:
-			cg.SetConfigType("properties")
+		case inapi.SpecFieldTypeTextJSON,
+			inapi.SpecFieldTypeTextTOML,
+			inapi.SpecFieldTypeTextYAML,
+			inapi.SpecFieldTypeTextJavaProp:
+
+			switch fieldType {
+			case inapi.SpecFieldTypeTextJSON:
+				cg.SetConfigType("json")
+			case inapi.SpecFieldTypeTextTOML:
+				cg.SetConfigType("toml")
+			case inapi.SpecFieldTypeTextYAML:
+				cg.SetConfigType("yaml")
+			case inapi.SpecFieldTypeTextJavaProp:
+				cg.SetConfigType("properties")
+			}
+
+			cg.SetConfigFile(argConfig)
+
+			if err := cg.ReadInConfig(); err != nil {
+				return err
+			}
+
+			if err := cg.MergeConfig(bytes.NewBuffer([]byte(field.Value))); err != nil {
+				return err
+			}
+
+			if err := cg.WriteConfigAs(argConfig); err != nil {
+				return err
+			}
 
 		default:
-			return fmt.Errorf("field type(%s) not support", field.Type)
-		}
-
-		cg.SetConfigFile(argConfig)
-
-		if err := cg.ReadInConfig(); err != nil {
-			return err
-		}
-
-		if err := cg.MergeConfig(bytes.NewBuffer([]byte(field.Value))); err != nil {
-			return err
-		}
-
-		if err := cg.WriteConfigAs(argConfig); err != nil {
-			return err
+			return fmt.Errorf("field type(%s) not support", fieldType)
 		}
 
 		return nil

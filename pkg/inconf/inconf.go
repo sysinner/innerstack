@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 const (
@@ -280,9 +281,21 @@ func keyenc(k string) string {
 }
 
 func RenderWithExpand(text string, sets map[string]string) string {
-	return os.Expand(text, func(k string) string {
-		return sets[k]
+	re := regexp.MustCompile(`\$\{([^}]+)\}`)
+	text2 := re.ReplaceAllStringFunc(text, func(match string) string {
+		// match is the full matched string, e.g. "${app.name}" or "${NAME}".
+		// Extract the variable name by stripping the leading "${" and trailing "}".
+		key := match[2 : len(match)-1]
+
+		// Replace with the value if the key exists in the data source.
+		if val, exists := sets[key]; exists {
+			return val
+		}
+
+		// Key not found; preserve the original match unchanged.
+		return match
 	})
+	return text2
 }
 
 func FileRender(dstFile, srcFile string, sets map[string]string, perm os.FileMode) error {

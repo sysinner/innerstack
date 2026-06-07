@@ -164,7 +164,14 @@ func NewAppDeployCommand() *cobra.Command {
 			fmt.Println(strings.Repeat("-", 60))
 			fmt.Println("Configuration summary:")
 			for _, item := range cfgItems {
-				fmt.Printf("  %s = %s\n", item.Name, item.Value)
+				if strings.Contains(item.Value, "\n") {
+					fmt.Printf("  %s =\n", item.Name)
+					for _, line := range strings.Split(item.Value, "\n") {
+						fmt.Printf("    %s\n", line)
+					}
+				} else {
+					fmt.Printf("  %s = %s\n", item.Name, item.Value)
+				}
 			}
 			fmt.Println()
 		} else if instanceId != "" && len(existingConfigs) > 0 {
@@ -294,6 +301,23 @@ func promptAppName(reader *bufio.Reader, defaultName string, req *inapi.AppInsta
 	return nil
 }
 
+// isMultiLineType returns true if the given field type represents a multi-line
+// text value that should be edited with a multi-line input mode.
+func isMultiLineType(t string) bool {
+	switch t {
+	case inapi.SpecFieldTypeText,
+		inapi.SpecFieldTypeTextJSON,
+		inapi.SpecFieldTypeTextTOML,
+		inapi.SpecFieldTypeTextYAML,
+		inapi.SpecFieldTypeTextINI,
+		inapi.SpecFieldTypeTextJavaProp,
+		inapi.SpecFieldTypeTextMarkdown:
+		return true
+	default:
+		return false
+	}
+}
+
 // promptConfigItems interactively prompts user for each config field
 // existingConfigs is used to provide current values when updating an existing instance
 func promptConfigItems(appSpec *inapi.AppSpec,
@@ -348,22 +372,59 @@ func promptConfigItems(appSpec *inapi.AppSpec,
 			fmt.Printf("  Description: %s\n", field.Description)
 		}
 
-		// Prompt for input
-		if defaultValue != "" {
-			fmt.Printf("  Enter value [%s]: ", defaultValue)
+		var value string
+
+		if isMultiLineType(field.Type) {
+			// Multi-line input mode: lines are read until a line
+			// containing only "..." is entered.
+			if defaultValue != "" {
+				fmt.Printf("  Current value:\n")
+				for _, line := range strings.Split(defaultValue, "\n") {
+					fmt.Printf("    %s\n", line)
+				}
+				fmt.Printf("  Enter new value (end with '...' on a line, or just enter '...' to keep current):\n")
+			} else {
+				fmt.Printf("  Enter value (end with '...' on a line):\n")
+			}
+			fmt.Printf("  > ")
+
+			var lines []string
+			for {
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					return nil, fmt.Errorf("failed to read input: %w", err)
+				}
+				line = strings.TrimRight(line, "\r\n")
+
+				if line == "..." {
+					break
+				}
+				lines = append(lines, line)
+				fmt.Printf("  > ")
+			}
+
+			value = strings.Join(lines, "\n")
+			if value == "" {
+				value = defaultValue
+			}
 		} else {
-			fmt.Printf("  Enter value: ")
-		}
+			// Single-line input mode
+			if defaultValue != "" {
+				fmt.Printf("  Enter value [%s]: ", defaultValue)
+			} else {
+				fmt.Printf("  Enter value: ")
+			}
 
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return nil, fmt.Errorf("failed to read input: %w", err)
-		}
+			input, err := reader.ReadString('\n')
+			if err != nil {
+				return nil, fmt.Errorf("failed to read input: %w", err)
+			}
 
-		input = strings.TrimSpace(input)
-		value := input
-		if value == "" {
-			value = defaultValue
+			input = strings.TrimSpace(input)
+			value = input
+			if value == "" {
+				value = defaultValue
+			}
 		}
 
 		// Validate required field

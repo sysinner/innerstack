@@ -22,9 +22,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inconf"
 )
 
@@ -293,10 +293,13 @@ func taskAsyncAction(
 	es.State = execRunning
 	es.Updated = tn
 
-	// slog.Info("inagent/exec run ...")
-
 	//
 	script = inconf.RenderWithExpand(script, dms)
+
+	slog.Info("inagent/exec run",
+		"name", task.Name,
+		"user", task.RunUser,
+		"script", script)
 
 	//
 	if err := taskCmd(task, es, script); err != nil {
@@ -352,7 +355,7 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 		},
 	}
 
-	in.Write([]byte("set -e\n" + script + "\nexit\n"))
+	in.Write([]byte("set -e\nset -o pipefail\n" + script + "\nexit\n"))
 	in.Close()
 
 	execStarted := time.Now()
