@@ -20,7 +20,7 @@ type Scheduler interface {
 
 	//
 	ScheduleHost(
-		rep *SchedulePodReplica,
+		rep *ScheduleAppReplica,
 		hostls *ScheduleHostList,
 		opts *ScheduleOptions,
 	) (
@@ -31,13 +31,13 @@ type Scheduler interface {
 	//
 	ScheduleHostValid(
 		host *ScheduleHostItem,
-		entry *SchedulePodReplica,
+		entry *ScheduleAppReplica,
 	) (
 		err error,
 	)
 }
 
-type SchedulePodReplica struct {
+type ScheduleAppReplica struct {
 	RepId uint64
 	Cpu   int64 // mCores (1 core = 1000m)
 	Mem   int64 // Bytes

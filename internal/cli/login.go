@@ -157,10 +157,10 @@ func NewLoginCommand(rootCmd *cobra.Command) *cobra.Command {
 		Long:  "Connect to a configured zone and start an interactive shell with auto-completion.",
 		RunE:  loginRun,
 		Example: `  # Login with the current default zone
-  instack login
+  innerstack login
 
   # Login to a specific zone by name
-  instack login myzone
+  innerstack login myzone
 
   # Inside the interactive session, type 'exit' or 'quit' to leave
  `,

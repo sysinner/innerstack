@@ -105,21 +105,24 @@ Version Handling:
   - With --version: supports full semver (e.g., 1.0.0-beta.1+build.123)
 
 Build Script Template Variables:
-  {{.ipk_dir}}       - Package source directory
-  {{.ipk_build_dir}} - Build temp directory
-  {{.ipk_version}}   - Full version string
-  {{.ipk_os}}        - Operating system (linux, freebsd, all)
-  {{.ipk_arch}}      - Architecture (amd64, arm64, src)
-  {{.ipk_prefix}}    - Install prefix (e.g., /opt/packagename)
-  {{.ipk_name}}      - Package name
+  ${ipk_dir}             - Package source directory
+  ${ipk_build_dir}       - Build temp directory
+  ${ipk_name}            - Package name
+  ${ipk_version}         - Version string
+  ${ipk_release_version} - Release version string
+  ${ipk_release_os}      - Operating system (linux, freebsd, all)
+  ${ipk_release_arch}    - Architecture (amd64, arm64, src)
+  ${ipk_prefix}          - Install prefix (e.g., /opt/packagename)
 
 Environment Variables:
-  IPK_DIR        - Package source directory
-  IPK_BUILD_DIR  - Build temp directory
-  IPK_VERSION    - Full version string
-  IPK_OS         - Operating system
-  IPK_ARCH       - Architecture
-  IPK_PREFIX     - Install prefix`,
+  IPK_DIR             - Package source directory
+  IPK_BUILD_DIR       - Build temp directory
+  IPK_NAME            - Package name
+  IPK_VERSION         - Version string
+  IPK_RELEASE_VERSION - Release version string
+  IPK_RELEASE_OS      - Operating system
+  IPK_RELEASE_ARCH    - Architecture
+  IPK_PREFIX          - Install prefix`,
 		RunE: runE,
 		Example: `  # Build from current directory (uses version from ipk.toml)
   cli pkg-build

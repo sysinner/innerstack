@@ -45,6 +45,10 @@ const (
 	// Volume size limits in bytes
 	VolumeMin = 1 * 1024 * 1024 * 1024         // 1 GiB
 	VolumeMax = 10 * 1024 * 1024 * 1024 * 1024 // 10 TiB
+
+	// AppReplicaCapMax is the maximum number of replicas per app instance.
+	// ReplicaId ranges from 0 to AppReplicaCapMax-1 (0~127).
+	AppReplicaCapMax uint32 = 128
 )
 
 // Health status action flags
@@ -133,12 +137,12 @@ const (
 	NsOpLogZoneRepMigrateDone        = "zm/rep-migrate/done"    // migration completed
 )
 
-// Zone master pod scheduling operation log namespaces
-// Used for tracking pod scheduling operations
+// Zone master app scheduling operation log namespaces
+// Used for tracking app instance scheduling operations
 const (
-	OpLogNsZoneMasterPodScheduleCharge  = "zm/ps/charge"  // charge resources for scheduling
-	OpLogNsZoneMasterPodScheduleAlloc   = "zm/ps/alloc"   // allocate pod to host
-	OpLogNsZoneMasterPodScheduleResFree = "zm/ps/resfree" // free allocated resources
+	OpLogNsZoneMasterAppScheduleCharge  = "zm/ps/charge"  // charge resources for scheduling
+	OpLogNsZoneMasterAppScheduleAlloc   = "zm/ps/alloc"   // allocate app to host
+	OpLogNsZoneMasterAppScheduleResFree = "zm/ps/resfree" // free allocated resources
 )
 
 // PackageFileState constants for package file upload tracking
@@ -199,7 +203,7 @@ const (
 )
 
 // var (
-// 	OpLogNsZoneMasterPodScheduleRep = func(repId uint32) string {
+// 	OpLogNsZoneMasterAppScheduleRep = func(repId uint32) string {
 // 		if repId > 65535 {
 // 			repId = 65535
 // 		}

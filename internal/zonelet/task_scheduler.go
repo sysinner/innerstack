@@ -21,12 +21,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
 	"github.com/sysinner/incore/v2/internal/zonelet/network"
 	"github.com/sysinner/incore/v2/internal/zonelet/scheduler"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 var (
@@ -330,7 +330,7 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			if rep.VpcIpv4 != "" {
 				if s := zoneNetMgr.VpcInstance(rep.VpcIpv4); s == "" ||
-					s != fmt.Sprintf("%s-%04x", app.Value.InstanceId(), rep.Id) {
+					s != fmt.Sprintf("%s-%d", app.Value.InstanceId(), rep.Id) {
 					rep.VpcIpv4 = ""
 				} else {
 					continue
@@ -446,9 +446,9 @@ func schedulerRefresh(forceRefresh bool) error {
 
 	// Schedule replicas for each instance
 	for _, app := range []*appInstanceEntry{activeInstance} {
-		// Determine replica capacity (default 1, max 128)
+		// Determine replica capacity (default 1, max AppReplicaCapMax)
 		rc := app.Value.Deploy.ReplicaCap
-		app.Value.Deploy.ReplicaCap = max(1, min(128, rc))
+		app.Value.Deploy.ReplicaCap = max(1, min(inapi.AppReplicaCapMax, rc))
 
 		sort.Slice(app.Value.Deploy.Replicas, func(i, j int) bool {
 			return app.Value.Deploy.Replicas[i].Id < app.Value.Deploy.Replicas[j].Id
@@ -467,7 +467,7 @@ func schedulerRefresh(forceRefresh bool) error {
 			if rep.HostId != "" {
 				continue
 			}
-			srep := &scheduler.SchedulePodReplica{
+			srep := &scheduler.ScheduleAppReplica{
 				RepId: uint64(rep.Id),
 				Cpu:   app.Value.Deploy.CpuLimit,
 				Mem:   app.Value.Deploy.MemoryLimit,

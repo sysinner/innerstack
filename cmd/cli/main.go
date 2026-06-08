@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package main provides the command-line interface (CLI) for the Instack system.
-// Instack is a distributed application management tool that enables users to manage
+// Package main provides the command-line interface (CLI) for the InnerStack system.
+// InnerStack is a distributed application management tool that enables users to manage
 // zones, hosts, applications, and packages through a unified command-line interface.
 //
 // The CLI is built using the Cobra library and provides the following command groups:
@@ -25,18 +25,18 @@
 //
 // Usage:
 //
-//	instack [command] [flags]
+//	innerstack [command] [flags]
 //
 // Examples:
 //
 //	# Initialize a new zone
-//	instack zone-init --name myzone
+//	innerstack zone-init --name myzone
 //
 //	# List all applications in a zone
-//	instack app-list --zone-addr 127.0.0.1:9533
+//	innerstack app-list --zone-addr 127.0.0.1:9533
 //
 //	# Build a package
-//	instack pkg-build --spec /path/to/ipk.toml
+//	innerstack pkg-build --spec /path/to/ipk.toml
 package main
 
 import (
@@ -48,14 +48,14 @@ import (
 	"github.com/sysinner/incore/v2/internal/cli"
 )
 
-const AppName = "instack"
+const AppName = "innerstack"
 
-// main is the entry point of the Instack CLI application.
+// main is the entry point of the InnerStack CLI application.
 // It initializes the root command and registers all subcommands
 // for zone, host, application, and package management.
 func main() {
 
-	// rootCmd is the base command for the Instack CLI.
+	// rootCmd is the base command for the InnerStack CLI.
 	// When called without any subcommands, it displays a welcome message.
 	var rootCmd = &cobra.Command{
 		Use: AppName,

@@ -27,9 +27,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/inagent/task"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inlog"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
@@ -158,7 +158,7 @@ func specRefresh() (*inapi.AppReplicaInstance, time.Duration, bool) {
 
 	dur := time.Duration(10e9)
 
-	fp, err := os.Open(hostapi.AppInstanceFile)
+	fp, err := os.Open(hostapi.AppReplicaFile)
 	if err != nil {
 		slog.Error(fmt.Sprintf("failed to open app instance file, err %s", err.Error()))
 		return nil, dur, false

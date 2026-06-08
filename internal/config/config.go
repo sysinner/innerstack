@@ -26,8 +26,8 @@ import (
 
 	"github.com/hooto/htoml4g/htoml"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inlog"
 )
@@ -64,7 +64,7 @@ type HostletConfig struct {
 	AccessKey string `json:"access_key" toml:"access_key"`
 	ak        *inauth.AccessKey
 
-	PodPath string `json:"pod_path" toml:"pod_path"`
+	AppPath string `json:"app_path" toml:"app_path"`
 
 	LxcFsEnable bool `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
 
@@ -96,7 +96,7 @@ var (
 
 	Prefix = "."
 
-	cfgFile = "instack.toml"
+	cfgFile = "innerstack.toml"
 
 	Config ConfigCommon
 )
@@ -150,8 +150,8 @@ func Setup(ver, rel string) error {
 	}
 
 	{
-		if Config.Hostlet.PodPath == "" {
-			Config.Hostlet.PodPath = Prefix + "/pod"
+		if Config.Hostlet.AppPath == "" {
+			Config.Hostlet.AppPath = Prefix + "/apps"
 		}
 
 		if Config.Hostlet.HostId == "" {

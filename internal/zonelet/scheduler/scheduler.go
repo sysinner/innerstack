@@ -36,7 +36,7 @@ func NewScheduler() Scheduler {
 }
 
 func (*genericScheduler) ScheduleHost(
-	rep *SchedulePodReplica,
+	rep *ScheduleAppReplica,
 	hostls *ScheduleHostList,
 	opts *ScheduleOptions,
 ) (
@@ -85,7 +85,7 @@ func (*genericScheduler) ScheduleHost(
 }
 
 func findHostListThatFit(
-	rep *SchedulePodReplica,
+	rep *ScheduleAppReplica,
 	hostls *ScheduleHostList,
 	opts *ScheduleOptions,
 ) ([]*hostFit, error) {
@@ -165,7 +165,7 @@ func findHostListThatFit(
 
 func (*genericScheduler) ScheduleHostValid(
 	host *ScheduleHostItem,
-	entry *SchedulePodReplica,
+	entry *ScheduleAppReplica,
 ) error {
 
 	cpuCap := int64(float64(host.CpuTotal) * cpuOverAlloc)

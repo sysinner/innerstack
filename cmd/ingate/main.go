@@ -298,7 +298,7 @@ func (it *DomainEntry) lookup(urlPath string) *DomainEntryRoute {
 var (
 	appName = "ingate"
 
-	prefix = "/opt/instack"
+	prefix = "/opt/innerstack"
 
 	tlsCacheDir = prefix + "/var/" + appName + "_tls_cache"
 

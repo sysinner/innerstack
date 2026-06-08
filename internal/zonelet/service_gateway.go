@@ -30,16 +30,16 @@ import (
 	"golang.org/x/net/idna"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 )
 
 var (
-	gatewayDomainPodRX = regexp.MustCompile("^[0-9a-f]{12,16}$")
+	gatewayDomainAppRX = regexp.MustCompile("^[0-9a-f]{12,16}$")
 )
 
 func (it *zoneServer) GatewayIngressList(
@@ -240,7 +240,7 @@ func (it *zoneServer) GatewayIngressSet(
 					if len(ups) != 2 {
 						return nil, lynkapi.NewClientError("Invalid AppInstance ID:Port")
 					}
-					if !gatewayDomainPodRX.MatchString(ups[0]) {
+					if !gatewayDomainAppRX.MatchString(ups[0]) {
 						return nil, lynkapi.NewClientError("Invalid AppInstance ID:Port")
 					}
 

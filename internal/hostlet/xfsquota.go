@@ -34,17 +34,17 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	ps_disk "github.com/shirou/gopsutil/v4/disk"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 var (
-	// quotaCtrNameV2Re matches v2 container names: app-{appId:8-16hex}-{repId:4hex}
-	quotaCtrNameV2Re = regexp.MustCompile(`^app-[a-f0-9]{8,16}-[0-9a-f]{4}$`)
+	// quotaCtrNameV2Re matches v2 container names: app-{appId:8-16hex}-{repId:1-3digits}
+	quotaCtrNameV2Re = regexp.MustCompile(`^app-[a-f0-9]{8,16}-[0-9]{1,3}$`)
 
-	// quotaCtrNameV1Re matches v1 pod names: {appId:12-20hex}.{repId:4hex}
+	// quotaCtrNameV1Re matches v1 app instance replica names: {appId:12-20hex}.{repId:4hex}
 	quotaCtrNameV1Re = regexp.MustCompile(`^[a-f0-9]{12,20}\.[a-f0-9]{4}$`)
 
 	// quotaMultiSpace matches two or more consecutive spaces for normalizing
@@ -52,7 +52,7 @@ var (
 	quotaMultiSpace = regexp.MustCompile(`\ {2,}`)
 )
 
-// QuotaConfig manages XFS project quota entries for pod volume isolation.
+// QuotaConfig manages XFS project quota entries for app instance volume isolation.
 // It persists quota state to a JSON file and synchronizes the kernel quota
 // projects via the xfs_quota command-line tool.
 type QuotaConfig struct {
@@ -66,7 +66,7 @@ type QuotaConfig struct {
 }
 
 // QuotaProject represents a single XFS project quota entry.
-// Each active container/pod gets a unique project ID with configured
+// Each active container/app-instance-replica gets a unique project ID with configured
 // soft/hard block limits enforced by the XFS filesystem.
 type QuotaProject struct {
 	Id   int    `json:"id"`
@@ -85,7 +85,7 @@ var (
 )
 
 // quotaCtrNameMatch extracts a container name from a directory path.
-// It supports both v2 (app-{hex}-{hex}) and v1 ({hex}.{hex}) naming
+// It supports both v2 (app-{hex}-{decimal}) and v1 ({hex}.{hex}) naming
 // conventions. Returns the name and true on match.
 func quotaCtrNameMatch(dir string) (string, bool) {
 	if n := strings.LastIndex(dir, "/"); n > 0 && (n+1) < len(dir) {
@@ -234,7 +234,7 @@ func (it *QuotaConfig) SyncVendor() error {
 		// xfs_quota path output contains the container name as the last
 		// path component, enabling correct name matching in refresh.
 		v2maps += fmt.Sprintf("%d:%s\n", v.Id,
-			filepath.Clean(config.Config.Hostlet.PodPath+"/"+v.Name))
+			filepath.Clean(config.Config.Hostlet.AppPath+"/"+v.Name))
 	}
 
 	// Collect existing v1 entries from /etc/projects to preserve them
@@ -367,14 +367,14 @@ func quotaKeeperInit() error {
 		return strings.Compare(devs[i].Mountpoint, devs[j].Mountpoint) > 0
 	})
 
-	podPath := config.Config.Hostlet.PodPath
+	appPath := config.Config.Hostlet.AppPath
 	var mountPoints []string
 
 	for _, d := range devs {
-		// Only consider mount points under /data/, /opt, or the pod base path
+		// Only consider mount points under /data/, /opt, or the app instance base path
 		if !strings.HasPrefix(d.Mountpoint, "/data/") &&
 			!strings.HasPrefix(d.Mountpoint, "/opt") &&
-			!strings.HasPrefix(podPath, d.Mountpoint) {
+			!strings.HasPrefix(appPath, d.Mountpoint) {
 			continue
 		}
 
@@ -563,7 +563,7 @@ func xfsQuotaRefresh() error {
 			if !quotaIsV2Name(v.Name) {
 				continue
 			}
-			ctrDir := filepath.Clean(config.Config.Hostlet.PodPath + "/" + v.Name)
+			ctrDir := filepath.Clean(config.Config.Hostlet.AppPath + "/" + v.Name)
 			if _, err := os.Stat(ctrDir); os.IsNotExist(err) {
 				dels = append(dels, v)
 			}
@@ -616,8 +616,8 @@ func xfsQuotaRefresh() error {
 			ctrName := repInstance.ContainerName()
 
 			// Verify the container base directory exists
-			podPaths := hostapi.NewPodPaths(config.Config.Hostlet.PodPath, ctrName)
-			ctrDir := podPaths.ContainerPodDir()
+			appPaths := hostapi.NewContainerPath(config.Config.Hostlet.AppPath, ctrName)
+			ctrDir := appPaths.ContainerBaseDir()
 			if _, err := os.Stat(ctrDir); err != nil {
 				continue
 			}

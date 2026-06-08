@@ -116,7 +116,7 @@ func Benchmark_Schedule(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 
-		rep := &SchedulePodReplica{
+		rep := &ScheduleAppReplica{
 			RepId: 0,
 			Cpu:   int64(rand.Int63n(160)),
 			Mem:   int64(rand.Int63n(32)),

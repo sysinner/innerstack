@@ -31,18 +31,18 @@ import (
 	ps_net "github.com/shirou/gopsutil/v4/net"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 var (
 	hostStatus         = hostStatusMut{HostStatus: &inapi.HostStatus{}}
 	hostStatusCounter  = inutil.NewGroupSlidingCounter(15 * 60) // 15 minutes window
-	lastPodDiskFreshed int64
+	lastAppDiskFreshed int64
 )
 
 func init() {
@@ -122,7 +122,7 @@ func statusRefresh() error {
 
 	// Disk I/O
 	devs, _ := ps_disk.Partitions(true)
-	if devName, mntPoint := diskDevName(devs, config.Config.Hostlet.PodPath); devName != "" {
+	if devName, mntPoint := diskDevName(devs, config.Config.Hostlet.AppPath); devName != "" {
 		if diom, err := ps_disk.IOCounters(devName); err == nil {
 			if dio, ok := diom[devName]; ok {
 				rn := hostStatusCounter.Counter("fs/sp/rc").Record(int64(dio.ReadCount))
@@ -139,14 +139,14 @@ func statusRefresh() error {
 			}
 		}
 
-		if hostStatus.DiskTotalBytes == 0 || lastPodDiskFreshed+1800 < tn {
+		if hostStatus.DiskTotalBytes == 0 || lastAppDiskFreshed+1800 < tn {
 			if st, err := ps_disk.Usage(mntPoint); err == nil {
 				hostStatus.lock(func() {
 					hostStatus.DiskTotalBytes = int64(st.Total)
 					hostStatus.DiskFreeBytes = int64(st.Free)
 				})
 			}
-			lastPodDiskFreshed = tn
+			lastAppDiskFreshed = tn
 		}
 	}
 

@@ -27,10 +27,10 @@ api:
 	$(LYNKAPI_FILTER_CMD) $(LYNKAPI_FILTER_V2_ARGS)
 
 cli:
-	go build $(GOBUILD_ARGS) -o bin/instack cmd/cli/main.go
+	go build $(GOBUILD_ARGS) -o bin/innerstack cmd/cli/main.go
 
 server:
-	go build $(GOBUILD_ARGS) -o bin/instackd cmd/server/main.go
+	go build $(GOBUILD_ARGS) -o bin/innerstackd cmd/server/main.go
 
 indns:
 	go build $(GOBUILD_ARGS) -o bin/indnsd cmd/indns/main.go

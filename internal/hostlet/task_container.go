@@ -421,7 +421,7 @@ func containerControlRefresh() error {
 			// If command is nil, state is already at target (no action needed)
 			// Just update the state and continue
 			if cmd.Command == nil {
-				// Sync app_instance.json to running container when AppSpec changes
+				// Sync app_replica.json to running container when AppSpec changes
 				// but no container spec reset is required
 				containerAppInstanceSync(repInstance)
 				continue
@@ -764,7 +764,7 @@ func operateContainerDestroying(rep *inapi.AppReplicaInstance) (string, error) {
 	return inapi.OpStateDestroyed, nil
 }
 
-// containerAppInstanceSync checks if the on-disk app_instance.json differs from
+// containerAppInstanceSync checks if the on-disk app_replica.json differs from
 // the current in-memory AppReplicaInstance and updates it if needed.
 // This ensures that changes to AppSpec are propagated into running containers
 // without requiring a container restart.
@@ -777,13 +777,13 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 		return
 	}
 
-	podBasePath := config.Config.Hostlet.PodPath
-	if podBasePath == "" {
+	appBasePath := config.Config.Hostlet.AppPath
+	if appBasePath == "" {
 		return
 	}
 
-	podPaths := hostapi.NewPodPaths(podBasePath, rep.ContainerName())
-	appInstancePath := podPaths.AppInstanceFile()
+	appPaths := hostapi.NewContainerPath(appBasePath, rep.ContainerName())
+	appInstancePath := appPaths.AppReplicaFile()
 
 	// Read existing file content
 	existingData, err := os.ReadFile(appInstancePath)
@@ -791,7 +791,7 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 		// File does not exist yet, write it
 		if os.IsNotExist(err) {
 			if writeErr := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); writeErr != nil {
-				slog.Warn("app_instance.json create failed",
+				slog.Warn("app_replica.json create failed",
 					"path", appInstancePath, "err", writeErr.Error())
 			}
 		}
@@ -801,7 +801,7 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 	// Encode current in-memory state
 	newData, err := json.Marshal(rep)
 	if err != nil {
-		slog.Warn("app_instance.json marshal failed", "err", err.Error())
+		slog.Warn("app_replica.json marshal failed", "err", err.Error())
 		return
 	}
 
@@ -811,12 +811,12 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 	}
 
 	if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err != nil {
-		slog.Warn("app_instance.json update failed",
+		slog.Warn("app_replica.json update failed",
 			"path", appInstancePath, "err", err.Error())
 		return
 	}
 
-	slog.Info("app_instance.json updated for AppSpec sync",
+	slog.Info("app_replica.json updated for AppSpec sync",
 		"app", rep.App.InstanceId(),
 		"container", rep.ContainerName(),
 		"path", appInstancePath)
@@ -918,12 +918,12 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	}
 
 	// Setup volume mounts using hostapi path utilities
-	podBasePath := config.Config.Hostlet.PodPath
-	if podBasePath != "" {
-		podPaths := hostapi.NewPodPaths(podBasePath, containerName)
+	appBasePath := config.Config.Hostlet.AppPath
+	if appBasePath != "" {
+		appPaths := hostapi.NewContainerPath(appBasePath, containerName)
 
 		// Mount /opt
-		optPath := podPaths.OptDir()
+		optPath := appPaths.OptDir()
 		if err := os.MkdirAll(optPath, 0755); err == nil {
 			opts.Mounts = append(opts.Mounts, hostapi.MountBind{
 				HostPath: optPath, ContainerPath: "/opt", ReadOnly: false,
@@ -931,7 +931,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		}
 
 		// Mount /home
-		homePath := podPaths.HomeDir()
+		homePath := appPaths.HomeDir()
 		if err := os.MkdirAll(homePath, 0755); err == nil {
 			opts.Mounts = append(opts.Mounts, hostapi.MountBind{
 				HostPath: homePath, ContainerPath: "/home", ReadOnly: false,
@@ -942,7 +942,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		for pkgName, installDir := range pkgMounts {
 			opts.Mounts = append(opts.Mounts, hostapi.MountBind{
 				HostPath:      installDir,
-				ContainerPath: fmt.Sprintf("/usr/instack/%s", pkgName),
+				ContainerPath: fmt.Sprintf("/usr/innerstack/%s", pkgName),
 				ReadOnly:      true,
 			})
 		}
@@ -952,25 +952,25 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 			opts.Mounts = append(opts.Mounts, lxcfsVols...)
 		}
 
-		// Create sysinner directory and files
-		sysinnerPath := podPaths.SysinnerDir()
-		if err := os.MkdirAll(sysinnerPath, 0755); err != nil {
-			return fmt.Errorf("[containerCreate] mkdir sysinner failed: %w", err)
+		// Create innerstack directory and files
+		innerStackPath := appPaths.InnerStackDir()
+		if err := os.MkdirAll(innerStackPath, 0755); err != nil {
+			return fmt.Errorf("[containerCreate] mkdir innerstack failed: %w", err)
 		}
 
-		// Write app_instance.json
-		appInstancePath := podPaths.AppInstanceFile()
+		// Write app_replica.json
+		appInstancePath := appPaths.AppReplicaFile()
 		if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err != nil {
-			slog.Warn("app_instance.json create failed",
+			slog.Warn("app_replica.json create failed",
 				"path", appInstancePath, "err", err.Error())
 		} else {
-			slog.Debug("app_instance.json created", "path", appInstancePath)
+			slog.Debug("app_replica.json created", "path", appInstancePath)
 		}
 
 		// Write ininit script (embedded).
 		// This is a critical file required by the container entrypoint;
 		// failure here will cause the container to crash on start.
-		ininitPath := podPaths.IninitFile()
+		ininitPath := appPaths.IninitFile()
 		if err := os.WriteFile(ininitPath, ininitScript, 0755); err != nil {
 			return fmt.Errorf("[containerCreate] write ininit script failed: %w", err)
 		}
@@ -985,7 +985,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 			}
 		}
 		srcInagentPath := hostSrcPaths().InagentSrc(arch)
-		inagentPath := podPaths.InagentFile()
+		inagentPath := appPaths.InagentFile()
 		if _, err := os.Stat(srcInagentPath); err != nil {
 			return fmt.Errorf("[containerCreate] inagent source binary not found at %s: %w", srcInagentPath, err)
 		}

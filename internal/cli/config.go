@@ -38,9 +38,9 @@ type ConfigZone struct {
 	AK   string `toml:"access_key"`
 }
 
-const AppName = "instack"
+const AppName = "innerstack"
 
-const configFileName = "instack_config.toml"
+const configFileName = "innerstack_config.toml"
 
 // Config is the loaded configuration
 var Config ConfigCommon

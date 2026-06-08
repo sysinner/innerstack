@@ -7,7 +7,7 @@ User=root
 Group=root
 Type=simple
 LimitNOFILE=8192
-ExecStart=/opt/instack/bin/indnsd
+ExecStart=/opt/innerstack/bin/indnsd
 ExecReload=/bin/kill -HUP $MAINPID
 
 TimeoutStartSec=0
@@ -20,8 +20,8 @@ RestartSec=3
 StartLimitBurst=3
 StartLimitInterval=60s
 
-StandardOutput=append:/opt/instack/var/log/indns.log
-StandardError=append:/opt/instack/var/log/indns-error.log
+StandardOutput=append:/opt/innerstack/var/log/indns.log
+StandardError=append:/opt/innerstack/var/log/indns-error.log
 
 [Install]
 WantedBy=multi-user.target

@@ -8,7 +8,7 @@ TARGET_USER="action"
 TARGET_UID=2048
 HOME_DIR="/home/action"
 OPT_DIR="/opt"
-AGENT_BIN="$HOME_DIR/.sysinner/inagent"
+AGENT_BIN="$HOME_DIR/.innerstack/inagent"
 
 # 1. Directory Initialization
 mkdir -p "$HOME_DIR" "$OPT_DIR"

@@ -48,5 +48,5 @@ func (x *AppInstance) InstanceName() string {
 
 // ContainerName returns the container name for the app replica instance.
 func (it *AppReplicaInstance) ContainerName() string {
-	return fmt.Sprintf("app-%s-%04x", it.App.InstanceId(), it.Replica.Id)
+	return fmt.Sprintf("app-%s-%d", it.App.InstanceId(), it.Replica.Id)
 }

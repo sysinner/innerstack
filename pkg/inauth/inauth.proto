@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package sysinner.instack.inauth.v2;
+package sysinner.innerstack.inauth.v2;
 
 option optimize_for = LITE_RUNTIME;
 option go_package = ".;inauth";

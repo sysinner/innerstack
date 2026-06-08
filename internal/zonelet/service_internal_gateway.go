@@ -26,10 +26,10 @@ import (
 
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 )
 
@@ -143,8 +143,8 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 					continue
 				}
 
-				podPort, err := strconv.Atoi(ar[1])
-				if err != nil || podPort <= 0 || podPort >= 65536 {
+				appPort, err := strconv.Atoi(ar[1])
+				if err != nil || appPort <= 0 || appPort >= 65536 {
 					continue
 				}
 
@@ -167,7 +167,7 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 						hostIp = host.PeerAddr
 					}
 					if port := lynkapi.SlicesSearchFunc(rep.ServicePorts, func(a *inapi.AppDeployServicePort) bool {
-						return a.Port == uint32(podPort)
+						return a.Port == uint32(appPort)
 					}); port != nil {
 						hostPort = int(port.HostPort)
 					} else {

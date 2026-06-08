@@ -27,7 +27,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/sysinner/incore/v2/pkg/inapi"
@@ -483,27 +482,21 @@ func (b *Builder) runBuildScript() error {
 
 	// Template variables (snake_case naming with ipk_ prefix)
 	vars := map[string]string{
-		"ipk_dir":       b.config.Dir,
-		"ipk_build_dir": b.buildDir,
-		"ipk_name":      b.meta.Metadata.Name,
-		"ipk_version":   b.meta.Release.Version,
-		"ipk_os":        b.meta.Release.Os,
-		"ipk_arch":      b.meta.Release.Arch,
-		"ipk_prefix":    "/opt/" + b.meta.Metadata.Name,
+		"ipk_dir":             b.config.Dir,
+		"ipk_build_dir":       b.buildDir,
+		"ipk_name":            b.meta.Metadata.Name,
+		"ipk_version":         b.meta.Metadata.Version,
+		"ipk_release_os":      b.meta.Release.Os,
+		"ipk_release_arch":    b.meta.Release.Arch,
+		"ipk_release_version": b.meta.Release.Version,
+		"ipk_prefix":          "/opt/" + b.meta.Metadata.Name,
 	}
 
-	// Process template
-	tmpl, err := template.New("build").Parse(b.spec.Build.Script)
-	if err != nil {
-		return fmt.Errorf("invalid build script template: %w", err)
+	// Replace ${var} placeholders with values
+	buildScript := b.spec.Build.Script
+	for name, value := range vars {
+		buildScript = strings.ReplaceAll(buildScript, "${"+name+"}", value)
 	}
-
-	var script strings.Builder
-	if err := tmpl.Execute(&script, vars); err != nil {
-		return fmt.Errorf("failed to process build script: %w", err)
-	}
-
-	buildScript := script.String()
 
 	if b.config.ShowBuild {
 		fmt.Printf("\nBuild Script:\n%s\n\n", buildScript)
@@ -520,9 +513,10 @@ func (b *Builder) runBuildScript() error {
 		fmt.Sprintf("IPK_DIR=%s", b.config.Dir),
 		fmt.Sprintf("IPK_BUILD_DIR=%s", b.buildDir),
 		fmt.Sprintf("IPK_NAME=%s", b.meta.Metadata.Name),
-		fmt.Sprintf("IPK_VERSION=%s", b.meta.Release.Version),
-		fmt.Sprintf("IPK_OS=%s", b.meta.Release.Os),
-		fmt.Sprintf("IPK_ARCH=%s", b.meta.Release.Arch),
+		fmt.Sprintf("IPK_VERSION=%s", b.meta.Metadata.Version),
+		fmt.Sprintf("IPK_RELEASE_OS=%s", b.meta.Release.Os),
+		fmt.Sprintf("IPK_RELEASE_ARCH=%s", b.meta.Release.Arch),
+		fmt.Sprintf("IPK_RELEASE_VERSION=%s", b.meta.Release.Version),
 		fmt.Sprintf("IPK_PREFIX=%s", "/opt/"+b.meta.Metadata.Name),
 	)
 

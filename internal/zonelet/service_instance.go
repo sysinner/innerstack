@@ -21,12 +21,12 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/internal/inutil/autofill"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 )
 
@@ -190,7 +190,7 @@ func (s *zoneServer) AppInstanceDeploy(
 		}
 
 		if req.ReplicaCap > 0 {
-			instance.Deploy.ReplicaCap = min(128, req.ReplicaCap)
+			instance.Deploy.ReplicaCap = min(inapi.AppReplicaCapMax, req.ReplicaCap)
 		}
 
 		// Update deploy configs if provided
@@ -243,7 +243,7 @@ func (s *zoneServer) AppInstanceDeploy(
 			CpuLimit:    cpuLimit,
 			MemoryLimit: memoryLimit,
 			VolumeLimit: volumeLimit,
-			ReplicaCap:  max(1, min(128, req.ReplicaCap)),
+			ReplicaCap:  max(1, min(inapi.AppReplicaCapMax, req.ReplicaCap)),
 		}
 
 		if req.Deploy != nil {

@@ -30,12 +30,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/ulikunitz/xz"
+
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"
-	"github.com/ulikunitz/xz"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 // ipkMagic is the magic number for .ipk files (4 bytes: "IPK1")

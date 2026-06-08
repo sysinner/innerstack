@@ -87,7 +87,6 @@ service ZoneService {
   rpc PackageDelete(PackageDeleteRequest) returns (PackageDeleteResponse) {}
 }
 
-
 // ZoneInternalService is the gRPC service for internal zone communication.
 // It handles host status reporting and package chunk transfer between
 // host machines and the zone leader.

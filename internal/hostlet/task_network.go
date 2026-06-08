@@ -21,10 +21,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/hostlet/network"
 	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inetutil"
 )
 
@@ -52,7 +52,7 @@ func networkRefresh() error {
 					instanceId, zoneNetworkMap.VpcNetworkDomain, ipb.String())
 			}
 			if len(dnsConf) > 10 {
-				if err := inutil.FsWrite(config.Prefix+"/etc/indns_conf.d/instack.toml",
+				if err := inutil.FsWrite(config.Prefix+"/etc/indns_conf.d/innerstack.toml",
 					[]byte(dnsConf)); err != nil {
 					return err
 				}

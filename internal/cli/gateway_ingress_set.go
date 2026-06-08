@@ -152,10 +152,10 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 		Long:  `Create or update a gateway ingress rule using individual flags (--domain, etc.).`,
 		RunE:  run,
 		Example: `  # Set ingress with flags
-  instack gw-ingress-set --domain example.com
+  innerstack gw-ingress-set --domain example.com
 
   # Set ingress with interactive routes editing
-  instack gw-ingress-set --domain example.com --routes`,
+  innerstack gw-ingress-set --domain example.com --routes`,
 	}
 
 	cmd.Flags().StringVarP(&domain, "domain", "d", "", "Domain name for the ingress (required)")

@@ -36,7 +36,7 @@ type ConfigCommon struct {
 
 var (
 	AppName = "indns"
-	Prefix  = "/opt/instack"
+	Prefix  = "/opt/innerstack"
 
 	Config = ConfigCommon{}
 

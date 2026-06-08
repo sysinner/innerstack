@@ -22,10 +22,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 	"github.com/sysinner/incore/v2/pkg/inetutil"
 )
@@ -161,7 +161,8 @@ func (s *zoneInternalServer) PackageChunk(
 		return nil, errors.New("zonelet leader")
 	}
 
-	if ak := inauth.AppContext(ctx).AccessKey(); !ak.Allow(fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, ak.Id)) {
+	if ak := inauth.AppContext(ctx).AccessKey(); !ak.Allow(
+		fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, ak.Id)) {
 		return nil, errors.New("auth fail")
 	}
 

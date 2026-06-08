@@ -24,8 +24,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/data"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inetutil"
 )
 
@@ -382,7 +382,7 @@ func (nm *NetworkManager) VpcInstance(ipv4 string) string {
 
 func (nm *NetworkManager) AllocHostSubNetwork(zone, hostId, instanceId string, repId uint32) string {
 
-	insRepId := fmt.Sprintf("%s-%04x", instanceId, repId)
+	insRepId := fmt.Sprintf("%s-%d", instanceId, repId)
 
 	nm.mu.Lock()
 	defer nm.mu.Unlock()

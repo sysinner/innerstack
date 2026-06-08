@@ -24,20 +24,20 @@ const (
 	// HomeDir is the home directory inside container
 	HomeDir = "/home/action"
 
-	// SysinnerDir is the sysinner config directory inside container
-	SysinnerDir = "/home/action/.sysinner"
+	// InnerStackDir is the innerstack config directory inside container
+	InnerStackDir = "/home/action/.innerstack"
 
-	// AppInstanceFile is the app instance config file path inside container
-	AppInstanceFile = "/home/action/.sysinner/app_instance.json"
+	// AppReplicaFile is the app replica config file path inside container
+	AppReplicaFile = "/home/action/.innerstack/app_replica.json"
 
 	// IninitFile is the ininit script path inside container
-	IninitFile = "/home/action/.sysinner/ininit"
+	IninitFile = "/home/action/.innerstack/ininit"
 
 	// InagentFile is the inagent binary path inside container
-	InagentFile = "/home/action/.sysinner/inagent"
+	InagentFile = "/home/action/.innerstack/inagent"
 
 	// InagentSock is the inagent unix socket path inside container
-	InagentSock = "unix:/home/action/.sysinner/inagent.sock"
+	InagentSock = "unix:/home/action/.innerstack/inagent.sock"
 
 	// ContainerEntrypoint is the default container entrypoint command
 	ContainerEntrypoint = "/bin/sh"
@@ -53,55 +53,55 @@ var InitDirs = []string{
 	"/home/action/.ssh",
 }
 
-// PodPaths contains paths for a specific pod/container
-type PodPaths struct {
-	// PodBase is the base path for pod data on host
-	PodBase string
+// ContainerPath contains paths for a specific app instance/container
+type ContainerPath struct {
+	// BasePath is the base path for app instance data on host
+	BasePath string
 	// ContainerName is the container name
 	ContainerName string
 }
 
-// NewPodPaths creates a PodPaths instance
-func NewPodPaths(podBase, containerName string) *PodPaths {
-	return &PodPaths{
-		PodBase:       podBase,
+// NewContainerPath creates a ContainerPath instance
+func NewContainerPath(basePath, containerName string) *ContainerPath {
+	return &ContainerPath{
+		BasePath:      basePath,
 		ContainerName: containerName,
 	}
 }
 
-// ContainerPodDir returns the container-specific directory on host
-func (p *PodPaths) ContainerPodDir() string {
-	return path.Join(p.PodBase, p.ContainerName)
+// ContainerBaseDir returns the container-specific directory on host
+func (p *ContainerPath) ContainerBaseDir() string {
+	return path.Join(p.BasePath, p.ContainerName)
 }
 
 // OptDir returns the /opt mount directory on host
-func (p *PodPaths) OptDir() string {
-	return path.Join(p.ContainerPodDir(), "opt")
+func (p *ContainerPath) OptDir() string {
+	return path.Join(p.ContainerBaseDir(), "opt")
 }
 
 // HomeDir returns the /home mount directory on host
-func (p *PodPaths) HomeDir() string {
-	return path.Join(p.ContainerPodDir(), "home")
+func (p *ContainerPath) HomeDir() string {
+	return path.Join(p.ContainerBaseDir(), "home")
 }
 
-// SysinnerDir returns the sysinner directory on host
-func (p *PodPaths) SysinnerDir() string {
-	return path.Join(p.HomeDir(), "action", ".sysinner")
+// InnerStackDir returns the innerstack directory on host
+func (p *ContainerPath) InnerStackDir() string {
+	return path.Join(p.HomeDir(), "action", ".innerstack")
 }
 
-// AppInstanceFile returns the app instance json file path on host
-func (p *PodPaths) AppInstanceFile() string {
-	return path.Join(p.SysinnerDir(), "app_instance.json")
+// AppReplicaFile returns the app replica json file path on host
+func (p *ContainerPath) AppReplicaFile() string {
+	return path.Join(p.InnerStackDir(), "app_replica.json")
 }
 
 // IninitFile returns the ininit script path on host
-func (p *PodPaths) IninitFile() string {
-	return path.Join(p.SysinnerDir(), "ininit")
+func (p *ContainerPath) IninitFile() string {
+	return path.Join(p.InnerStackDir(), "ininit")
 }
 
 // InagentFile returns the inagent binary path on host
-func (p *PodPaths) InagentFile() string {
-	return path.Join(p.SysinnerDir(), "inagent")
+func (p *ContainerPath) InagentFile() string {
+	return path.Join(p.InnerStackDir(), "inagent")
 }
 
 // HostSourcePaths contains paths for source files on host

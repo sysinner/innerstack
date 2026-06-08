@@ -146,9 +146,15 @@ message AppSpecTask {
   // before this task can run (used with trigger).
   repeated string depends_on = 6;
 
-  // script is the command or script to execute (split command and args to
-  // prevent shell injection).
-  string script = 7;
+  // Trigger fields (mutually exclusive: only one should be set at a time):
+  // - on_startup: triggers immediately when the application starts.
+  // - on_shutdown: triggers before the application shuts down.
+  // - interval_seconds: triggers periodically (every N seconds).
+  // - cron: triggers on a schedule (standard cron expression).
+  bool on_startup = 10;
+  bool on_shutdown = 11;
+  int64 interval_seconds = 12;
+  string cron = 13;
 
   // max_attempts is the maximum number of execution attempts (1 means no
   // retry).
@@ -157,15 +163,9 @@ message AppSpecTask {
   // retry_backoff_seconds is the interval/backoff time between retries.
   uint32 retry_backoff_seconds = 21;
 
-  // Trigger fields (mutually exclusive: only one should be set at a time):
-  // - on_startup: triggers immediately when the application starts.
-  // - on_shutdown: triggers before the application shuts down.
-  // - interval_seconds: triggers periodically (every N seconds).
-  // - cron: triggers on a schedule (standard cron expression).
-  bool on_startup = 30;
-  bool on_shutdown = 31;
-  int64 interval_seconds = 32;
-  string cron = 33;
+  // script is the command or script to execute (split command and args to
+  // prevent shell injection).
+  string script = 30;
 }
 
 // AppDeploy defines the deployment parameters and desired actions for an

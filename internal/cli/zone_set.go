@@ -102,7 +102,7 @@ VPC Network Rules:
 
   The bridge and instance CIDRs must not overlap.`,
 		RunE: run,
-		Example: `  instack zone-set \
+		Example: `  innerstack zone-set \
     --bridge 192.168.10.0/24 \
     --instance 10.10.0.0/16 \
     --domain local`,

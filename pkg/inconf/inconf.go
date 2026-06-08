@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	confFilePath = "/home/action/.sysinner/app_instance.json"
+	confFilePath = "/home/action/.innerstack/app_replica.json"
 )
 
 type AppConfigHelper struct {
@@ -259,7 +259,7 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 	// packages
 	for _, p := range app.App.Spec.Packages {
 		sets[fmt.Sprintf("ipk.%s.path", strings.Replace(p.Name, "-", "_", -1))] =
-			fmt.Sprintf("/usr/instack/%s", p.Name)
+			fmt.Sprintf("/usr/innerstack/%s", p.Name)
 	}
 
 	return sets
