@@ -92,7 +92,6 @@ type AccessKeyPublic struct {
 
 var (
 	Version = ""
-	Release = ""
 
 	Prefix = "."
 
@@ -101,10 +100,9 @@ var (
 	Config ConfigCommon
 )
 
-func Setup(ver, rel string) error {
+func Setup(ver string) error {
 
 	Version = ver
-	Release = rel
 
 	inlog.Setup()
 

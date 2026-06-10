@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,6 +34,7 @@ const minRetryIntervalSeconds int64 = 10
 var (
 	appReplicaInstance *inapi.AppReplicaInstance
 	execStatuses       = map[string]*executorStatus{}
+	cmdMu              sync.Mutex
 )
 
 func dependAllow(task *inapi.AppSpecTask) bool {
@@ -56,9 +58,12 @@ func Kill() error {
 		if es, ok := execStatuses[task.Name]; ok {
 			if es.Cmd != nil && es.Cmd.Process != nil {
 				es.Cmd.Process.Kill()
-				es.Cmd = nil
+				// Wait for the goroutine in taskCmd to finish Wait() and reap the child
 				slog.Info(fmt.Sprintf("task [%s] kill", task.Name))
-				time.Sleep(10e6)
+				deadline := time.Now().Add(3 * time.Second)
+				for es.Cmd != nil && time.Now().Before(deadline) {
+					time.Sleep(10e6)
+				}
 			}
 		}
 	}
@@ -227,7 +232,12 @@ func taskSyncAction(
 		return err
 	}
 
-	go cmd.Wait()
+	// Channel signals when the Wait goroutine has finished reaping
+	waitDone := make(chan struct{}, 1)
+	go func() {
+		cmd.Wait()
+		waitDone <- struct{}{}
+	}()
 
 	ttl := time.Now().UnixMilli() + 5000
 
@@ -246,8 +256,17 @@ func taskSyncAction(
 		}
 
 		if time.Now().UnixMilli() > ttl {
+			slog.Warn(fmt.Sprintf("task [%s] ttl", task.Name))
+			cmd.Process.Kill()
 			break
 		}
+	}
+
+	// Ensure the child is reaped by waiting for the Wait goroutine
+	select {
+	case <-waitDone:
+	case <-time.After(3 * time.Second):
+		slog.Warn(fmt.Sprintf("task [%s] wait timeout", task.Name))
 	}
 
 	return nil
@@ -314,7 +333,11 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 
 	if es.Cmd != nil && es.Cmd.Process != nil {
 		es.Cmd.Process.Kill()
-		time.Sleep(10e6)
+		// Wait for the existing Wait() goroutine to reap the child
+		deadline := time.Now().Add(3 * time.Second)
+		for es.Cmd != nil && time.Now().Before(deadline) {
+			time.Sleep(10e6)
+		}
 	}
 
 	es.Cmd = exec.Command("sh")
@@ -366,8 +389,23 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error(fmt.Sprintf("task [%s] wait goroutine panic: %v", task.Name, r))
+				cmdMu.Lock()
+				es.Cmd = nil
+				cmdMu.Unlock()
+			}
+		}()
 
 		es.Cmd.Wait()
+
+		cmdMu.Lock()
+		defer cmdMu.Unlock()
+
+		if es.Cmd == nil {
+			return
+		}
 
 		if es.Cmd.ProcessState != nil && es.Cmd.ProcessState.Exited() {
 
@@ -379,7 +417,6 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 				slog.Info(fmt.Sprintf("task [%s] success, duration %v",
 					task.Name, time.Since(execStarted)))
 			} else {
-				// capture output from buffer
 				es.Output = strings.TrimSpace(string(es.OutputBuf))
 				if es.Output != "" {
 					es.FailMessage = fmt.Sprintf("process error %s, output: %s",
@@ -396,8 +433,6 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 			es.Cmd = nil
 			es.Updated = time.Now().Unix()
 		}
-
-		// slog.Warn(fmt.Sprintf("task [%s] exited in %v", task.Name, time.Since(execStarted)))
 	}()
 
 	return nil
@@ -411,4 +446,20 @@ type outputBuffer struct {
 func (ob *outputBuffer) Write(p []byte) (n int, err error) {
 	*ob.buf = append(*ob.buf, p...)
 	return len(p), nil
+}
+
+// ReapOrphans reaps any zombie child processes that were not tracked by execStatuses.
+// This is necessary when inagent runs as PID 1, where all orphaned processes in the
+// container are re-parented to PID 1 and must be explicitly reaped.
+func ReapOrphans() {
+	var (
+		status syscall.WaitStatus
+		usage  syscall.Rusage
+	)
+	for {
+		pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, &usage)
+		if pid <= 0 || err != nil {
+			break
+		}
+	}
 }

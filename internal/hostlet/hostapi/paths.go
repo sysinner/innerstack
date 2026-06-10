@@ -125,6 +125,11 @@ func (h *HostSourcePaths) InagentSrc(arch string) string {
 	return path.Join(h.Prefix, "bin", fmt.Sprintf("inagent-linux-%s", arch))
 }
 
+// InagentCppSrc returns the source path of inagent C++ binary for given architecture
+func (h *HostSourcePaths) InagentCppSrc(arch string) string {
+	return path.Join(h.Prefix, "bin", fmt.Sprintf("inagent-cpp-linux-%s", arch))
+}
+
 // ContainerCmd returns the container entrypoint command
 func ContainerCmd() []string {
 	return []string{ContainerEntrypoint, IninitFile}

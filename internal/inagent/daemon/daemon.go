@@ -124,13 +124,20 @@ func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 
 	signals.Go(func() {
 		tr := time.NewTimer(10e6)
+		// Periodically reap orphaned zombie processes (PID 1 responsibility)
+		orphanReaper := time.NewTicker(1e9)
 		defer tr.Stop()
+		defer orphanReaper.Stop()
 		for {
 			select {
 			case <-signals.Done():
 				if err := task.Kill(); err != nil {
 					slog.Warn(fmt.Sprintf("task [*] kill failed, err %s", err.Error()))
 				}
+				task.ReapOrphans()
+
+			case <-orphanReaper.C:
+				task.ReapOrphans()
 
 			case <-tr.C:
 				if app, dur, ok := specRefresh(); ok {

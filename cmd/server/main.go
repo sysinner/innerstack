@@ -30,14 +30,13 @@ import (
 
 var (
 	version = "v2.0.0-alpha.01"
-	release = "git"
 )
 
 func main() {
 
 	inlog.Setup()
 
-	if err := config.Setup(version, release); err != nil {
+	if err := config.Setup(version); err != nil {
 		log.Fatalf("incore/config init error %s", err.Error())
 	}
 

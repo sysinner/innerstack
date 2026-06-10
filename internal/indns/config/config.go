@@ -41,7 +41,6 @@ var (
 	Config = ConfigCommon{}
 
 	Version = ""
-	Release = ""
 
 	Records = ConfigRecordManager{
 		items: map[string]*ConfigRecordEntry{},
@@ -50,9 +49,9 @@ var (
 	configFile = ""
 )
 
-func Setup(ver, rel string) error {
+func Setup(ver string) error {
 
-	Version, Release = ver, rel
+	Version = ver
 
 	prefixes := []string{Prefix}
 	if v, err := filepath.Abs(filepath.Dir(os.Args[0]) + "/.."); err == nil && v != Prefix {

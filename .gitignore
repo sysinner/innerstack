@@ -5,6 +5,7 @@ test/
 pod/
 example/
 misc/
+cmd/inagent-cpp
 
 history-v1/
 

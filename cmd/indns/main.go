@@ -32,12 +32,11 @@ func init() {
 
 var (
 	version = "git"
-	release = "1"
 )
 
 func main() {
 
-	if err := config.Setup(version, release); err != nil {
+	if err := config.Setup(version); err != nil {
 		slog.Error("config setup fail : " + err.Error())
 		os.Exit(1)
 	}

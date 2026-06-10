@@ -28,8 +28,8 @@ import (
 
 	drvClient "github.com/fsouza/go-dockerclient"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 )
 
 // dockerStateMap maps Docker container states to inapi replica states.
@@ -252,15 +252,17 @@ func (it *dockerDriver) ImageList(ctx context.Context) ([]*hostapi.ImageInfo, er
 		if len(img.RepoTags) == 0 {
 			continue
 		}
-		result = append(result, &hostapi.ImageInfo{
-			Name:        strings.Trim(strings.Join(img.RepoTags, "/"), "/"),
-			ID:          img.ID,
-			RepoTags:    img.RepoTags,
-			RepoDigests: img.RepoDigests,
-			Size:        img.Size,
-			Created:     img.Created,
-			Labels:      img.Labels,
-		})
+		for _, repoTag := range img.RepoTags {
+			result = append(result, &hostapi.ImageInfo{
+				Name:        repoTag,
+				ID:          img.ID,
+				RepoTags:    img.RepoTags,
+				RepoDigests: img.RepoDigests,
+				Size:        img.Size,
+				Created:     img.Created,
+				Labels:      img.Labels,
+			})
+		}
 	}
 	return result, nil
 }
@@ -514,11 +516,17 @@ func (it *dockerDriver) ContainerCreate(
 			containerPort := drvClient.Port(fmt.Sprintf("%d/%s", port.ContainerPort, port.Protocol))
 			config.ExposedPorts[containerPort] = struct{}{}
 
-			binding := drvClient.PortBinding{HostPort: fmt.Sprintf("%d", port.HostPort)}
+			hostPortStr := fmt.Sprintf("%d", port.HostPort)
 			if port.HostIP != "" {
-				binding.HostIP = port.HostIP
+				hostConfig.PortBindings[containerPort] = []drvClient.PortBinding{
+					{HostIP: port.HostIP, HostPort: hostPortStr},
+				}
+			} else {
+				hostConfig.PortBindings[containerPort] = []drvClient.PortBinding{
+					{HostIP: "0.0.0.0", HostPort: hostPortStr},
+					// {HostIP: "::", HostPort: hostPortStr},
+				}
 			}
-			hostConfig.PortBindings[containerPort] = []drvClient.PortBinding{binding}
 		}
 	}
 

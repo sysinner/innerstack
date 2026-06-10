@@ -13,7 +13,7 @@ LYNKAPI_FILTER_V2_ARGS = pkg/inapi
 # GOBUILD_ARGS = -trimpath -ldflags="-s -w"
 GOBUILD_ARGS = -trimpath
 
-.PHONY: api cli server inagent indns ingate
+.PHONY: api cli cli_install server inagent indns ingate
 all: api cli server inagent indns ingate
 	@echo ""
 	@echo "build complete"
@@ -29,6 +29,9 @@ api:
 cli:
 	go build $(GOBUILD_ARGS) -o bin/innerstack cmd/cli/main.go
 
+cli_install: cli
+	install bin/innerstack ${GOPATH}/bin/innerstack
+
 server:
 	go build $(GOBUILD_ARGS) -o bin/innerstackd cmd/server/main.go
 
@@ -39,6 +42,45 @@ ingate:
 	go build $(GOBUILD_ARGS) -o bin/ingated cmd/ingate/main.go
 
 inagent:
-	GOOS=linux GOARCH=amd64 go build $(GOBUILD_ARGS) -o bin/inagent-linux-amd64 cmd/inagent/inagent.go
-	GOOS=linux GOARCH=arm64 go build $(GOBUILD_ARGS) -o bin/inagent-linux-arm64 cmd/inagent/inagent.go
+	GOOS=linux GOARCH=amd64 go build $(GOBUILD_ARGS) -ldflags="-s -w" -o bin/inagent-linux-amd64 cmd/inagent/inagent.go
+	GOOS=linux GOARCH=arm64 go build $(GOBUILD_ARGS) -ldflags="-s -w" -o bin/inagent-linux-arm64 cmd/inagent/inagent.go
+
+inagent-go:
+	GOOS=linux GOARCH=amd64 go build $(GOBUILD_ARGS) -ldflags="-s -w" -o bin/inagent-linux-amd64 cmd/inagent/inagent.go
+	GOOS=linux GOARCH=arm64 go build $(GOBUILD_ARGS) -ldflags="-s -w" -o bin/inagent-linux-arm64 cmd/inagent/inagent.go
+
+INAGENT_CPP_BASE = sysinner/innerstack-alpine-inagent-cpp:3.23
+
+.PHONY: inagent-cpp-base inagent-cpp-base-amd64 inagent-cpp-base-arm64
+
+inagent-cpp-base-amd64:
+	docker build --platform linux/amd64 \
+		--build-arg TARGETPLATFORM=linux/amd64 \
+		-t $(INAGENT_CPP_BASE)-amd64 -f cmd/inagent-cpp/Dockerfile.base cmd/inagent-cpp
+
+inagent-cpp-base-arm64:
+	docker build --platform linux/arm64 \
+		--build-arg TARGETPLATFORM=linux/arm64 \
+		-t $(INAGENT_CPP_BASE)-arm64 -f cmd/inagent-cpp/Dockerfile.base cmd/inagent-cpp
+
+inagent-cpp-base: inagent-cpp-base-amd64 inagent-cpp-base-arm64
+
+INAGENT_CPP_ARCHS = amd64 arm64
+
+define INAGENT_CPP_BUILD
+inagent-cpp-$(1):
+	@docker image inspect $(INAGENT_CPP_BASE)-$(1) >/dev/null 2>&1 || \
+		$(MAKE) inagent-cpp-base-$(1)
+	docker build --platform linux/$(1) \
+		--build-arg TARGETPLATFORM=linux/$(1) \
+		--build-arg BUILDER=$(INAGENT_CPP_BASE)-$(1) \
+		-t inagent-cpp-builder-$(1) -f cmd/inagent-cpp/Dockerfile .
+	docker run --rm --platform linux/$(1) \
+		-v $(CURDIR)/bin:/output inagent-cpp-builder-$(1) \
+		cp /build/build/inagent /output/inagent-cpp-linux-$(1)
+endef
+
+$(foreach arch,$(INAGENT_CPP_ARCHS),$(eval $(call INAGENT_CPP_BUILD,$(arch))))
+
+inagent-cpp: inagent-cpp-amd64 inagent-cpp-arm64
 

@@ -977,6 +977,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		slog.Debug("ininit script written", "path", ininitPath)
 
 		// Copy inagent binary based on architecture (amd64/arm64).
+		// Prefer C++ version if available, otherwise fall back to Go version.
 		// This binary is required by the ininit script; failure is fatal.
 		arch := "amd64"
 		if info, ok := hoststatus.StatusSet.Load("docker"); ok {
@@ -984,15 +985,19 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 				arch = driverInfo.Arch
 			}
 		}
-		srcInagentPath := hostSrcPaths().InagentSrc(arch)
+		srcPaths := hostSrcPaths()
 		inagentPath := appPaths.InagentFile()
+		srcInagentPath := srcPaths.InagentCppSrc(arch)
 		if _, err := os.Stat(srcInagentPath); err != nil {
-			return fmt.Errorf("[containerCreate] inagent source binary not found at %s: %w", srcInagentPath, err)
+			srcInagentPath = srcPaths.InagentSrc(arch)
+			if _, err = os.Stat(srcInagentPath); err != nil {
+				return fmt.Errorf("[containerCreate] inagent source binary not found at %s: %w", srcInagentPath, err)
+			}
 		}
 		if _, err = exec.Command("install", srcInagentPath, inagentPath).Output(); err != nil {
 			return fmt.Errorf("[containerCreate] copy inagent binary failed: %w", err)
 		}
-		slog.Debug("inagent binary copied", "path", inagentPath, "arch", arch)
+		slog.Debug("inagent binary copied", "src", srcInagentPath, "path", inagentPath, "arch", arch)
 
 		// Set container command to run ininit
 		opts.Cmd = hostapi.ContainerCmd()
