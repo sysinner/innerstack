@@ -36,6 +36,15 @@ type AppConfigHelper struct {
 	updated int64
 }
 
+type AppDependConfigHelper interface {
+	ConfigValue(cfgName string) string
+	Service(name string) (*inapi.AppDeployReplica, *inapi.AppDeployServicePort)
+}
+
+type appDependConfigHelper struct {
+	*inapi.AppDeployDepend
+}
+
 func NewAppConfigHelper() (*AppConfigHelper, error) {
 
 	st, err := os.Stat(confFilePath)
@@ -161,6 +170,41 @@ func (it *AppConfigHelper) Service(name string, port uint32) *inapi.AppDeploySer
 
 func (app *AppConfigHelper) Params() map[string]string {
 	return VarParams(app.AppReplicaInstance)
+}
+
+func (it *AppConfigHelper) Depend(name string) AppDependConfigHelper {
+	for _, dep := range it.App.Deploy.Depends {
+		if dep.SpecName == name {
+			helper := &appDependConfigHelper{}
+			helper.AppDeployDepend = dep
+			return helper
+		}
+	}
+	return nil
+}
+
+func (it *appDependConfigHelper) ConfigValue(name string) string {
+	if it.AppDeployDepend != nil {
+		for _, v := range it.AppDeployDepend.Configs {
+			if v.Name == name {
+				return v.Value
+			}
+		}
+	}
+	return ""
+}
+
+func (it *appDependConfigHelper) Service(name string) (*inapi.AppDeployReplica, *inapi.AppDeployServicePort) {
+	if it.AppDeployDepend != nil {
+		for _, rep := range it.AppDeployDepend.Replicas {
+			for _, v := range rep.ServicePorts {
+				if v.Name == name {
+					return rep, v
+				}
+			}
+		}
+	}
+	return nil, nil
 }
 
 // 扁平化的配置信息导出

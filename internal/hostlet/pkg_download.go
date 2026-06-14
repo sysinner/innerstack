@@ -171,6 +171,8 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 	totalChunks := calcTotalChunks(pkg.File.Size, pkg.File.ChunkSize)
 
 	slog.Info("downloading package",
+		"name", pkg.Metadata.Name,
+		"version", pkg.Release.Version,
 		"package_id", pkgId,
 		"size", pkg.File.Size,
 		"chunks", totalChunks)
