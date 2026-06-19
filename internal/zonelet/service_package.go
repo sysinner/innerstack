@@ -26,10 +26,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/pkgbuild"
 	"github.com/sysinner/incore/v2/internal/status"
+	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
 	"golang.org/x/mod/semver"
 )
@@ -308,12 +308,12 @@ func (s *zoneServer) PackageList(
 			continue
 		}
 
-		resp.Packages = append(resp.Packages, &pkg)
+		resp.Items = append(resp.Items, &pkg)
 	}
 
 	// If latest_only is true, keep only the latest version for each (name, os, arch) combination
-	if req.LatestOnly && len(resp.Packages) > 0 {
-		resp.Packages = filterLatestPackages(resp.Packages)
+	if req.LatestOnly && len(resp.Items) > 0 {
+		resp.Items = filterLatestPackages(resp.Items)
 	}
 
 	return resp, nil

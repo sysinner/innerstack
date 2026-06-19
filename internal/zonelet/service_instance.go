@@ -61,6 +61,41 @@ func (s *zoneServer) AppInstanceDeploy(
 
 	var cpuLimit, memoryLimit, volumeLimit int64
 
+	refreshAppSpec := func(spec *inapi.AppSpec) error {
+
+		var (
+			key         = inapi.NsAppSpec(spec.Name)
+			prevSpec    inapi.AppSpec
+			prevVersion uint64
+		)
+
+		if rs := data.Zonelet.NewReader(key).Exec(); rs.NotFound() {
+			if rs := data.Zonelet.NewWriter(key, spec).SetCreateOnly(true).Exec(); !rs.OK() {
+				return rs.Error()
+			} else {
+				return nil
+			}
+		} else if !rs.OK() {
+			return rs.Error()
+		} else if err := rs.Item().JsonDecode(&prevSpec); err != nil {
+			return err
+		} else {
+			prevVersion = rs.Item().Meta.Version
+		}
+
+		if semverCompare(prevSpec.Version, spec.Version) > 0 {
+			slog.Info("app-spec skip version")
+			return nil
+		}
+
+		if rs := data.Zonelet.NewWriter(key, spec).SetPrevVersion(
+			prevVersion).Exec(); !rs.OK() {
+			return rs.Error()
+		}
+
+		return nil
+	}
+
 	if req.Spec != nil {
 		if err := inapi.DNSLabelValid(req.Spec.Name); err != nil {
 			return nil, fmt.Errorf("spec.name: %w", err)
@@ -140,6 +175,14 @@ func (s *zoneServer) AppInstanceDeploy(
 		// Validate package dependencies exist and are fully uploaded
 		if err := s.validatePackageDependencies(req.Spec.Packages); err != nil {
 			return nil, err
+		}
+
+		//
+		if err := refreshAppSpec(req.Spec); err != nil {
+			slog.Info("app-spec update fail", "err", err.Error())
+		} else {
+			slog.Info(fmt.Sprintf("app-spec updated, name %s, version %s",
+				req.Spec.Name, req.Spec.Version))
 		}
 	}
 

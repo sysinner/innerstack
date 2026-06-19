@@ -55,6 +55,8 @@ type ServerConfig struct {
 	HttpPort  int      `json:"http_port" toml:"http_port"`
 	PeerPort  int      `json:"peer_port" toml:"peer_port"`
 	ZoneHosts []string `json:"zone_hosts" toml:"zone_hosts"`
+
+	PublicApiEnable bool `json:"public_api_enable" toml:"public_api_enable"`
 }
 
 type HostletConfig struct {

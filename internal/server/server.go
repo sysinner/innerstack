@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net"
 
+	"github.com/hooto/httpsrv"
 	"google.golang.org/grpc"
 
 	"github.com/sysinner/incore/v2/internal/auth"
@@ -31,7 +32,11 @@ var (
 	grpcMsgByteMax = 16 * 1024 * 1024
 	lis            net.Listener
 	server         *grpc.Server
-	err            error
+
+	httpListener net.Listener
+	httpServer   *httpsrv.Service
+
+	err error
 )
 
 // Setup initializes the gRPC server with optional interceptors
@@ -50,19 +55,32 @@ func Setup() error {
 		return err
 	}
 
+	httpListener, err = net.Listen("tcp", fmt.Sprintf(":%d", config.Config.Server.HttpPort))
+	if err != nil {
+		return err
+	}
+
+	httpServer = httpsrv.NewService()
+
 	return nil
 }
 
 func Run() {
+	go httpServer.Start(httpListener)
 	server.Serve(lis)
 	slog.Info("server quit")
 }
 
 func Close() {
 	server.GracefulStop()
+	httpServer.Stop()
 }
 
 func RegisterServer(fn func(s *RpcServer)) error {
 	fn(server)
 	return nil
+}
+
+func HandleHttpModule(basepath string, mod *httpsrv.Module) {
+	httpServer.HandleModule(basepath, mod)
 }

@@ -61,6 +61,10 @@ func main() {
 		log.Fatalf("incore/server start error %s", err.Error())
 	}
 
+	if config.Config.Server.PublicApiEnable {
+		server.HandleHttpModule("/in/api/v2/public", zonelet.NewPublicModule())
+	}
+
 	signals.Go(server.Run, server.Close)
 
 	if err := hostlet.TryRun(); err != nil {

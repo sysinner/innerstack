@@ -84,7 +84,7 @@ func NewPkgListCommand() *cobra.Command {
 
 		var tbuf bytes.Buffer
 
-		if !showJson && len(resp.Packages) > 0 {
+		if !showJson && len(resp.Items) > 0 {
 			// Create output table with left-aligned headers
 			tableBase := tablewriter.NewTable(&tbuf)
 
@@ -101,7 +101,7 @@ func NewPkgListCommand() *cobra.Command {
 			tableBase.Header(headers...)
 
 			// Populate table rows
-			for _, pkg := range resp.Packages {
+			for _, pkg := range resp.Items {
 				if pkg.Metadata == nil || pkg.Release == nil || pkg.File == nil {
 					continue
 				}

@@ -67,6 +67,10 @@ func NsAppInstance(zone, id string) []byte {
 	return []byte(fmt.Sprintf("v2/app/instance/%s/%s", zone, id))
 }
 
+func NsAppSpec(name string) []byte {
+	return []byte(fmt.Sprintf("v2/app/spec/%s", name))
+}
+
 // PackageId generates a unique package ID from package metadata.
 // Format: {name}_{version}_{os}_{arch}
 func PackageId(pkg *Package) string {

@@ -254,6 +254,47 @@ message AppDeployReplica {
   repeated AppDeployServicePort service_ports = 5;
 }
 
+// AppDeployStage represents a single execution stage within the deployment
+// lifecycle of an application. Stages can be nested to model complex,
+// multi-level deployment workflows (e.g., a parent stage of "setup" may
+// contain child stages such as "download", "configure", "start").
+// Each stage tracks its owner, progress, attempt count and timing.
+message AppDeployStage {
+  // name is the identifier of the stage (e.g., "setup", "start", "healthcheck").
+  string name = 1;
+
+  // owner indicates the component responsible for executing this stage
+  // (e.g., "scheduler", "zonelet", "hostlet").
+  string owner = 2;
+
+  // state is the current execution status of the stage.
+  // Valid values: pending, running, success, failed.
+  string state = 7;
+
+  // attempt is the current retry count for this stage (0 means the first try).
+  int64 attempt = 8;
+
+  // attrs holds additional contextual key-value attributes for the stage,
+  // such as intermediate results or driver-specific parameters.
+  map<string, string> attrs = 9;
+
+  // message carries human-readable execution details, such as progress
+  // information or the last error description.
+  string message = 12;
+
+  // created is the time the stage was created, as a unix timestamp in seconds.
+  int64 created = 14;
+
+  // finished is the time the stage reached a terminal state (success or
+  // failure), as a unix timestamp in seconds. A value of 0 means the stage
+  // is still pending or running.
+  int64 finished = 15;
+
+  // stages is a list of nested child stages that make up this stage,
+  // enabling hierarchical deployment workflows.
+  repeated AppDeployStage stages = 16;
+}
+
 // // AppStatus represents the current observed status of an application.
 // message AppStatus {
 //   // id is the unique identifier of the application.

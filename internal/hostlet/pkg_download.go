@@ -130,12 +130,12 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 		return "", fmt.Errorf("[PackageDownload] failed to query package list: %w", err)
 	}
 
-	if len(listResp.Packages) == 0 {
+	if len(listResp.Items) == 0 {
 		return "", fmt.Errorf("[PackageDownload] package %s (version: %s, os: %s, arch: %s) not found",
 			pkgRef.Name, pkgRef.Version, targetOS, targetArch)
 	}
 
-	pkg := listResp.Packages[0]
+	pkg := listResp.Items[0]
 	if pkg.File == nil || pkg.File.State != inapi.PackageFileStateComplete {
 		return "", fmt.Errorf("[PackageDownload] package %s is not ready for download", pkgRef.Name)
 	}

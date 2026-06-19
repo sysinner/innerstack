@@ -408,8 +408,8 @@ message PackageListRequest {
 
 // PackageListResponse is the response message containing the list of packages.
 message PackageListResponse {
-  // packages is the list of packages.
-  repeated Package packages = 1;
+  // items is the list of packages.
+  repeated Package items = 1;
 }
 
 // PackageDeleteRequest is the request message for deleting a package.
