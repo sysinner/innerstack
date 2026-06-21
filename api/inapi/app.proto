@@ -44,7 +44,7 @@ message AppInstance {
   // revision is an internal revision number for data synchronization.
   uint64 revision = 21;
 
-  // ref_by_instances records IDs of other app instances that reference
+  // ref_by_instances records names of other app instances that reference
   // this instance as a dependency. Maintained by the zonelet to track
   // reverse dependency links.
   repeated string ref_by_instances = 22;
@@ -197,7 +197,7 @@ message AppDeploy {
   repeated AppDeployReplica replicas = 20;
 
   // depends is a list of resolved dependency bindings that map each
-  // dependent AppSpec.Name to a concrete deployed AppInstance.ID.
+  // dependent AppSpec.Name to a concrete deployed AppInstance.Name.
   repeated AppDeployDepend depends = 21;
 }
 
@@ -217,14 +217,14 @@ message AppDeployConfigItem {
 }
 
 // AppDeployDepend represents a resolved dependency binding at deploy time.
-// It maps an AppSpec.Name to a concrete deployed AppInstance.ID.
+// It maps an AppSpec.Name to a concrete deployed AppInstance.Name.
 message AppDeployDepend {
   // spec_name is the name of the dependent application specification.
   string spec_name = 1;
 
-  // instance_id is the ID of the deployed app instance that satisfies
+  // instance_name is the name of the deployed app instance that satisfies
   // this dependency.
-  string instance_id = 2;
+  string instance_name = 2;
 
   // 由调度器自动赋值
   repeated AppDeployConfigItem configs = 13;

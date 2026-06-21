@@ -23,7 +23,7 @@ option go_package = "./;inapi";
 // version.
 message Metadata {
   string id = 1;   // unique identifier
-  string name = 2; // human-readable name
+  string name = 2; // human-readable and unique name
   string user = 3; // owner or creator
 
   int64 created = 14; // creation time, unix timestamp in seconds

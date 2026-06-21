@@ -33,17 +33,17 @@ import (
 func NewAppDeployCommand() *cobra.Command {
 
 	var (
-		specFile   string
-		instanceId string
-		replicaCap uint32
-		skipConfig bool
-		action     string
+		specFile     string
+		instanceName string
+		replicaCap   uint32
+		skipConfig   bool
+		action       string
 	)
 
 	var deployRun = func(cmd *cobra.Command, args []string) error {
-		// spec is required only when creating new instance (no --id)
-		if specFile == "" && instanceId == "" {
-			return fmt.Errorf("spec file is required for new instance")
+		// name is the primary logical key for both create and update.
+		if instanceName == "" {
+			return fmt.Errorf("--name is required")
 		}
 
 		var spec *inapi.AppSpec
@@ -83,7 +83,7 @@ func NewAppDeployCommand() *cobra.Command {
 		}
 
 		instanceReq := &inapi.AppInstanceDeployRequest{
-			Id:         instanceId,
+			Name:       instanceName,
 			Spec:       spec,
 			ReplicaCap: replicaCap,
 			Deploy:     &inapi.AppDeploy{},
@@ -107,42 +107,44 @@ func NewAppDeployCommand() *cobra.Command {
 
 		zc := inapi.NewZoneServiceClient(conn)
 
-		// Fetch existing instance info if updating
+		// Fetch existing instance info by name to determine create vs update
+		// and to load existing configs/depends for update.
 		var (
 			existingConfigs []*inapi.AppDeployConfigItem
 			existingDepends []*inapi.AppDeployDepend
+			isUpdate        bool
 		)
-		if instanceReq.Id != "" {
+		{
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
 			infoResp, err := zc.AppInstanceInfo(ctx, &inapi.AppInstanceInfoRequest{
-				Id: instanceReq.Id,
+				Name: instanceName,
 			})
-			if err != nil {
-				return fmt.Errorf("failed to get existing instance info: %w", err)
-			}
-			if infoResp.Instance != nil && infoResp.Instance.Deploy != nil {
-				existingConfigs = infoResp.Instance.Deploy.Configs
-				existingDepends = infoResp.Instance.Deploy.Depends
+			cancel()
+			if err == nil && infoResp.Instance != nil {
+				isUpdate = true
+				if infoResp.Instance.Deploy != nil {
+					existingConfigs = infoResp.Instance.Deploy.Configs
+					existingDepends = infoResp.Instance.Deploy.Depends
+				}
 			}
 		}
 
 		reader := bufio.NewReader(os.Stdin)
 
 		// Interactive app name confirmation for new instance (first prompt)
-		if instanceReq.Id == "" {
-			defaultName := ""
+		if !isUpdate {
+			instanceReq.Name = instanceName
 			if spec != nil {
-				defaultName = spec.Name
-			}
-			if err := promptAppName(reader, defaultName, instanceReq); err != nil {
-				return err
+				// For new instances with spec, confirm the name interactively
+				if err := promptAppName(reader, instanceName, instanceReq); err != nil {
+					return err
+				}
 			}
 		}
 
 		// Interactive dependency resolution
 		if spec != nil && len(spec.Depends) > 0 {
-			depBounds, err := promptDependencyInstanceIds(spec.Depends, existingDepends, zc)
+			depBounds, err := promptDependencyInstances(spec.Depends, existingDepends, zc)
 			if err != nil {
 				return fmt.Errorf("dependency resolution failed: %w", err)
 			}
@@ -174,7 +176,7 @@ func NewAppDeployCommand() *cobra.Command {
 				}
 			}
 			fmt.Println()
-		} else if instanceId != "" && len(existingConfigs) > 0 {
+		} else if isUpdate && len(existingConfigs) > 0 {
 			// Use existing configs when skipping config input for update
 			configs = existingConfigs
 		}
@@ -197,9 +199,9 @@ func NewAppDeployCommand() *cobra.Command {
 
 			if err != nil {
 				errMsg := err.Error()
-				if instanceReq.Id == "" && strings.Contains(errMsg, "already in use") {
+				if !isUpdate && strings.Contains(errMsg, "already in use") {
 					fmt.Printf("\n  Error: %s\n", errMsg)
-					defaultName := ""
+					defaultName := instanceName
 					if spec != nil {
 						defaultName = spec.Name
 					}
@@ -211,10 +213,10 @@ func NewAppDeployCommand() *cobra.Command {
 				return fmt.Errorf("failed to deploy app instance: %w", err)
 			}
 
-			if instanceId != "" {
-				fmt.Printf("App instance '%s' updated successfully\n", instanceResp.Id)
+			if isUpdate {
+				fmt.Printf("App instance '%s' updated successfully\n", instanceResp.Name)
 			} else {
-				fmt.Printf("App instance '%s' deployed successfully\n", instanceResp.Id)
+				fmt.Printf("App instance '%s' deployed successfully\n", instanceResp.Name)
 			}
 			break
 		}
@@ -227,37 +229,39 @@ func NewAppDeployCommand() *cobra.Command {
 		Short: "Deploy or update an app from spec file",
 		Long: `Deploy an app from spec file (in TOML format) to API server.
 An app instance will be created based on the spec.
-If --id is provided, the existing app instance will be updated.`,
+If the instance name already exists, the existing app instance will be updated.`,
 		RunE: deployRun,
 		Example: `  # Deploy a new app from spec file
-  app deploy --spec app-spec.toml
+  app deploy --spec app-spec.toml --name myapp
 
   # Deploy with 3 replicas
-  app deploy --spec app-spec.toml --replica-cap 3
+  app deploy --spec app-spec.toml --name myapp --replica-cap 3
 
   # Update an existing app instance
-  app deploy --spec app-spec.toml --id <instance_id>
+  app deploy --spec app-spec.toml --name myapp
 
   # Update replica count of existing instance
-  app deploy --spec app-spec.toml --id <instance_id> --replica-cap 5
+  app deploy --spec app-spec.toml --name myapp --replica-cap 5
 
   # Skip interactive config input
-  app deploy --spec app-spec.toml --skip-config
+  app deploy --spec app-spec.toml --name myapp --skip-config
 
   # Set action on existing instance (start, stop, destroy)
-  app deploy --id <instance_id> --action start`,
+  app deploy --name myapp --action start`,
 	}
 
 	cmd.Flags().StringVarP(&specFile, "spec", "s",
-		"", "Path to app spec file (TOML format, required)")
-	cmd.Flags().StringVarP(&instanceId, "id", "i",
-		"", "App instance ID (if provided, updates existing instance)")
+		"", "Path to app spec file (TOML format)")
+	cmd.Flags().StringVarP(&instanceName, "name", "n",
+		"", "App instance name (required, unique within the zone)")
 	cmd.Flags().Uint32VarP(&replicaCap, "replica-cap", "r",
 		0, "Number of replicas (default: 1 for new, unchanged for update)")
 	cmd.Flags().BoolVarP(&skipConfig, "skip-config", "k",
 		false, "Skip interactive config input")
 	cmd.Flags().StringVarP(&action, "action", "",
 		"", "Deploy action (start, stop, destroy)")
+
+	cmd.MarkFlagRequired("name")
 
 	return cmd
 }
@@ -441,13 +445,13 @@ func promptConfigItems(appSpec *inapi.AppSpec,
 	return results, nil
 }
 
-// promptDependencyInstanceIds interactively prompts the user to select a deployed
-// instance ID for each AppSpec dependency. It fetches the current instance list
+// promptDependencyInstances interactively prompts the user to select a deployed
+// instance for each AppSpec dependency. It fetches the current instance list
 // from the zone and filters candidates by spec.name match.
 // existingDepends provides the current dependency bindings from an existing
 // instance (if updating). Candidates matching existing bindings are marked with
 // "(bound)" and pressing Enter preserves the current binding.
-func promptDependencyInstanceIds(
+func promptDependencyInstances(
 	depends []*inapi.AppSpecDepend,
 	existingDepends []*inapi.AppDeployDepend,
 	zc inapi.ZoneServiceClient,
@@ -470,11 +474,11 @@ func promptDependencyInstanceIds(
 		instancesByName[inst.Spec.Name] = append(instancesByName[inst.Spec.Name], inst)
 	}
 
-	// Build index: spec.name -> instance_id from existing bindings
+	// Build index: spec.name -> instance_name from existing bindings
 	existingBound := make(map[string]string, len(existingDepends))
 	for _, dep := range existingDepends {
-		if dep != nil && dep.SpecName != "" && dep.InstanceId != "" {
-			existingBound[dep.SpecName] = dep.InstanceId
+		if dep != nil && dep.SpecName != "" && dep.InstanceName != "" {
+			existingBound[dep.SpecName] = dep.InstanceName
 		}
 	}
 
@@ -497,16 +501,16 @@ func promptDependencyInstanceIds(
 		}
 		fmt.Println()
 
-		boundInstanceID := existingBound[dep.Name]
+		boundName := existingBound[dep.Name]
 		candidates := instancesByName[dep.Name]
 
 		if len(candidates) == 0 {
-			if boundInstanceID != "" {
-				fmt.Printf("  Current binding: %s\n", boundInstanceID)
-				fmt.Printf("  Enter new instance ID (or press Enter to keep): ")
+			if boundName != "" {
+				fmt.Printf("  Current binding: %s\n", boundName)
+				fmt.Printf("  Enter new instance name (or press Enter to keep): ")
 			} else {
 				fmt.Printf("  WARNING: no deployed instance found for %q\n", dep.Name)
-				fmt.Printf("  Enter instance ID (or leave empty to skip): ")
+				fmt.Printf("  Enter instance name (or leave empty to skip): ")
 			}
 
 			input, err := reader.ReadString('\n')
@@ -516,11 +520,11 @@ func promptDependencyInstanceIds(
 			input = strings.TrimSpace(input)
 
 			if input == "" {
-				if boundInstanceID != "" {
-					fmt.Printf("  Kept binding: %s\n", boundInstanceID)
+				if boundName != "" {
+					fmt.Printf("  Kept binding: %s\n", boundName)
 					results = append(results, &inapi.AppDeployDepend{
-						SpecName:   dep.Name,
-						InstanceId: boundInstanceID,
+						SpecName:     dep.Name,
+						InstanceName: boundName,
 					})
 				} else {
 					fmt.Printf("  Skipped dependency %q\n", dep.Name)
@@ -528,8 +532,8 @@ func promptDependencyInstanceIds(
 				continue
 			}
 			results = append(results, &inapi.AppDeployDepend{
-				SpecName:   dep.Name,
-				InstanceId: input,
+				SpecName:     dep.Name,
+				InstanceName: input,
 			})
 			continue
 		}
@@ -538,28 +542,28 @@ func promptDependencyInstanceIds(
 		fmt.Println("  Available instances:")
 		for i, inst := range candidates {
 			marker := ""
-			if inst.InstanceId() == boundInstanceID {
+			if inst.InstanceName() == boundName {
 				marker = " (bound)"
 			}
-			fmt.Printf("    [%d] ID: %s  Name: %s%s\n", i+1, inst.InstanceId(), inst.InstanceName(), marker)
+			fmt.Printf("    [%d] Name: %s%s\n", i+1, inst.InstanceName(), marker)
 		}
 
 		if len(candidates) == 1 {
 			inst := candidates[0]
-			fmt.Printf("  Auto-selected (only one instance): %s\n", inst.InstanceId())
+			fmt.Printf("  Auto-selected (only one instance): %s\n", inst.InstanceName())
 			results = append(results, &inapi.AppDeployDepend{
-				SpecName:   dep.Name,
-				InstanceId: inst.InstanceId(),
+				SpecName:     dep.Name,
+				InstanceName: inst.InstanceName(),
 			})
 			continue
 		}
 
 		// Prompt with context for existing binding
-		if boundInstanceID != "" {
-			fmt.Printf("  Enter number [1-%d] or instance ID (press Enter to keep %s): ",
-				len(candidates), boundInstanceID)
+		if boundName != "" {
+			fmt.Printf("  Enter number [1-%d] or instance name (press Enter to keep %s): ",
+				len(candidates), boundName)
 		} else {
-			fmt.Printf("  Enter number [1-%d] or instance ID: ", len(candidates))
+			fmt.Printf("  Enter number [1-%d] or instance name: ", len(candidates))
 		}
 
 		input, err := reader.ReadString('\n')
@@ -569,44 +573,44 @@ func promptDependencyInstanceIds(
 		input = strings.TrimSpace(input)
 
 		// Empty input preserves existing binding
-		if input == "" && boundInstanceID != "" {
-			fmt.Printf("  Kept binding: %s\n", boundInstanceID)
+		if input == "" && boundName != "" {
+			fmt.Printf("  Kept binding: %s\n", boundName)
 			results = append(results, &inapi.AppDeployDepend{
-				SpecName:   dep.Name,
-				InstanceId: boundInstanceID,
+				SpecName:     dep.Name,
+				InstanceName: boundName,
 			})
 			continue
 		}
 
 		// Try to parse as selection number
-		var selectedID string
+		var selectedName string
 		for i, inst := range candidates {
 			if input == fmt.Sprintf("%d", i+1) {
-				selectedID = inst.InstanceId()
+				selectedName = inst.InstanceName()
 				break
 			}
 		}
 
-		// Use as literal instance ID if not a number match
-		if selectedID == "" && input != "" {
-			selectedID = input
+		// Use as literal instance name if not a number match
+		if selectedName == "" && input != "" {
+			selectedName = input
 		}
 
-		if selectedID == "" {
+		if selectedName == "" {
 			return nil, fmt.Errorf("no instance selected for dependency %q", dep.Name)
 		}
 
 		results = append(results, &inapi.AppDeployDepend{
-			SpecName:   dep.Name,
-			InstanceId: selectedID,
+			SpecName:     dep.Name,
+			InstanceName: selectedName,
 		})
-		fmt.Printf("  Selected: %s\n", selectedID)
+		fmt.Printf("  Selected: %s\n", selectedName)
 	}
 
 	fmt.Println(strings.Repeat("-", 60))
 	fmt.Println("Dependency summary:")
 	for _, d := range results {
-		fmt.Printf("  %s -> %s\n", d.SpecName, d.InstanceId)
+		fmt.Printf("  %s -> %s\n", d.SpecName, d.InstanceName)
 	}
 	fmt.Println()
 

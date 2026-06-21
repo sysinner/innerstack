@@ -41,12 +41,6 @@ import (
 )
 
 var (
-	// quotaCtrNameV2Re matches v2 container names: app-{appId:8-16hex}-{repId:1-3digits}
-	quotaCtrNameV2Re = regexp.MustCompile(`^app-[a-f0-9]{8,16}-[0-9]{1,3}$`)
-
-	// quotaCtrNameV1Re matches v1 app instance replica names: {appId:12-20hex}.{repId:4hex}
-	quotaCtrNameV1Re = regexp.MustCompile(`^[a-f0-9]{12,20}\.[a-f0-9]{4}$`)
-
 	// quotaMultiSpace matches two or more consecutive spaces for normalizing
 	// xfs_quota command output.
 	quotaMultiSpace = regexp.MustCompile(`\ {2,}`)
@@ -85,21 +79,17 @@ var (
 )
 
 // quotaCtrNameMatch extracts a container name from a directory path.
-// It supports both v2 (app-{hex}-{decimal}) and v1 ({hex}.{hex}) naming
-// conventions. Returns the name and true on match.
+// It matches the v2 container naming convention (i8k_{instanceName}_{replicaId})
+// defined by hostapi.ContainerNameValid, which is derived from
+// inapi.AppInstance.InstanceName(). Returns the name and true on match.
 func quotaCtrNameMatch(dir string) (string, bool) {
 	if n := strings.LastIndex(dir, "/"); n > 0 && (n+1) < len(dir) {
 		name := dir[n+1:]
-		if quotaCtrNameV2Re.MatchString(name) || quotaCtrNameV1Re.MatchString(name) {
+		if hostapi.ContainerNameValid.MatchString(name) {
 			return name, true
 		}
 	}
 	return "", false
-}
-
-// quotaIsV2Name returns true if the name matches the v2 container naming format.
-func quotaIsV2Name(name string) bool {
-	return quotaCtrNameV2Re.MatchString(name)
 }
 
 // Fetch returns the quota project with the given name, or nil.
@@ -219,12 +209,10 @@ func (it *QuotaConfig) Sync() error {
 // SyncVendor writes the /etc/projects file that maps project IDs to their
 // directory paths. The file is only rewritten when content changes (detected
 // via SHA1 checksum) to minimize unnecessary disk I/O.
-//
-// It preserves any existing v1 entries that are not managed by v2,
-// enabling coexistence during migration from v1 to v2.
 func (it *QuotaConfig) SyncVendor() error {
-	// Build the v2 entries
-	v2maps := ""
+	// Build the project entries mapping project IDs to their container base
+	// directories on the host.
+	maps := ""
 	for _, v := range it.Items {
 		if v.Id < 1 {
 			continue
@@ -233,33 +221,9 @@ func (it *QuotaConfig) SyncVendor() error {
 		// Using the base directory (not /home subdirectory) ensures that
 		// xfs_quota path output contains the container name as the last
 		// path component, enabling correct name matching in refresh.
-		v2maps += fmt.Sprintf("%d:%s\n", v.Id,
+		maps += fmt.Sprintf("%d:%s\n", v.Id,
 			filepath.Clean(config.Config.Hostlet.AppPath+"/"+v.Name))
 	}
-
-	// Collect existing v1 entries from /etc/projects to preserve them
-	var v1maps string
-	if data, err := os.ReadFile("/etc/projects"); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			// Parse "id:path" format
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) != 2 {
-				v1maps += line + "\n"
-				continue
-			}
-			// Extract name from path and check if it's a v1 entry
-			if name, ok := quotaCtrNameMatch(parts[1]); ok && !quotaIsV2Name(name) {
-				// This is a v1 entry, preserve it
-				v1maps += line + "\n"
-			}
-		}
-	}
-
-	maps := v1maps + v2maps
 
 	mapsSum := fmt.Sprintf("%x", sha1.Sum([]byte(maps)))
 	if mapsSum == it.syncMapsSum {
@@ -553,16 +517,12 @@ func xfsQuotaRefresh() error {
 		}
 	}
 
-	// Phase 2: Remove stale v2 entries whose container directories no longer
+	// Phase 2: Remove stale entries whose container directories no longer
 	// exist on disk. Also clean up their kernel quota projects to prevent
-	// orphaned entries. v1 entries are never removed by v2 code.
+	// orphaned entries.
 	{
 		var dels []*QuotaProject
 		for _, v := range quotaConfig.Items {
-			// Only clean up v2-managed entries
-			if !quotaIsV2Name(v.Name) {
-				continue
-			}
 			ctrDir := filepath.Clean(config.Config.Hostlet.AppPath + "/" + v.Name)
 			if _, err := os.Stat(ctrDir); os.IsNotExist(err) {
 				dels = append(dels, v)
@@ -692,10 +652,10 @@ func xfsQuotaRefresh() error {
 		return err
 	}
 
-	// Phase 4: Clean up quotas for inactive v2 containers (zero out limits).
-	// v1 entries are never modified by v2 code.
+	// Phase 4: Clean up quotas for inactive containers (zero out limits).
+	cleaned := false
 	for _, v := range quotaConfig.Items {
-		if v.Soft < 1 || !quotaIsV2Name(v.Name) {
+		if v.Soft < 1 {
 			continue
 		}
 
@@ -743,7 +703,7 @@ func xfsQuotaRefresh() error {
 		if _, err := exec.Command(quotaCmd, args...).CombinedOutput(); err != nil {
 			slog.Warn("xfsquota: clean quota limit failed",
 				"container", v.Name, "error", err)
-			return err
+			continue
 		}
 
 		// Clear project directory mapping
@@ -755,11 +715,26 @@ func xfsQuotaRefresh() error {
 		if _, err := exec.Command(quotaCmd, args...).CombinedOutput(); err != nil {
 			slog.Warn("xfsquota: clean project failed",
 				"container", v.Name, "error", err)
-			return err
+			continue
 		}
+
+		// Reset in-memory limits so subsequent refresh cycles skip this
+		// entry. The project is retained (not removed) so its ID can be
+		// reused if the container becomes active again via FetchOrCreate.
+		v.Soft = 0
+		v.Hard = 0
+		cleaned = true
 
 		slog.Info("xfsquota: cleaned up project",
 			"container", v.Name, "project_id", v.Id)
+	}
+
+	// Persist quota state changes from Phase 4 cleanup so that a process
+	// restart does not trigger redundant cleanup of already-zeroed entries.
+	if cleaned {
+		if err := quotaConfig.Sync(); err != nil {
+			return err
+		}
 	}
 
 	quotaRefreshed = tn

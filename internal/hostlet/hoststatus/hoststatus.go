@@ -73,7 +73,7 @@ func (h *HostActiveConfig) UnmarshalJSON(data []byte) error {
 
 	for _, app := range h.AppInstances {
 		if app != nil {
-			h.index[app.InstanceId()] = app
+			h.index[app.InstanceName()] = app
 		}
 	}
 

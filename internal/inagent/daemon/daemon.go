@@ -35,9 +35,9 @@ import (
 )
 
 var (
-	hostId        = ""
-	appId         = ""
-	repId  uint32 = 0
+	hostId         = ""
+	appName        = ""
+	repId   uint32 = 0
 )
 
 type agentDaemonCommand struct {
@@ -78,10 +78,11 @@ func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 		return errors.New("ENV APP_HOST_ID Not Match")
 	}
 
-	//
-	appId = strings.TrimSpace(os.Getenv("APP_ID"))
-	if !inapi.ObjectIdValid.MatchString(appId) {
-		return errors.New("ENV APP_ID Not Match")
+	// APP_NAME is injected by hostlet (value = app instance Meta.Name),
+	// validated as an RFC 1123 DNS label to match zonelet create-time checks.
+	appName = strings.TrimSpace(os.Getenv("APP_NAME"))
+	if err := inapi.DNSLabelValid(appName); err != nil {
+		return errors.New("ENV APP_NAME Not Match : " + err.Error())
 	}
 
 	if os.Getenv("APP_REP_ID") == "" {

@@ -433,7 +433,7 @@ func containerControlRefresh() error {
 			nextState, err := cmd.Command(repInstance)
 			if err != nil {
 				slog.Warn("app deploy command failed",
-					"app", app.InstanceId(),
+					"app", app.InstanceName(),
 					"replica", rep.Id,
 					"state", currentState,
 					"action", app.Deploy.Action,
@@ -441,7 +441,7 @@ func containerControlRefresh() error {
 					"error", err)
 			} else {
 				slog.Info("app deploy command succeeded",
-					"app", app.InstanceId(),
+					"app", app.InstanceName(),
 					"replica", rep.Id,
 					"state", currentState,
 					"action", app.Deploy.Action,
@@ -817,7 +817,7 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 	}
 
 	slog.Info("app_replica.json updated for AppSpec sync",
-		"app", rep.App.InstanceId(),
+		"app", rep.App.InstanceName(),
 		"container", rep.ContainerName(),
 		"path", appInstancePath)
 }
@@ -858,7 +858,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	pkgMounts, err := EnsurePackages(rep.App)
 	if err != nil {
 		slog.Warn("package preparation failed",
-			"app", rep.App.InstanceId(),
+			"app", rep.App.InstanceName(),
 			"error", err)
 		return fmt.Errorf("package preparation failed: %w", err)
 	}
@@ -868,11 +868,11 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		Image:         image,
 		RestartPolicy: "always",
 		Labels: map[string]string{
-			"app_id":     rep.App.InstanceId(),
+			"app_name":     rep.App.InstanceName(),
 			"app_rep_id": fmt.Sprintf("%d", rep.Replica.Id),
 		},
 		Env: []string{
-			fmt.Sprintf("APP_ID=%s", rep.App.InstanceId()),
+			fmt.Sprintf("APP_NAME=%s", rep.App.InstanceName()),
 			fmt.Sprintf("APP_REP_ID=%d", rep.Replica.Id),
 			fmt.Sprintf("APP_HOST_ID=%s", config.Config.Hostlet.HostId),
 		},

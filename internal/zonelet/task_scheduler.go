@@ -296,13 +296,13 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
-					"instance_id", app.Value.InstanceId(),
+					"instance_name", app.Value.InstanceName(),
 					"err", err.Error())
 				return err
 			}
 
 			slog.Warn("scheduler alloc instance vpc",
-				"instance_id", app.Value.InstanceId(),
+				"instance_name", app.Value.InstanceName(),
 				"rep_id", rep.Id,
 				"ports", setPorts)
 
@@ -330,7 +330,7 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			if rep.VpcIpv4 != "" {
 				if s := zoneNetMgr.VpcInstance(rep.VpcIpv4); s == "" ||
-					s != fmt.Sprintf("%s-%d", app.Value.InstanceId(), rep.Id) {
+					s != fmt.Sprintf("%s_%d", app.Value.InstanceName(), rep.Id) {
 					rep.VpcIpv4 = ""
 				} else {
 					continue
@@ -341,20 +341,20 @@ func schedulerRefresh(forceRefresh bool) error {
 				continue
 			}
 			rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
-				rep.HostId, app.Value.InstanceId(), rep.Id)
+				rep.HostId, app.Value.InstanceName(), rep.Id)
 			if rep.VpcIpv4 == "" {
 				continue
 			}
 
 			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
-					"instance_id", app.Value.InstanceId(),
+					"instance_name", app.Value.InstanceName(),
 					"err", err.Error())
 				return err
 			}
 
 			slog.Warn("scheduler alloc instance vpc",
-				"instance_id", app.Value.InstanceId(),
+				"instance_name", app.Value.InstanceName(),
 				"ip", rep.VpcIpv4)
 		}
 	}
@@ -477,7 +477,6 @@ func schedulerRefresh(forceRefresh bool) error {
 			hit, err := sched.ScheduleHost(srep, schedResources, nil)
 			if err != nil {
 				slog.Warn("scheduler failed",
-					"instance_id", app.Value.InstanceId(),
 					"instance_name", app.Value.InstanceName(),
 					"sched-hosts", len(schedResources.Hosts),
 					"err", err.Error())
@@ -486,7 +485,6 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			if hit == nil {
 				slog.Warn("scheduler no host fit",
-					"instance_id", app.Value.InstanceId(),
 					"instance_name", app.Value.InstanceName())
 				break
 			}
@@ -503,7 +501,7 @@ func schedulerRefresh(forceRefresh bool) error {
 			if zoneNetMgr.IsReady() {
 				if hostNet := zoneNetMgr.HostNetwork(hit.HostId); hostNet != nil {
 					rep.VpcIpv4 = zoneNetMgr.AllocHostSubNetwork(config.Config.Zonelet.ZoneName,
-						hit.HostId, app.Value.InstanceId(), rep.Id)
+						hit.HostId, app.Value.InstanceName(), rep.Id)
 				}
 			}
 
@@ -532,13 +530,12 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
-					"instance_id", app.Value.InstanceId(),
+					"instance_name", app.Value.InstanceName(),
 					"err", err.Error())
 				return err
 			}
 
 			slog.Info("scheduler assigned host",
-				"instance_id", app.Value.InstanceId(),
 				"instance_name", app.Value.InstanceName(),
 				"replica_id", rep.Id,
 				"host_id", hit.HostId)

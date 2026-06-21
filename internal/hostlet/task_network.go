@@ -48,7 +48,7 @@ func networkRefresh() error {
 		if len(zoneNetworkMap.VpcInstance) > 0 {
 			for ipn, instanceId := range zoneNetworkMap.VpcInstance {
 				ipb := inetutil.Uint32ToIp(ipn)
-				dnsConf += fmt.Sprintf("[[records]]\nname = \"app-%s.%s\"\nips = [\"%s\"]\n",
+				dnsConf += fmt.Sprintf("[[records]]\nname = \"%s.%s\"\nips = [\"%s\"]\n",
 					instanceId, zoneNetworkMap.VpcNetworkDomain, ipb.String())
 			}
 			if len(dnsConf) > 10 {

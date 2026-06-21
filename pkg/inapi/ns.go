@@ -20,6 +20,8 @@ import (
 )
 
 const (
+	NsPrefix = "i8k/v2/"
+
 	HostSetupStart   = "start"
 	HostSetupStop    = "stop"
 	HostSetupDestroy = "destroy"
@@ -35,40 +37,61 @@ const (
 // }
 
 func NsZoneletInfo(zone string) []byte {
-	return []byte(fmt.Sprintf("v2/zone/%s/info", zone))
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/info", zone))
 }
 
 func NsZoneletLeader(zone string) []byte {
-	return []byte(fmt.Sprintf("v2/zone/%s/leader", zone))
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/leader", zone))
 }
 
 func NsZoneletAccessKey(zone, kid string) []byte {
-	return []byte(fmt.Sprintf("v2/zone/%s/ak/%s", zone, kid))
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/ak/%s", zone, kid))
 }
 
 // NsZoneletNetworkIPAM returns the KV key for persisting IPAM state.
 func NsZoneletNetworkIPAM(zone string) []byte {
-	return []byte(fmt.Sprintf("v2/zone/%s/network/ipam", zone))
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/network/ipam", zone))
 }
 
 func NsZoneletGatewayIngress(zone, name string) []byte {
-	return []byte(fmt.Sprintf("v2/zone/%s/gateway/default/ingress/%s", zone, name))
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/gateway/default/ingress/%s", zone, name))
 }
 
 func NsHostInfo(zone, host string) []byte {
-	return []byte(fmt.Sprintf("v2/host/%s/info/%s", zone, host))
+	return []byte(NsPrefix + fmt.Sprintf("host/%s/info/%s", zone, host))
 }
 
 func NsHostStatus(zone, host string) []byte {
-	return []byte(fmt.Sprintf("v2/host/%s/status/%s", zone, host))
+	return []byte(NsPrefix + fmt.Sprintf("host/%s/status/%s", zone, host))
 }
 
-func NsAppInstance(zone, id string) []byte {
-	return []byte(fmt.Sprintf("v2/app/instance/%s/%s", zone, id))
+// NsAppInstance returns the KV key for an app instance.
+// The second parameter is the instance name (Meta.Name), which is the primary
+// logical key after the id/name refactor.
+func NsAppInstance(zone, name string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("app/instance/%s/%s", zone, name))
 }
 
 func NsAppSpec(name string) []byte {
-	return []byte(fmt.Sprintf("v2/app/spec/%s", name))
+	return []byte(NsPrefix + fmt.Sprintf("app/spec/%s", name))
+}
+
+// NsPackageInfo returns the KV key for package metadata.
+// Key: i8k/v2/pkg/info/{pkg_id}
+func NsPackageInfo(pkgId string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("pkg/info/%s", pkgId))
+}
+
+// NsPackageFileChunk returns the KV key for a specific chunk.
+// Key: i8k/v2/pkg/chunk/{pkg_id}/{chunk_index:08d}
+func NsPackageFileChunk(pkgId string, chunkIndex int64) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("pkg/chunk/%s/%08d", pkgId, chunkIndex))
+}
+
+// NsPackageFileChunkPrefix returns the KV key prefix for all chunks of a package.
+// Key: i8k/v2/pkg/chunk/{pkg_id}/
+func NsPackageFileChunkPrefix(pkgId string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("pkg/chunk/%s/", pkgId))
 }
 
 // PackageId generates a unique package ID from package metadata.
@@ -83,22 +106,4 @@ func PackageId(pkg *Package) string {
 		pkg.Release.Os,
 		pkg.Release.Arch,
 	))
-}
-
-// NsPackageInfo returns the KV key for package metadata.
-// Key: v2/pkg/info/{pkg_id}
-func NsPackageInfo(pkgId string) []byte {
-	return []byte(fmt.Sprintf("v2/pkg/info/%s", pkgId))
-}
-
-// NsPackageFileChunk returns the KV key for a specific chunk.
-// Key: v2/pkg/chunk/{pkg_id}/{chunk_index:08d}
-func NsPackageFileChunk(pkgId string, chunkIndex int64) []byte {
-	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/%08d", pkgId, chunkIndex))
-}
-
-// NsPackageFileChunkPrefix returns the KV key prefix for all chunks of a package.
-// Key: v2/pkg/chunk/{pkg_id}/
-func NsPackageFileChunkPrefix(pkgId string) []byte {
-	return []byte(fmt.Sprintf("v2/pkg/chunk/%s/", pkgId))
 }

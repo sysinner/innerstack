@@ -350,9 +350,9 @@ type GatewayIngress_HttpRoute_Target struct {
 
 	// backend is the backend endpoint, format depends on the route type:
 	//
-	//	instance  — AppInstance.ID:Port  (e.g. "a1b2c3d4e5f6:8080")
-	//	upstream  — IPv4:Port            (e.g. "10.0.0.1:8080")
-	//	redirect  — Full URL             (e.g. "https://example.com/path")
+	//	instance  — AppInstance.Name:Port (e.g. "my-app:8080")
+	//	upstream  — IPv4:Port             (e.g. "10.0.0.1:8080")
+	//	redirect  — Full URL              (e.g. "https://example.com/path")
 	Backend string `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty" toml:"backend,omitempty"`
 	// weight is the traffic weight for load balancing (0 means equal share).
 	Weight int32 `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty" toml:"weight,omitempty"`

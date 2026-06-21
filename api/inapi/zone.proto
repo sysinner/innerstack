@@ -78,7 +78,7 @@ message Zone {
   string vpc_instance_cidr = 11;
 
   // vpc_network_domain is the DNS domain for VPC internal name resolution.
-  // The internal DNS resolves <app-instance-id>.<domain> to the container
+  // The internal DNS resolves <app-instance-name>.<domain> to the container
   // instance IP. Default: "local". Recommended: "zone-name.example.com".
   string vpc_network_domain = 12;
 }
@@ -108,8 +108,11 @@ message ZoneNetworkMap {
   // subnet 10.10.2.0
   map<fixed32, Host> vpc_bridge_host = 5;
 
-  // vpc_instance maps instance IP last octet to replica ID.
-  // Example: key corresponding to 10.10.2.3 -> "699e0d6f3f11-0000"
+  // vpc_instance maps instance IP last octet to replica identity.
+  // The value is formatted as "<instance_name>_<replica_id>", where
+  // instance_name is the human-readable app instance name (Meta.Name)
+  // and replica_id is the decimal replica index (no zero-padding).
+  // Example: key corresponding to 10.10.2.3 -> "myapp_0"
   map<fixed32, string> vpc_instance = 7;
 
   // monotonic revision for incremental sync

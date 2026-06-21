@@ -91,7 +91,7 @@ type Zone struct {
 	// internal IPAM scheduler.
 	VpcInstanceCidr string `protobuf:"bytes,11,opt,name=vpc_instance_cidr,json=vpcInstanceCidr,proto3" json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
 	// vpc_network_domain is the DNS domain for VPC internal name resolution.
-	// The internal DNS resolves <app-instance-id>.<domain> to the container
+	// The internal DNS resolves <app-instance-name>.<domain> to the container
 	// instance IP. Default: "local". Recommended: "zone-name.example.com".
 	VpcNetworkDomain string `protobuf:"bytes,12,opt,name=vpc_network_domain,json=vpcNetworkDomain,proto3" json:"vpc_network_domain,omitempty" toml:"vpc_network_domain,omitempty"`
 }
@@ -194,8 +194,11 @@ type ZoneNetworkMap struct {
 	// Example: key=3232238090 -> host id "6985b60604d7", instance
 	// subnet 10.10.2.0
 	VpcBridgeHost map[uint32]*ZoneNetworkMap_Host `protobuf:"bytes,5,rep,name=vpc_bridge_host,json=vpcBridgeHost,proto3" json:"vpc_bridge_host,omitempty" toml:"vpc_bridge_host,omitempty" protobuf_key:"fixed32,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// vpc_instance maps instance IP last octet to replica ID.
-	// Example: key corresponding to 10.10.2.3 -> "699e0d6f3f11-0000"
+	// vpc_instance maps instance IP last octet to replica identity.
+	// The value is formatted as "<instance_name>_<replica_id>", where
+	// instance_name is the human-readable app instance name (Meta.Name)
+	// and replica_id is the decimal replica index (no zero-padding).
+	// Example: key corresponding to 10.10.2.3 -> "myapp_0"
 	VpcInstance map[uint32]string `protobuf:"bytes,7,rep,name=vpc_instance,json=vpcInstance,proto3" json:"vpc_instance,omitempty" toml:"vpc_instance,omitempty" protobuf_key:"fixed32,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// monotonic revision for incremental sync
 	Revision uint64 `protobuf:"varint,8,opt,name=revision,proto3" json:"revision,omitempty" toml:"revision,omitempty"`

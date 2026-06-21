@@ -208,7 +208,7 @@ func statusRefresh() error {
 	}
 
 	for _, app := range resp.AppInstances {
-		hoststatus.ActiveAppList.Store(app.InstanceId(), app)
+		hoststatus.ActiveAppList.Store(app.InstanceName(), app)
 	}
 
 	cfgFlush := false

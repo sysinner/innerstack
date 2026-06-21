@@ -42,11 +42,11 @@ func (it *appInstanceSet) Flush(app *appInstanceEntry) error {
 	it.mu.Lock()
 	defer it.mu.Unlock()
 
-	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, app.Value.InstanceId())
+	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, app.Value.InstanceName())
 	if rs := data.Zonelet.NewWriter(key, app.Value).SetPrevVersion(
 		app.Meta.Version).Exec(); !rs.OK() {
 		slog.Warn("update instance fail",
-			"instance_id", app.Value.InstanceId(),
+			"instance_name", app.Value.InstanceName(),
 			"err", rs.ErrorMessage())
 		return rs.Error()
 	} else {
@@ -75,7 +75,7 @@ func (it *appInstanceSet) Refresh() error {
 		if instance.Deploy == nil || instance.Spec == nil ||
 			instance.Spec.Resources == nil {
 			slog.Warn("refresh instance with invalid deploy or spec",
-				"instance_id", instance.InstanceId())
+				"instance_name", instance.InstanceName())
 			continue
 		}
 
@@ -103,7 +103,7 @@ func (it *appInstanceSet) store(app *inapi.AppInstance, meta *kvapi.Meta) {
 	}
 
 	if app != nil && meta != nil {
-		entry, ok := it.idx[app.InstanceId()]
+		entry, ok := it.idx[app.InstanceName()]
 		if ok && meta.Version <= entry.Meta.Version {
 			return
 		} else if ok {
@@ -114,7 +114,7 @@ func (it *appInstanceSet) store(app *inapi.AppInstance, meta *kvapi.Meta) {
 				Meta:  meta,
 				Value: app,
 			}
-			it.idx[app.InstanceId()] = entry
+			it.idx[app.InstanceName()] = entry
 			it.arr = append(it.arr, entry)
 		}
 		it.version = max(it.version, meta.Version)

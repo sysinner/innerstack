@@ -184,12 +184,12 @@ const (
 // Each type determines how the gateway resolves route targets into backend
 // addresses. The target format varies by type:
 //
-//   - instance : AppInstanceID:Port  (gateway resolves the instance to its
-//     runtime address automatically, e.g. "a1b2c3d4e5f6:8080")
+//   - instance : Name:Port           (gateway resolves the instance name to its
+//     runtime address automatically, e.g. "my-app:8080")
 //   - upstream : IPv4:Port           (static custom upstream, e.g. "10.0.1.5:80")
 //   - redirect : http(s)://host/path (HTTP redirect, e.g. "https://example.com/path")
 const (
-	GatewayIngressType_Instance = "instance" // route to an app instance by AppInstance.ID:Port
+	GatewayIngressType_Instance = "instance" // route to an app instance by AppInstance.Name:Port
 
 	GatewayIngressType_Upstream = "upstream" // route to a static upstream by IPv4:Port
 

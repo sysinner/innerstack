@@ -15,14 +15,12 @@
 package data
 
 import (
-	"encoding/json"
 	"log/slog"
 
 	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 	"github.com/lynkdb/kvgo/v2/pkg/kvrep"
 	"github.com/lynkdb/kvgo/v2/pkg/storage"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/internal/config"
 )
 
@@ -42,94 +40,48 @@ func Setup() error {
 		return err
 	} else {
 		Hostlet = c
+		slog.Info("database connected", "name", "hostlet", "type", "local-replica")
 	}
 
-	if c, err := kvrep.NewReplica(&storage.Options{
-		DataDirectory: config.Prefix + "/var/zonelet_db",
-	}); err != nil {
-		return err
-	} else {
+	if config.Config.ZoneDatabase != nil &&
+		config.Config.ZoneDatabase.Database != "" {
+		c, err := config.Config.ZoneDatabase.NewClient()
+		if err != nil {
+			return err
+		}
 		Zonelet = c
-	}
-
-	if c, err := kvrep.NewReplica(&storage.Options{
-		DataDirectory: config.Prefix + "/var/package_db",
-	}); err != nil {
-		return err
+		slog.Info("database connected", "name", "zonelet", "type", "remote")
 	} else {
-		Package = c
+		if c, err := kvrep.NewReplica(&storage.Options{
+			DataDirectory: config.Prefix + "/var/zonelet_db",
+		}); err != nil {
+			return err
+		} else {
+			Zonelet = c
+			slog.Info("database connected", "name", "zonelet", "type", "local-replica")
+		}
 	}
 
-	appInstanceMigrate()
+	if config.Config.PackageDatabase != nil &&
+		config.Config.PackageDatabase.Database != "" {
+		c, err := config.Config.PackageDatabase.NewClient()
+		if err != nil {
+			return err
+		}
+		Package = c
+		slog.Info("database connected", "name", "package", "type", "remote")
+	} else {
+		if c, err := kvrep.NewReplica(&storage.Options{
+			DataDirectory: config.Prefix + "/var/package_db",
+		}); err != nil {
+			return err
+		} else {
+			Package = c
+			slog.Info("database connected", "name", "package", "type", "local-replica")
+		}
+	}
 
 	return nil
-}
-
-// appInstanceMigrate migrates legacy AppInstance records that store id/name as
-// top-level JSON fields into the new Metadata-based format (meta.id, meta.name).
-// This is a forward-compatible migration executed on zonelet startup.
-func appInstanceMigrate() {
-
-	var (
-		offset = inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-		rs     = Zonelet.NewRanger(offset, append(offset, 0xff)).
-			SetLimit(10000).Exec()
-	)
-
-	for _, item := range rs.Items {
-
-		// Parse raw JSON value to detect legacy format
-		var raw map[string]json.RawMessage
-		if err := json.Unmarshal(item.Value, &raw); err != nil {
-			continue
-		}
-
-		// Skip if "meta" field already present (new format)
-		if _, hasMeta := raw["meta"]; hasMeta {
-			continue
-		}
-
-		// Extract legacy id and name
-		var (
-			legacyID   string
-			legacyName string
-		)
-		if v, ok := raw["id"]; ok {
-			_ = json.Unmarshal(v, &legacyID)
-		}
-		if v, ok := raw["name"]; ok {
-			_ = json.Unmarshal(v, &legacyName)
-		}
-
-		if legacyID == "" && legacyName == "" {
-			continue
-		}
-
-		// Decode into AppInstance struct
-		var instance inapi.AppInstance
-		if err := item.JsonDecode(&instance); err != nil {
-			continue
-		}
-
-		// Populate meta from legacy fields
-		instance.Meta = &inapi.Metadata{
-			Id:   legacyID,
-			Name: legacyName,
-		}
-
-		// Write back with optimistic concurrency via prev version
-		if rs := Zonelet.NewWriter(item.Key, &instance).
-			SetPrevVersion(item.Meta.Version).Exec(); !rs.OK() {
-			slog.Warn("app instance migration write failed",
-				"key", string(item.Key),
-				"err", rs.Error())
-			continue
-		}
-
-		slog.Info("app instance migrated: legacy id/name -> meta",
-			"instance_id", legacyID,
-			"instance_name", legacyName)
-	}
 }
 
 func Close() error {

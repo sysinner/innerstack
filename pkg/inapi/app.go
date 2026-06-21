@@ -47,6 +47,8 @@ func (x *AppInstance) InstanceName() string {
 }
 
 // ContainerName returns the container name for the app replica instance.
+// Format: i8k_{instanceName}_{replicaId}
+// The instance name (Meta.Name) is the logical key after the id/name refactor.
 func (it *AppReplicaInstance) ContainerName() string {
-	return fmt.Sprintf("app-%s-%d", it.App.InstanceId(), it.Replica.Id)
+	return fmt.Sprintf("i8k_%s_%d", it.App.InstanceName(), it.Replica.Id)
 }

@@ -240,7 +240,7 @@ message ZoneSetResponse {
 // instance.
 message AppInstanceDeployRequest {
   // id is the unique identifier for the application instance.
-  // If empty, a new ID will be generated.
+  // Deprecated: kept for backward compatibility only. Use name instead.
   string id = 1;
 
   // spec defines the application specification including resources,
@@ -253,8 +253,8 @@ message AppInstanceDeployRequest {
   // deploy specifies the deployment parameters and desired action.
   AppDeploy deploy = 4;
 
-  // name is the instance name. For new instances, it defaults to spec.name.
-  // Must be unique within the zone. Immutable after creation.
+  // name is the instance name. It is the primary logical key for both create
+  // and update. Must be unique within the zone. Immutable after creation.
   string name = 5;
 }
 
@@ -262,14 +262,23 @@ message AppInstanceDeployRequest {
 // application instance.
 message AppInstanceDeployResponse {
   // id is the unique identifier of the deployed application instance.
+  // Deprecated: kept for persistence only. Prefer the name field below.
   string id = 1;
+
+  // name is the logical name of the deployed application instance.
+  string name = 2;
 }
 
 // AppInstanceInfoRequest is the request message for retrieving application
 // instance info.
 message AppInstanceInfoRequest {
   // id is the unique identifier of the application instance to retrieve.
+  // Deprecated: prefer name below.
   string id = 1;
+
+  // name is the unique logical name of the application instance to retrieve.
+  // When set, it takes precedence over id.
+  string name = 2;
 }
 
 // AppInstanceInfoResponse is the response message containing application
@@ -294,7 +303,12 @@ message AppInstanceListResponse {
 // instance.
 message AppInstanceDeleteRequest {
   // id is the unique identifier of the application instance to delete.
+  // Deprecated: prefer name below.
   string id = 1;
+
+  // name is the unique logical name of the application instance to delete.
+  // When set, it takes precedence over id.
+  string name = 2;
 }
 
 // AppInstanceDeleteResponse is the response message after deleting an

@@ -20,7 +20,6 @@ import (
 	"net"
 	"net/url"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,10 +35,6 @@ import (
 	"github.com/sysinner/incore/v2/internal/status"
 	"github.com/sysinner/incore/v2/pkg/inapi"
 	"github.com/sysinner/incore/v2/pkg/inauth"
-)
-
-var (
-	gatewayDomainAppRX = regexp.MustCompile("^[0-9a-f]{12,16}$")
 )
 
 func (it *zoneServer) GatewayIngressList(
@@ -238,14 +233,14 @@ func (it *zoneServer) GatewayIngressSet(
 				for _, tgt := range route.Targets {
 					ups := strings.Split(tgt.Backend, ":")
 					if len(ups) != 2 {
-						return nil, lynkapi.NewClientError("Invalid AppInstance ID:Port")
+						return nil, lynkapi.NewClientError("Invalid AppInstance Name:Port")
 					}
-					if !gatewayDomainAppRX.MatchString(ups[0]) {
-						return nil, lynkapi.NewClientError("Invalid AppInstance ID:Port")
+					if err := inapi.DNSLabelValid(ups[0]); err != nil {
+						return nil, lynkapi.NewClientError("Invalid AppInstance Name:Port")
 					}
 
 					if port, err := strconv.Atoi(ups[1]); err != nil || port < 80 || port > 65505 {
-						return nil, lynkapi.NewClientError("Invalid AppInstance ID:Port")
+						return nil, lynkapi.NewClientError("Invalid AppInstance Name:Port")
 					}
 				}
 

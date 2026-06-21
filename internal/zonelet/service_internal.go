@@ -43,7 +43,7 @@ func (s *zoneInternalServer) HostStatusUpdate(
 ) (*inapi.HostStatusUpdateResponse, error) {
 
 	if !status.IsZoneletLeader() || !gAppInstanceSet.IsReady() {
-		return nil, errors.New("zonelet leader")
+		return nil, errors.New("zonelet leader not ready")
 	}
 
 	if req.Host == nil ||
@@ -110,7 +110,7 @@ func (s *zoneInternalServer) HostStatusUpdate(
 			appInstance := proto.Clone(app.Value).(*inapi.AppInstance)
 
 			for _, dep := range appInstance.Deploy.Depends {
-				depApp := gAppInstanceSet.Load(dep.InstanceId)
+				depApp := gAppInstanceSet.Load(dep.InstanceName)
 				if depApp == nil || depApp.Value.Deploy == nil ||
 					len(depApp.Value.Deploy.Configs) == 0 {
 					continue

@@ -33,16 +33,15 @@ import (
 func NewAppInfoCommand() *cobra.Command {
 
 	var (
-		showJson bool
+		instanceName string
+		showJson     bool
 	)
 
 	run := func(cmd *cobra.Command, args []string) error {
 
-		if len(args) == 0 {
-			return fmt.Errorf("instance id is required")
+		if instanceName == "" {
+			return fmt.Errorf("instance name is required")
 		}
-
-		instanceId := args[0]
 
 		zone, err := Config.Zone("")
 		if err != nil {
@@ -62,7 +61,7 @@ func NewAppInfoCommand() *cobra.Command {
 		zc := inapi.NewZoneServiceClient(conn)
 
 		req := &inapi.AppInstanceInfoRequest{
-			Id: instanceId,
+			Name: instanceName,
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -98,7 +97,7 @@ func NewAppInfoCommand() *cobra.Command {
 			tableBase.Append(values...)
 			tableBase.Render()
 		} else {
-			tbuf.WriteString(fmt.Sprintf("Get app instance '%s' successfully\n", instanceId))
+			tbuf.WriteString(fmt.Sprintf("Get app instance '%s' successfully\n", instanceName))
 
 			js, _ := json.MarshalIndent(resp, "", "  ")
 			tbuf.Write(js)
@@ -110,12 +109,15 @@ func NewAppInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "app-info [instance-id]",
+		Use:   "app-info",
 		Short: "Show app instance details",
 		RunE:  run,
 	}
 
+	cmd.Flags().StringVarP(&instanceName, "name", "n", "", "App instance name (required)")
 	cmd.Flags().BoolVarP(&showJson, "show-json", "j", false, "show raw response with json")
+
+	cmd.MarkFlagRequired("name")
 
 	return cmd
 }

@@ -76,9 +76,9 @@ func NewAppListCommand() *cobra.Command {
 			})
 
 			tableBase.Header([]any{
-				"Id", "Name",
+				"Name",
 				"CPU", "Memory", "Volume",
-				"Replicas", "Host Id",
+				"Host Id",
 			}...)
 
 			for _, v := range resp.Items {
@@ -99,11 +99,10 @@ func NewAppListCommand() *cobra.Command {
 				}
 
 				values := []any{
-					v.InstanceId(), v.InstanceName(),
+					v.InstanceName(),
 					inutil.PrettyCPUs(v.Deploy.CpuLimit),
 					inutil.PrettyBytes(v.Deploy.MemoryLimit, 1024),
 					inutil.PrettyBytes(v.Deploy.VolumeLimit, 1024),
-					v.Deploy.ReplicaCap,
 					hostId,
 				}
 

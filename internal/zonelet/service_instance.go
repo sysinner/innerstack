@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 	"github.com/sysinner/incore/v2/internal/config"
 	"github.com/sysinner/incore/v2/internal/data"
 	"github.com/sysinner/incore/v2/internal/inutil"
@@ -42,21 +43,25 @@ func (s *zoneServer) AppInstanceDeploy(
 		return nil, errors.New("zonelet leader")
 	}
 
-	// For new instances, spec and name are required
-	if req.Id == "" {
-		if req.Spec == nil {
-			return nil, errors.New("spec is required for new instance")
-		}
-		if req.Name == "" {
-			return nil, errors.New("name is required for new instance")
-		}
-		if err := inapi.DNSLabelValid(req.Name); err != nil {
-			return nil, fmt.Errorf("name: %w", err)
-		}
-		// Check name uniqueness within the zone
-		if err := validateInstanceNameUnique(req.Name, ""); err != nil {
-			return nil, err
-		}
+	// name is the primary logical key for both create and update.
+	if req.Name == "" {
+		return nil, errors.New("name is required")
+	}
+	if err := inapi.DNSLabelValid(req.Name); err != nil {
+		return nil, fmt.Errorf("name: %w", err)
+	}
+
+	// Determine whether this is a create or update by looking up the instance
+	// by name (the logical key).
+	existingByName, existingKvMeta, err := loadInstanceByName(req.Name)
+	if err != nil {
+		return nil, err
+	}
+	isUpdate := existingByName != nil
+
+	// For new instances, spec is required
+	if !isUpdate && req.Spec == nil {
+		return nil, errors.New("spec is required for new instance")
 	}
 
 	var cpuLimit, memoryLimit, volumeLimit int64
@@ -188,33 +193,15 @@ func (s *zoneServer) AppInstanceDeploy(
 
 	var instance *inapi.AppInstance
 
-	if req.Id != "" {
+	if isUpdate {
 		// Update existing instance
+		instance = existingByName
+
+		// Build KV key from the instance name (logical key)
 		var (
-			key                     = inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Id)
-			prevVersion      uint64 = 0
-			existingInstance inapi.AppInstance
+			key         = inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.InstanceName())
+			prevVersion = existingKvMeta.Version
 		)
-
-		if rs := data.Zonelet.NewReader(key).Exec(); !rs.OK() {
-			if rs.NotFound() {
-				return nil, errors.New("instance not found")
-			}
-			return nil, rs.Error()
-		} else if err := rs.Item().JsonDecode(&existingInstance); err != nil {
-			return nil, err
-		} else {
-			prevVersion = rs.Item().Meta.Version
-		}
-
-		instance = &existingInstance
-
-		// Name is immutable after creation
-		if req.Name != "" && req.Name != instance.InstanceName() {
-			return nil, fmt.Errorf(
-				"instance name is immutable: cannot change from %q to %q",
-				instance.InstanceName(), req.Name)
-		}
 
 		// Update spec only if provided
 		if req.Spec != nil {
@@ -257,29 +244,33 @@ func (s *zoneServer) AppInstanceDeploy(
 		instance.Deploy.Revision += 1
 
 		// Detect dependency changes for reverse-reference updates
-		prevDepIDs := deployDependInstanceIDs(existingInstance.Deploy)
-		nextDepIDs := deployDependInstanceIDs(instance.Deploy)
+		prevDepNames := deployDependInstanceNames(existingByName.Deploy)
+		nextDepNames := deployDependInstanceNames(instance.Deploy)
 
 		if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
 			prevVersion).Exec(); !rs.OK() {
 			return nil, rs.Error()
 		}
 
-		// Update reverse references (ref_by_instance_ids) on dependent instances
-		if err := s.updateDependencyReverseRefs(req.Id, prevDepIDs, nextDepIDs); err != nil {
+		// Update reverse references (ref_by_instances) on dependent instances
+		if err := s.updateDependencyReverseRefs(instance.InstanceName(), prevDepNames, nextDepNames); err != nil {
 			slog.Error("zonelet app-instance-update: failed to update reverse refs",
-				"instance_id", req.Id,
+				"instance_name", instance.InstanceName(),
 				"err", err.Error())
 		}
 
 		slog.Warn("zonelet app-instance-update",
-			"instance_id", req.Id,
 			"instance_name", instance.InstanceName(),
 			"replica_cap", instance.Deploy.ReplicaCap,
 			"action", instance.Deploy.Action,
 		)
 	} else {
-		// 创建新实例
+		// Create a new instance
+
+		// Check name uniqueness within the zone
+		if err := validateInstanceNameUnique(req.Name); err != nil {
+			return nil, err
+		}
 
 		deploy := &inapi.AppDeploy{
 			Action:      inapi.OpActionStart,
@@ -313,23 +304,22 @@ func (s *zoneServer) AppInstanceDeploy(
 		// Resolve config field auto-fill values
 		resolveDeployConfigFields(instance)
 
-		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.InstanceId())
+		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.InstanceName())
 
 		if rs := data.Zonelet.NewWriter(key, instance).
 			SetCreateOnly(true).Exec(); !rs.OK() {
 			return nil, rs.Error()
 		}
 
-		// Update reverse references (ref_by_instance_ids) on dependent instances
-		depIDs := deployDependInstanceIDs(deploy)
-		if err := s.updateDependencyReverseRefs(instance.InstanceId(), nil, depIDs); err != nil {
+		// Update reverse references (ref_by_instances) on dependent instances
+		depNames := deployDependInstanceNames(deploy)
+		if err := s.updateDependencyReverseRefs(instance.InstanceName(), nil, depNames); err != nil {
 			slog.Error("zonelet app-instance-deploy: failed to update reverse refs",
-				"instance_id", instance.InstanceId(),
+				"instance_name", instance.InstanceName(),
 				"err", err.Error())
 		}
 
 		slog.Warn("zonelet app-instance-deploy",
-			"instance_id", instance.InstanceId(),
 			"instance_name", instance.InstanceName(),
 			"replica_cap", instance.Deploy.ReplicaCap,
 		)
@@ -338,7 +328,8 @@ func (s *zoneServer) AppInstanceDeploy(
 	status.Zonelet_ForceRefresh.Store(true)
 
 	return &inapi.AppInstanceDeployResponse{
-		Id: instance.InstanceId(),
+		Id:   instance.InstanceId(),
+		Name: instance.InstanceName(),
 	}, nil
 }
 
@@ -354,14 +345,17 @@ func (s *zoneServer) AppInstanceInfo(
 		return nil, errors.New("zonelet leader")
 	}
 
-	if req.Id == "" {
-		return nil, errors.New("id is required")
+	if req.Name == "" {
+		return nil, errors.New("name is required")
+	}
+	if err := inapi.DNSLabelValid(req.Name); err != nil {
+		return nil, fmt.Errorf("name: %w", err)
 	}
 
 	var instance inapi.AppInstance
 
-	if rs := data.Zonelet.NewReader(
-		inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Id)).Exec(); !rs.OK() {
+	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Name)
+	if rs := data.Zonelet.NewReader(key).Exec(); !rs.OK() {
 		if rs.NotFound() {
 			return nil, errors.New("instance not found")
 		}
@@ -414,11 +408,14 @@ func (s *zoneServer) AppInstanceDelete(
 		return nil, errors.New("zonelet leader")
 	}
 
-	if req.Id == "" {
-		return nil, errors.New("id is required")
+	if req.Name == "" {
+		return nil, errors.New("name is required")
+	}
+	if err := inapi.DNSLabelValid(req.Name); err != nil {
+		return nil, fmt.Errorf("name: %w", err)
 	}
 
-	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Id)
+	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Name)
 
 	if rs := data.Zonelet.NewDeleter(key).Exec(); !rs.OK() {
 		if rs.NotFound() {
@@ -428,7 +425,7 @@ func (s *zoneServer) AppInstanceDelete(
 	}
 
 	slog.Warn("zonelet app-instance-delete",
-		"instance_id", req.Id,
+		"instance_name", req.Name,
 	)
 
 	status.Zonelet_ForceRefresh.Store(true)
@@ -436,10 +433,38 @@ func (s *zoneServer) AppInstanceDelete(
 	return &inapi.AppInstanceDeleteResponse{}, nil
 }
 
+// loadInstanceByName loads an app instance by its name (the logical key).
+// Returns (nil, nil, nil) when not found.
+func loadInstanceByName(name string) (*inapi.AppInstance, *kvapi.Meta, error) {
+	if name == "" {
+		return nil, nil, nil
+	}
+	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, name)
+	rs := data.Zonelet.NewReader(key).Exec()
+	if !rs.OK() {
+		if rs.NotFound() {
+			return nil, nil, nil
+		}
+		return nil, nil, rs.Error()
+	}
+	var instance inapi.AppInstance
+	if err := rs.Item().JsonDecode(&instance); err != nil {
+		return nil, nil, err
+	}
+	return &instance, rs.Item().Meta, nil
+}
+
 // validateInstanceNameUnique checks that no other app instance in the zone
-// has the given name. The excludeID parameter allows excluding the current
-// instance (used for update scenarios, though name changes are not allowed).
-func validateInstanceNameUnique(name, excludeID string) error {
+// has the given name.
+func validateInstanceNameUnique(name string) error {
+	// Fast path: direct key read (the name is the logical key).
+	if found, _, err := loadInstanceByName(name); err != nil {
+		return err
+	} else if found != nil {
+		return fmt.Errorf("app name %q already in use", name)
+	}
+
+	// Defensive scan to guard against legacy data keyed by id.
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
 	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
 
@@ -448,13 +473,9 @@ func validateInstanceNameUnique(name, excludeID string) error {
 		if err := item.JsonDecode(&inst); err != nil {
 			continue
 		}
-		if inst.Meta == nil || inst.Meta.Name != name {
-			continue
+		if inst.InstanceName() == name {
+			return fmt.Errorf("app name %q already in use", name)
 		}
-		if excludeID != "" && inst.InstanceId() == excludeID {
-			continue
-		}
-		return fmt.Errorf("app name %q already in use by instance %s", name, inst.InstanceId())
 	}
 	return nil
 }
@@ -563,7 +584,7 @@ func resolveDeployConfigFields(instance *inapi.AppInstance) {
 
 // validateDeployDependencies validates that each deploy-time dependency binding
 // references an existing, valid app instance. It checks:
-//   - instance_id is not empty
+//   - instance_name is not empty
 //   - the target instance exists in the zone
 //   - the target instance's spec.name matches the declared spec_name
 //   - self-reference is not allowed
@@ -581,30 +602,26 @@ func validateDeployDependencies(
 		if dep.SpecName == "" {
 			return errors.New("deploy dependency spec_name is required")
 		}
-		if dep.InstanceId == "" {
-			return fmt.Errorf("deploy dependency %q: instance_id is required", dep.SpecName)
+		if dep.InstanceName == "" {
+			return fmt.Errorf("deploy dependency %q: instance_name is required", dep.SpecName)
 		}
 
-		// Load target instance
-		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, dep.InstanceId)
-		var target inapi.AppInstance
-		if rs := data.Zonelet.NewReader(key).Exec(); !rs.OK() {
-			if rs.NotFound() {
-				return fmt.Errorf("deploy dependency %q: instance %q not found",
-					dep.SpecName, dep.InstanceId)
-			}
+		// Load target instance by name (the logical key)
+		target, _, err := loadInstanceByName(dep.InstanceName)
+		if err != nil {
 			return fmt.Errorf("deploy dependency %q: failed to query instance: %w",
-				dep.SpecName, rs.Error())
-		} else if err := rs.Item().JsonDecode(&target); err != nil {
-			return fmt.Errorf("deploy dependency %q: failed to decode instance: %w",
 				dep.SpecName, err)
+		}
+		if target == nil {
+			return fmt.Errorf("deploy dependency %q: instance %q not found",
+				dep.SpecName, dep.InstanceName)
 		}
 
 		// Verify spec.name match
 		if target.Spec == nil || target.Spec.Name != dep.SpecName {
 			return fmt.Errorf(
 				"deploy dependency %q: instance %q has spec.name %q, expected %q",
-				dep.SpecName, dep.InstanceId, target.Spec.GetName(), dep.SpecName)
+				dep.SpecName, dep.InstanceName, target.Spec.GetName(), dep.SpecName)
 		}
 
 		// Prevent self-reference
@@ -617,51 +634,51 @@ func validateDeployDependencies(
 	return nil
 }
 
-// deployDependInstanceIDs extracts the set of dependency instance IDs from
+// deployDependInstanceNames extracts the set of dependency instance names from
 // an AppDeploy's depends list. Returns nil if deploy is nil or has no depends.
-func deployDependInstanceIDs(deploy *inapi.AppDeploy) map[string]struct{} {
+func deployDependInstanceNames(deploy *inapi.AppDeploy) map[string]struct{} {
 	if deploy == nil {
 		return nil
 	}
-	ids := make(map[string]struct{}, len(deploy.Depends))
+	names := make(map[string]struct{}, len(deploy.Depends))
 	for _, dep := range deploy.Depends {
-		if dep != nil && dep.InstanceId != "" {
-			ids[dep.InstanceId] = struct{}{}
+		if dep != nil && dep.InstanceName != "" {
+			names[dep.InstanceName] = struct{}{}
 		}
 	}
-	return ids
+	return names
 }
 
 // updateDependencyReverseRefs maintains the reverse dependency links
-// (ref_by_instance_ids) on all affected target instances. When an app instance's
+// (ref_by_instances) on all affected target instances. When an app instance's
 // dependency bindings change, this function:
-//   - removes the instance ID from ref_by_instance_ids of previously depended instances
-//   - adds the instance ID to ref_by_instance_ids of newly depended instances
+//   - removes the instance name from ref_by_instances of previously depended instances
+//   - adds the instance name to ref_by_instances of newly depended instances
 func (s *zoneServer) updateDependencyReverseRefs(
-	instanceID string,
-	prevDepIDs, nextDepIDs map[string]struct{},
+	instanceName string,
+	prevDepNames, nextDepNames map[string]struct{},
 ) error {
 
-	if len(prevDepIDs) == 0 && len(nextDepIDs) == 0 {
+	if len(prevDepNames) == 0 && len(nextDepNames) == 0 {
 		return nil
 	}
 
 	dels := map[string]bool{}
-	for id := range nextDepIDs {
-		delete(prevDepIDs, id)
-		if _, ok := prevDepIDs[id]; ok {
+	for name := range nextDepNames {
+		delete(prevDepNames, name)
+		if _, ok := prevDepNames[name]; ok {
 			continue
 		}
-		dels[id] = true
+		dels[name] = true
 	}
-	for id := range prevDepIDs {
-		dels[id] = false
+	for name := range prevDepNames {
+		dels[name] = false
 	}
 
-	for id, add := range dels {
+	for name, add := range dels {
 
 		var (
-			key         = inapi.NsAppInstance(config.Config.Zonelet.ZoneName, id)
+			key         = inapi.NsAppInstance(config.Config.Zonelet.ZoneName, name)
 			depInst     inapi.AppInstance
 			prevVersion uint64
 		)
@@ -669,36 +686,36 @@ func (s *zoneServer) updateDependencyReverseRefs(
 		if rs := data.Zonelet.NewReader(key).Exec(); !rs.OK() {
 			if rs.NotFound() {
 				slog.Warn("updateDependencyReverseRefs: dependent instance not found",
-					"dep_instance_id", id)
+					"dep_instance_name", name)
 				continue
 			}
 			return fmt.Errorf("[zonelet.updateDependencyReverseRefs] read instance %s: %w",
-				id, rs.Error())
+				name, rs.Error())
 		} else if err := rs.Item().JsonDecode(&depInst); err != nil {
 			return fmt.Errorf("[zonelet.updateDependencyReverseRefs] decode instance %s: %w",
-				id, err)
+				name, err)
 		} else {
 			prevVersion = rs.Item().Meta.Version
 		}
 
 		if add {
-			if slices.Contains(depInst.RefByInstances, instanceID) {
+			if slices.Contains(depInst.RefByInstances, instanceName) {
 				continue
 			}
-			depInst.RefByInstances = append(depInst.RefByInstances, instanceID)
+			depInst.RefByInstances = append(depInst.RefByInstances, instanceName)
 		} else {
-			if !slices.Contains(depInst.RefByInstances, instanceID) {
+			if !slices.Contains(depInst.RefByInstances, instanceName) {
 				continue
 			}
 			depInst.RefByInstances = slices.DeleteFunc(depInst.RefByInstances, func(v string) bool {
-				return v == instanceID
+				return v == instanceName
 			})
 		}
 
 		if rs := data.Zonelet.NewWriter(key, &depInst).
 			SetPrevVersion(prevVersion).Exec(); !rs.OK() {
 			return fmt.Errorf("[zonelet.updateDependencyReverseRefs] write instance %s: %w",
-				id, rs.Error())
+				name, rs.Error())
 		}
 	}
 

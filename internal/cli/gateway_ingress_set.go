@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -32,10 +31,6 @@ import (
 
 	"github.com/sysinner/incore/v2/internal/client"
 	"github.com/sysinner/incore/v2/pkg/inapi"
-)
-
-var (
-	gatewayInstanceIDRX = regexp.MustCompile("^[0-9a-f]{12,16}$")
 )
 
 func NewGatewayIngressSetCommand() *cobra.Command {
@@ -304,8 +299,8 @@ type targetPromptConfig struct {
 
 var targetPrompts = map[string]targetPromptConfig{
 	inapi.GatewayIngressType_Instance: {
-		hint:    "AppInstance ID:Port",
-		example: "a1b2c3d4e5f6:8080",
+		hint:    "Name:Port",
+		example: "my-app:8080",
 	},
 	inapi.GatewayIngressType_Upstream: {
 		hint:    "IP:Port",
@@ -458,10 +453,10 @@ func validateTarget(routeType, target string) error {
 	case inapi.GatewayIngressType_Instance:
 		parts := strings.Split(target, ":")
 		if len(parts) != 2 {
-			return fmt.Errorf("must be in format AppInstanceID:Port")
+			return fmt.Errorf("must be in format Name:Port")
 		}
-		if !gatewayInstanceIDRX.MatchString(parts[0]) {
-			return fmt.Errorf("invalid AppInstance ID '%s' (must be 12-16 hex chars)", parts[0])
+		if err := inapi.DNSLabelValid(parts[0]); err != nil {
+			return fmt.Errorf("invalid AppInstance Name '%s': %w", parts[0], err)
 		}
 		port, err := strconv.Atoi(parts[1])
 		if err != nil || port < 80 || port > 65505 {

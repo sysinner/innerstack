@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/hooto/htoml4g/htoml"
+	kvclient "github.com/lynkdb/kvgo/v2/pkg/client"
 
 	"github.com/sysinner/incore/v2/internal/inutil"
 	"github.com/sysinner/incore/v2/pkg/inapi"
@@ -49,6 +50,9 @@ type ConfigCommon struct {
 	Server  ServerConfig  `json:"server" toml:"server"`
 	Zonelet ZoneletConfig `json:"zonelet" toml:"zonelet"`
 	Hostlet HostletConfig `json:"hostlet" toml:"hostlet"`
+
+	ZoneDatabase    *kvclient.Config `json:"zone_database,omitempty" toml:"zone_database,omitempty"`
+	PackageDatabase *kvclient.Config `json:"package_database,omitempty" toml:"package_database,omitempty"`
 }
 
 type ServerConfig struct {

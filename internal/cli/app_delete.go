@@ -28,12 +28,12 @@ import (
 func NewAppDeleteCommand() *cobra.Command {
 
 	var (
-		instanceId string
+		instanceName string
 	)
 
 	var deleteRun = func(cmd *cobra.Command, args []string) error {
-		if instanceId == "" {
-			return fmt.Errorf("instance id is required")
+		if instanceName == "" {
+			return fmt.Errorf("instance name is required")
 		}
 
 		zone, err := Config.Zone("")
@@ -58,7 +58,7 @@ func NewAppDeleteCommand() *cobra.Command {
 		defer cancel()
 
 		deleteReq := &inapi.AppInstanceDeleteRequest{
-			Id: instanceId,
+			Name: instanceName,
 		}
 
 		_, err = zc.AppInstanceDelete(ctx, deleteReq)
@@ -66,7 +66,7 @@ func NewAppDeleteCommand() *cobra.Command {
 			return fmt.Errorf("failed to delete app instance: %w", err)
 		}
 
-		fmt.Printf("App instance '%s' deleted successfully\n", instanceId)
+		fmt.Printf("App instance '%s' deleted successfully\n", instanceName)
 
 		return nil
 	}
@@ -74,16 +74,16 @@ func NewAppDeleteCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "app-delete",
 		Short: "Delete an app instance",
-		Long: `Delete an app instance by its ID from the zone server.
+		Long: `Delete an app instance by its name from the zone server.
 This action cannot be undone.`,
 		RunE: deleteRun,
 		Example: `  # Delete an app instance
-  app delete --id <instance-id>`,
+  app delete --name <instance-name>`,
 	}
 
-	cmd.Flags().StringVarP(&instanceId, "id", "i", "", "App instance ID (required)")
+	cmd.Flags().StringVarP(&instanceName, "name", "n", "", "App instance name (required)")
 
-	cmd.MarkFlagRequired("id")
+	cmd.MarkFlagRequired("name")
 
 	return cmd
 }

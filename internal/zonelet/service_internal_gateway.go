@@ -98,7 +98,7 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 			}
 			app.Revision = v.Meta.Version
 
-			apps[app.InstanceId()] = &app
+			apps[app.InstanceName()] = &app
 		}
 	}
 

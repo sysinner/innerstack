@@ -212,7 +212,7 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 
 	sets := map[string]string{}
 
-	sets["app.id"] = app.App.InstanceId()
+	sets["app.name"] = app.App.InstanceName()
 	sets["app.replica.rep_id"] = fmt.Sprintf("%d", app.Replica.Id)
 	sets["app.deploy.replica_cap"] = fmt.Sprintf("%d", app.App.Deploy.ReplicaCap)
 
@@ -222,9 +222,9 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 		sets[prefix+"_port"] = fmt.Sprintf("%d", port)
 	}
 
-	endpointExport := func(prefix, appId, specName string, port uint32) {
-		sets[prefix+"_addr"] = fmt.Sprintf("app-%s.%s:%d", appId, specName, port)
-		sets[prefix+"_host"] = fmt.Sprintf("app-%s.%s", appId, specName)
+	endpointExport := func(prefix, appName, specName string, port uint32) {
+		sets[prefix+"_addr"] = fmt.Sprintf("%s.%s:%d", appName, specName, port)
+		sets[prefix+"_host"] = fmt.Sprintf("%s.%s", appName, specName)
 		sets[prefix+"_port"] = fmt.Sprintf("%d", port)
 	}
 
@@ -263,7 +263,7 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 				if app.ZoneBaseDomain != "" {
 					endpointExport(
 						fmt.Sprintf("deps.%s.net.%s.service", dep.SpecName, sp.Name),
-						dep.InstanceId, app.ZoneBaseDomain, sp.Port)
+						dep.InstanceName, app.ZoneBaseDomain, sp.Port)
 				}
 			}
 		}
@@ -296,7 +296,7 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 		if app.ZoneBaseDomain != "" {
 			endpointExport(
 				fmt.Sprintf("self.net.%s.service", sp.Name),
-				app.App.InstanceId(), app.ZoneBaseDomain, sp.Port)
+				app.App.InstanceName(), app.ZoneBaseDomain, sp.Port)
 		}
 	}
 
