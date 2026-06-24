@@ -410,6 +410,13 @@ func containerControlRefresh() error {
 						"container", repInstance.ContainerName(), "error", err)
 					continue
 				}
+				// The container has been removed; the actual state is now
+				// empty. Update currentState so the workflow proceeds to
+				// create+start in this same tick. Without this the stale
+				// pre-destroy state (e.g. "running") maps to a no-op
+				// transition and the recreate is delayed to the next tick.
+				currentState = inapi.OpStateEmpty
+				repInstance.Replica.State = currentState
 			}
 
 			// Get next command from workflow state machine
@@ -512,6 +519,38 @@ func containerSpecReset(rep *inapi.AppReplicaInstance) bool {
 	info, ok := ctrInfo.(*hostapi.ContainerInfo)
 	if !ok {
 		return false
+	}
+
+	// A Deploy.Revision increment (issued by every successful app-deploy)
+	// must force a full container recreate so the new spec, config and
+	// dependencies take effect.
+	//
+	// The last-applied revision is taken from the on-disk app_replica.json
+	// (written on every create/provision, always present for a running
+	// container, survives hostlet restarts), which is the ground truth.
+	// hoststatus.Active.AppliedRevisions is used only as an in-memory cache
+	// for the steady-state fast path: when the cache is missing (hostlet
+	// restart without persistence, or a container created before revision
+	// tracking) or behind the desired revision, we consult the disk. This
+	// both recovers the applied revision for bootstrap containers so a bump
+	// is not silently ignored, and avoids a spurious recreate when the cache
+	// is stale (persistence fell behind the on-disk file).
+	if rep.App.Deploy != nil {
+		want := rep.App.Deploy.Revision
+		applied, hasApplied := hoststatus.Active.AppliedRevision(rep.ContainerName())
+		if !hasApplied || want > applied {
+			if diskRev, hasDisk := readAppliedRevisionFromDisk(rep); hasDisk {
+				applied = diskRev
+				hoststatus.Active.SetAppliedRevision(rep.ContainerName(), diskRev)
+			}
+			if want > applied {
+				slog.Info("container spec reset: deploy revision changed",
+					"container", rep.ContainerName(),
+					"current", applied,
+					"desired", want)
+				return true
+			}
+		}
 	}
 
 	tn := time.Now().Unix()
@@ -648,6 +687,16 @@ func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 					hoststatus.ContainerList.Delete(containerName)
 					// Fall through to create new container
 				} else {
+					// Refresh the bind-mounted .innerstack files so that
+					// starting an already-initialized container picks up the
+					// latest inagent/ininit/app_replica.json (e.g. after a
+					// host-side inagent upgrade). Best-effort: the container
+					// already holds valid files from a prior create, so on
+					// failure we log and start with the existing files.
+					if err := provisionInnerStack(rep); err != nil {
+						slog.Warn("provision innerstack files failed on start, using existing files",
+							"container", containerName, "error", err)
+					}
 					ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 					if err := ctrDriver.ContainerStart(ctx, containerName); err != nil {
 						cancel()
@@ -822,6 +871,93 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 		"path", appInstancePath)
 }
 
+// provisionInnerStack writes the bind-mounted .innerstack files for a
+// replica: app_replica.json, the ininit entrypoint script and the inagent
+// binary. It is invoked on every start so that an already-initialized
+// .innerstack mount is refreshed with the latest inagent/ininit/config
+// (including after a host-side inagent upgrade). Idempotent: existing
+// files are overwritten in place.
+//
+// ininit and inagent are required by the container entrypoint; failure to
+// write them is fatal. app_replica.json failure is non-fatal (warned).
+func provisionInnerStack(rep *inapi.AppReplicaInstance) error {
+	appBasePath := config.Config.Hostlet.AppPath
+	if appBasePath == "" {
+		return nil
+	}
+
+	appPaths := hostapi.NewContainerPath(appBasePath, rep.ContainerName())
+
+	innerStackPath := appPaths.InnerStackDir()
+	if err := os.MkdirAll(innerStackPath, 0755); err != nil {
+		return fmt.Errorf("[provisionInnerStack] mkdir innerstack failed: %w", err)
+	}
+
+	// app_replica.json: non-fatal on failure.
+	appInstancePath := appPaths.AppReplicaFile()
+	if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err != nil {
+		slog.Warn("app_replica.json create failed",
+			"path", appInstancePath, "err", err.Error())
+	} else {
+		slog.Debug("app_replica.json created", "path", appInstancePath)
+	}
+
+	// ininit script (embedded). Required by the container entrypoint.
+	ininitPath := appPaths.IninitFile()
+	if err := os.WriteFile(ininitPath, ininitScript, 0755); err != nil {
+		return fmt.Errorf("[provisionInnerStack] write ininit script failed: %w", err)
+	}
+	slog.Debug("ininit script written", "path", ininitPath)
+
+	// inagent binary: prefer the C++ build, fall back to the Go build.
+	arch := "amd64"
+	if info, ok := hoststatus.StatusSet.Load("docker"); ok {
+		if driverInfo, ok := info.(*hostapi.DriverInfo); ok && driverInfo.Arch != "" {
+			arch = driverInfo.Arch
+		}
+	}
+	srcPaths := hostSrcPaths()
+	inagentPath := appPaths.InagentFile()
+	srcInagentPath := srcPaths.InagentCppSrc(arch)
+	if _, err := os.Stat(srcInagentPath); err != nil {
+		srcInagentPath = srcPaths.InagentSrc(arch)
+		if _, err = os.Stat(srcInagentPath); err != nil {
+			return fmt.Errorf("[provisionInnerStack] inagent source binary not found at %s: %w", srcInagentPath, err)
+		}
+	}
+	if _, err := exec.Command("install", srcInagentPath, inagentPath).Output(); err != nil {
+		return fmt.Errorf("[provisionInnerStack] copy inagent binary failed: %w", err)
+	}
+	slog.Debug("inagent binary copied",
+		"src", srcInagentPath, "path", inagentPath, "arch", arch)
+
+	return nil
+}
+
+// readAppliedRevisionFromDisk reads the Deploy.Revision recorded in the
+// on-disk app_replica.json for the replica. That file is written on every
+// create/provision, so its revision is the ground truth of the last-applied
+// deploy. Returns (0, false) if the file is absent or unreadable.
+func readAppliedRevisionFromDisk(rep *inapi.AppReplicaInstance) (uint64, bool) {
+	appBasePath := config.Config.Hostlet.AppPath
+	if appBasePath == "" {
+		return 0, false
+	}
+	appPaths := hostapi.NewContainerPath(appBasePath, rep.ContainerName())
+	data, err := os.ReadFile(appPaths.AppReplicaFile())
+	if err != nil {
+		return 0, false
+	}
+	var stored inapi.AppReplicaInstance
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return 0, false
+	}
+	if stored.App == nil || stored.App.Deploy == nil {
+		return 0, false
+	}
+	return stored.App.Deploy.Revision, true
+}
+
 // containerCreate creates a new container for the given replica.
 func containerCreate(rep *inapi.AppReplicaInstance) error {
 	containerName := rep.ContainerName()
@@ -952,55 +1088,15 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 			opts.Mounts = append(opts.Mounts, lxcfsVols...)
 		}
 
-		// Create innerstack directory and files
-		innerStackPath := appPaths.InnerStackDir()
-		if err := os.MkdirAll(innerStackPath, 0755); err != nil {
-			return fmt.Errorf("[containerCreate] mkdir innerstack failed: %w", err)
-		}
-
-		// Write app_replica.json
-		appInstancePath := appPaths.AppReplicaFile()
-		if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err != nil {
-			slog.Warn("app_replica.json create failed",
-				"path", appInstancePath, "err", err.Error())
-		} else {
-			slog.Debug("app_replica.json created", "path", appInstancePath)
-		}
-
-		// Write ininit script (embedded).
-		// This is a critical file required by the container entrypoint;
-		// failure here will cause the container to crash on start.
-		ininitPath := appPaths.IninitFile()
-		if err := os.WriteFile(ininitPath, ininitScript, 0755); err != nil {
-			return fmt.Errorf("[containerCreate] write ininit script failed: %w", err)
-		}
-		slog.Debug("ininit script written", "path", ininitPath)
-
-		// Copy inagent binary based on architecture (amd64/arm64).
-		// Prefer C++ version if available, otherwise fall back to Go version.
-		// This binary is required by the ininit script; failure is fatal.
-		arch := "amd64"
-		if info, ok := hoststatus.StatusSet.Load("docker"); ok {
-			if driverInfo, ok := info.(*hostapi.DriverInfo); ok && driverInfo.Arch != "" {
-				arch = driverInfo.Arch
-			}
-		}
-		srcPaths := hostSrcPaths()
-		inagentPath := appPaths.InagentFile()
-		srcInagentPath := srcPaths.InagentCppSrc(arch)
-		if _, err := os.Stat(srcInagentPath); err != nil {
-			srcInagentPath = srcPaths.InagentSrc(arch)
-			if _, err = os.Stat(srcInagentPath); err != nil {
-				return fmt.Errorf("[containerCreate] inagent source binary not found at %s: %w", srcInagentPath, err)
-			}
-		}
-		if _, err = exec.Command("install", srcInagentPath, inagentPath).Output(); err != nil {
-			return fmt.Errorf("[containerCreate] copy inagent binary failed: %w", err)
-		}
-		slog.Debug("inagent binary copied", "src", srcInagentPath, "path", inagentPath, "arch", arch)
-
 		// Set container command to run ininit
 		opts.Cmd = hostapi.ContainerCmd()
+	}
+
+	// Provision the bind-mounted .innerstack files (app_replica.json,
+	// ininit, inagent) before the container is created so the entrypoint
+	// finds them on first start. Fatal on ininit/inagent failure.
+	if err := provisionInnerStack(rep); err != nil {
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
@@ -1014,6 +1110,16 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	hoststatus.ContainerList.Store(containerName, &hostapi.ContainerInfo{
 		Name: containerName, Image: image, State: inapi.OpStateStarting,
 	})
+	// Record the applied Deploy.Revision so that containerSpecReset detects
+	// the next revision increment and triggers a recreate, rather than
+	// re-destroying this freshly created container on the following tick.
+	// Persist it so an increment issued while the hostlet is down is still
+	// detected after a restart.
+	repInstances.TryStore(rep)
+	if rep.App.Deploy != nil {
+		hoststatus.Active.SetAppliedRevision(containerName, rep.App.Deploy.Revision)
+	}
+	saveHostActiveConfig()
 	slog.Info("container created", "container", containerName)
 	return nil
 }

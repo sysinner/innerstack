@@ -44,17 +44,49 @@ var (
 )
 
 type HostActiveConfig struct {
-	mu           sync.RWMutex
+	mu sync.RWMutex
+
 	AppInstances []*inapi.AppInstance `json:"app_instances,omitempty"`
-	index        map[string]*inapi.AppInstance
+
+	// AppliedRevisions records the last-applied Deploy.Revision per
+	// container name. It is persisted to hostlet_active.json so that a
+	// Deploy.Revision increment issued while the hostlet was down is still
+	// detected after restart and triggers a container recreate.
+	AppliedRevisions map[string]uint64 `json:"applied_revisions,omitempty"`
+
+	index map[string]*inapi.AppInstance
 }
 
-func (it *HostActiveConfig) Sync(app *inapi.AppInstance) {
+// SetAppliedRevision records the last-applied Deploy.Revision for a
+// container. Safe for concurrent use.
+func (it *HostActiveConfig) SetAppliedRevision(containerName string, rev uint64) {
 	it.mu.Lock()
 	defer it.mu.Unlock()
-	if it.index == nil {
-		it.index = make(map[string]*inapi.AppInstance)
+	if it.AppliedRevisions == nil {
+		it.AppliedRevisions = make(map[string]uint64)
 	}
+	it.AppliedRevisions[containerName] = rev
+}
+
+// AppliedRevision returns the last-applied Deploy.Revision for a container,
+// or (0, false) if none is recorded.
+func (it *HostActiveConfig) AppliedRevision(containerName string) (uint64, bool) {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	if it.AppliedRevisions == nil {
+		return 0, false
+	}
+	rev, ok := it.AppliedRevisions[containerName]
+	return rev, ok
+}
+
+// MarshalJSON serializes the persisted fields under the read lock. The alias
+// avoids recursing back into MarshalJSON.
+func (it *HostActiveConfig) MarshalJSON() ([]byte, error) {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	type Alias HostActiveConfig
+	return json.Marshal((*Alias)(it))
 }
 
 func (h *HostActiveConfig) UnmarshalJSON(data []byte) error {

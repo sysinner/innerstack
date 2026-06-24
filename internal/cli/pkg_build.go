@@ -103,6 +103,8 @@ Spec File Search Order:
 Version Handling:
   - Without --version: uses Metadata.Version from ipk.toml
   - With --version: supports full semver (e.g., 1.0.0-beta.1+build.123)
+  - With --version: if core version (X.Y.Z) is greater than metadata.version
+    in ipk.toml, the file is automatically updated and saved
 
 Build Script Template Variables:
   ${ipk_dir}             - Package source directory

@@ -31,11 +31,26 @@ import (
 var ininitScript []byte
 
 func TryRun() error {
-	cfgfile := filepath.Join(config.Prefix + "/etc/hostlet_active.json")
+	cfgfile := hostActiveConfigPath()
 	if err := inutil.JsonDecodeFromFile(cfgfile, &hoststatus.Active); err != nil {
 		slog.Warn("hostlet load config failed", "error", err)
 	}
 	return nil
+}
+
+// hostActiveConfigPath returns the on-disk path of the hostlet active config.
+func hostActiveConfigPath() string {
+	return filepath.Join(config.Prefix + "/etc/hostlet_active.json")
+}
+
+// saveHostActiveConfig persists the hostlet active config (including the
+// last-applied Deploy.Revision map) to disk so that revision increments
+// survive a hostlet restart. Failures are logged but non-fatal: a stale
+// file only risks a spurious recreate on the next restart.
+func saveHostActiveConfig() {
+	if err := inutil.JsonEncodeToFileIndent(hostActiveConfigPath(), &hoststatus.Active, 0644); err != nil {
+		slog.Warn("hostlet active config save failed", "error", err)
+	}
 }
 
 var once sync.Once

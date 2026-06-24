@@ -25,9 +25,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 
 	"github.com/sysinner/incore/v2/pkg/inapi"
 )
@@ -72,6 +75,7 @@ type Config struct {
 type Builder struct {
 	config   Config
 	spec     *inapi.PackageSpec
+	specPath string
 	buildDir string
 	meta     *inapi.Package
 	verbose  bool
@@ -87,6 +91,7 @@ func NewBuilder(cfg Config) *Builder {
 
 // Build executes the package build process
 func (b *Builder) Build() error {
+
 	// Step 1: Validate environment
 	if err := b.validateEnv(); err != nil {
 		return err
@@ -103,33 +108,38 @@ func (b *Builder) Build() error {
 		return err
 	}
 
-	// Step 4: Determine version info
+	// Step 4: Update metadata.version if --version core is greater
+	if err := b.updateSpecVersion(); err != nil {
+		return err
+	}
+
+	// Step 5: Determine version info
 	b.resolveVersion()
 
-	// Step 5: Check if target already exists
+	// Step 6: Check if target already exists
 	if err := b.checkExisting(); err != nil {
 		return err
 	}
 
-	// Step 6: Print build info
+	// Step 7: Print build info
 	b.printBuildInfo()
 
-	// Step 7: Process files (copy, minify, optimize)
+	// Step 8: Process files (copy, minify, optimize)
 	if err := b.processFiles(); err != nil {
 		return err
 	}
 
-	// Step 8: Execute build script
+	// Step 9: Execute build script
 	if err := b.runBuildScript(); err != nil {
 		return err
 	}
 
-	// Step 9: Write metadata
+	// Step 10: Write metadata
 	if err := b.writeMetadata(); err != nil {
 		return err
 	}
 
-	// Step 10: Create archive
+	// Step 11: Create archive
 	if !b.config.NoCompress {
 		if err := b.createArchive(); err != nil {
 			return err
@@ -186,7 +196,7 @@ func (b *Builder) setupWorkDir() error {
 }
 
 func (b *Builder) loadSpec() error {
-	_, spec, err := SpecFind(".", b.config.SpecFile)
+	specPath, spec, err := SpecFind(".", b.config.SpecFile)
 	if err != nil {
 		return fmt.Errorf("failed to find spec file: %w", err)
 	}
@@ -196,7 +206,106 @@ func (b *Builder) loadSpec() error {
 	}
 
 	b.spec = spec
+	b.specPath = specPath
 	return nil
+}
+
+// metadataVersionRegexp matches a TOML version assignment line.
+var metadataVersionRegexp = regexp.MustCompile(`^(\s*version\s*=\s*)"[^"]*"`)
+
+// updateSpecVersion checks if the core version (X.Y.Z) extracted from the
+// --version flag is strictly greater than metadata.version in ipk.toml.
+// If so, it updates both the ipk.toml file on disk and the in-memory spec.
+func (b *Builder) updateSpecVersion() error {
+
+	if b.config.Version == "" {
+		return nil
+	}
+
+	// Normalize --version for semver comparison (requires "v" prefix)
+	cfgV := b.config.Version
+	if !strings.HasPrefix(cfgV, "v") {
+		cfgV = "v" + cfgV
+	}
+	if !semver.IsValid(cfgV) {
+		return nil
+	}
+
+	// Extract the core version (X.Y.Z), stripping pre-release and build
+	// metadata. Canonical() pads missing minor/patch and drops build metadata
+	// but keeps the pre-release ("-..."), so we cut at the first "-" to obtain
+	// the pure major.minor.patch used for comparison and metadata.version.
+	coreVersion := semver.Canonical(cfgV)
+	if i := strings.IndexByte(coreVersion, '-'); i >= 0 {
+		coreVersion = coreVersion[:i]
+	}
+
+	// Normalize metadata.version for comparison
+	metaV := b.spec.Metadata.Version
+	if !strings.HasPrefix(metaV, "v") {
+		metaV = "v" + metaV
+	}
+
+	// Only update when core version is strictly greater
+	if semver.Compare(coreVersion, metaV) <= 0 {
+		return nil
+	}
+
+	newVersion := strings.TrimPrefix(coreVersion, "v")
+
+	// Read the original spec file
+	content, err := os.ReadFile(b.specPath)
+	if err != nil {
+		return fmt.Errorf("[pkgbuild.updateSpecVersion] failed to read spec file: %w", err)
+	}
+
+	// Replace version in [metadata] section only
+	updated, ok := replaceMetadataVersion(string(content), newVersion)
+	if !ok {
+		return fmt.Errorf("[pkgbuild.updateSpecVersion] metadata.version not found in %s", b.specPath)
+	}
+
+	// Write back
+	if err := os.WriteFile(b.specPath, []byte(updated), 0644); err != nil {
+		return fmt.Errorf("[pkgbuild.updateSpecVersion] failed to write spec file: %w", err)
+	}
+
+	// Update in-memory spec
+	b.spec.Metadata.Version = newVersion
+
+	if b.verbose {
+		fmt.Printf("  Updated metadata.version: %s -> %s\n",
+			strings.TrimPrefix(metaV, "v"), newVersion)
+	}
+
+	return nil
+}
+
+// replaceMetadataVersion replaces the version value within the [metadata]
+// section of a TOML document, preserving all other content and formatting.
+func replaceMetadataVersion(content, newVersion string) (string, bool) {
+	lines := strings.Split(content, "\n")
+	inMetadata := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Track current TOML section
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			inMetadata = trimmed == "[metadata]"
+			continue
+		}
+
+		// Replace version only within [metadata] section
+		if inMetadata {
+			if m := metadataVersionRegexp.FindStringSubmatch(line); m != nil {
+				lines[i] = m[1] + "\"" + newVersion + "\""
+				return strings.Join(lines, "\n"), true
+			}
+		}
+	}
+
+	return content, false
 }
 
 func (b *Builder) resolveVersion() {

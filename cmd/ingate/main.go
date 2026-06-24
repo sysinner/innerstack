@@ -555,7 +555,7 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 						Host:   tg.Backend,
 					}
 					urls = append(urls, u)
-					rps = append(rps, httputil.NewSingleHostReverseProxy(u))
+					rps = append(rps, newReverseProxy(u))
 				}
 				if len(urls) > 0 {
 					route := &DomainEntryRoute{
@@ -712,6 +712,49 @@ func ipAddress(r *http.Request) string {
 	}
 
 	return ip
+}
+
+// newReverseProxy creates a reverse proxy to the target backend, injecting the
+// standard forwarding headers so that upstream services can reconstruct the
+// original client request, matching the nginx equivalents:
+//
+//	Host              : original Host header ($http_host)
+//	X-Real-IP         : client remote address ($remote_addr)
+//	X-Forwarded-For   : client ip appended to any existing value
+//	                    ($proxy_add_x_forwarded_for)
+//	X-Forwarded-Proto : request scheme ($scheme)
+func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	baseDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		baseDirector(req)
+
+		// Host ($http_host): NewSingleHostReverseProxy leaves req.Host intact,
+		// which carries the original client Host header, so no override is needed.
+
+		clientIP := req.RemoteAddr
+		if host, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+			clientIP = host
+		}
+
+		// X-Real-IP ($remote_addr)
+		req.Header.Set("X-Real-IP", clientIP)
+
+		// X-Forwarded-For ($proxy_add_x_forwarded_for)
+		if prior := req.Header.Get("X-Forwarded-For"); prior != "" {
+			req.Header.Set("X-Forwarded-For", prior+", "+clientIP)
+		} else {
+			req.Header.Set("X-Forwarded-For", clientIP)
+		}
+
+		// X-Forwarded-Proto ($scheme)
+		if req.TLS != nil {
+			req.Header.Set("X-Forwarded-Proto", "https")
+		} else {
+			req.Header.Set("X-Forwarded-Proto", "http")
+		}
+	}
+	return proxy
 }
 
 func ipLimiter(ip string) *rate.Limiter {

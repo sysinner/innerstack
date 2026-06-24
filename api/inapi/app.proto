@@ -38,9 +38,6 @@ message AppInstance {
   // deploy specifies the deployment parameters and desired actions.
   AppDeploy deploy = 20;
 
-  // status reflects the current observed state of the application instance.
-  // AppStatus status = 30;
-
   // revision is an internal revision number for data synchronization.
   uint64 revision = 21;
 
@@ -48,6 +45,9 @@ message AppInstance {
   // this instance as a dependency. Maintained by the zonelet to track
   // reverse dependency links.
   repeated string ref_by_instances = 22;
+
+  // status reflects the current observed state of the application instance.
+  AppStatus status = 30;
 }
 
 // AppSpec defines the specification of an application, including its resources,
@@ -199,6 +199,8 @@ message AppDeploy {
   // depends is a list of resolved dependency bindings that map each
   // dependent AppSpec.Name to a concrete deployed AppInstance.Name.
   repeated AppDeployDepend depends = 21;
+
+  AppDeployStage stages = 22;
 }
 
 // AppDeployConfigItem represents a single field in a deployment config.
@@ -260,7 +262,8 @@ message AppDeployReplica {
 // contain child stages such as "download", "configure", "start").
 // Each stage tracks its owner, progress, attempt count and timing.
 message AppDeployStage {
-  // name is the identifier of the stage (e.g., "setup", "start", "healthcheck").
+  // name is the identifier of the stage (e.g., "setup", "start",
+  // "healthcheck").
   string name = 1;
 
   // owner indicates the component responsible for executing this stage
@@ -295,14 +298,14 @@ message AppDeployStage {
   repeated AppDeployStage stages = 16;
 }
 
-// // AppStatus represents the current observed status of an application.
-// message AppStatus {
-//   // id is the unique identifier of the application.
-//   string id = 1;
+// AppStatus represents the current observed status of an application.
+message AppStatus {
+  // id is the unique identifier of the application.
+  string id = 1;
 
-//   // replicas is a list of status information for each replica.
-//   repeated AppReplicaStatus replicas = 20;
-// }
+  // replicas is a list of status information for each replica.
+  // repeated AppReplicaStatus replicas = 20;
+}
 
 // // AppReplicaStatus represents the status of a single application replica.
 // message AppReplicaStatus {

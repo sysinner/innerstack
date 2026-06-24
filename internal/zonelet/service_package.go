@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"log/slog"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -493,6 +494,8 @@ func filterLatestPackages(packages []*inapi.Package) []*inapi.Package {
 		arch string
 	}
 
+	slog.Info("filterLatestPackages", "num", len(packages))
+
 	latestMap := make(map[groupKey]*inapi.Package)
 
 	for _, pkg := range packages {
@@ -538,23 +541,70 @@ func filterLatestPackages(packages []*inapi.Package) []*inapi.Package {
 	return result
 }
 
-// semverCompare compares two version strings
+// releaseIterRegexp matches a trailing package release-revision suffix
+// "-r<digits>" (e.g. "-r1", "-r2"). The "r" must be immediately followed by
+// digits, so release-candidate suffixes such as "-rc1" are NOT matched and
+// fall through to the standard SemVer pre-release ordering instead.
+var releaseIterRegexp = regexp.MustCompile(`(-r\d+)$`)
+
+// semverCompare compares two version strings.
+//
+// The base version (X.Y.Z) is compared with golang.org/x/mod/semver, which
+// follows the strict SemVer spec.
+//
+// Two kinds of suffix are distinguished:
+//
+//   - "-rN": a formal release revision. It is newer than the bare version and
+//     a higher N is newer still; a bare version is equivalent to "-r0".
+//     Example ordering: 1.26.4 < 1.26.4-r1 < 1.26.4-r2.
+//
+//   - "-rcN" (and any other non "-r<digits>" suffix): treated as a standard
+//     SemVer pre-release, which is older than the bare release.
+//     Example ordering: 1.26.4-rc1 < 1.26.4.
+//
+// Return values:
 //
 //	-1 if v1 < v2
 //	 0 if v1 == v2
 //	 1 if v1 > v2
 func semverCompare(v1, v2 string) int {
 
-	// semver requires "v" prefix, add it if not present
-	canonicalSemver := func(v string) string {
+	// splitVersion separates a version string into its base SemVer part and
+	// a release-revision number derived from a trailing "-rN" suffix.
+	//
+	// "-rcN" and other non "-r<digits>" suffixes are left untouched in the
+	// base so they are handled by the standard SemVer pre-release ordering.
+	splitVersion := func(v string) (base string, iter int) {
 		if v == "" {
-			return "v0.0.0"
+			return "v0.0.0", 0
 		}
 		if !strings.HasPrefix(v, "v") {
-			return "v" + v
+			v = "v" + v
 		}
-		return v
+		m := releaseIterRegexp.FindStringSubmatchIndex(v)
+		if m == nil {
+			return v, 0
+		}
+		// m[0]:m[1] bounds the full match "-rN" at the tail of v.
+		n := 0
+		for _, c := range v[m[0]+2 : m[1]] {
+			n = n*10 + int(c-'0')
+		}
+		return v[:m[0]], n
 	}
 
-	return semver.Compare(canonicalSemver(v1), canonicalSemver(v2))
+	base1, iter1 := splitVersion(v1)
+	base2, iter2 := splitVersion(v2)
+
+	if c := semver.Compare(base1, base2); c != 0 {
+		return c
+	}
+	switch {
+	case iter1 < iter2:
+		return -1
+	case iter1 > iter2:
+		return 1
+	default:
+		return 0
+	}
 }

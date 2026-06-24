@@ -17,7 +17,9 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -379,37 +381,40 @@ func promptConfigItems(appSpec *inapi.AppSpec,
 		var value string
 
 		if isMultiLineType(field.Type) {
-			// Multi-line input mode: lines are read until a line
-			// containing only "..." is entered.
+			// Multi-line input mode. The current value is printed for
+			// reference, then the user picks one of:
+			//   <Enter>  -> skip, keep current value
+			//   edit     -> open $EDITOR on a temp file (preserves content
+			//               byte-for-byte, no terminal paste mangling)
+			//   <text>   -> single-line inline override
 			if defaultValue != "" {
 				fmt.Printf("  Current value:\n")
 				for _, line := range strings.Split(defaultValue, "\n") {
 					fmt.Printf("    %s\n", line)
 				}
-				fmt.Printf("  Enter new value (end with '...' on a line, or just enter '...' to keep current):\n")
 			} else {
-				fmt.Printf("  Enter value (end with '...' on a line):\n")
+				fmt.Printf("  (no current value)\n")
 			}
-			fmt.Printf("  > ")
+			fmt.Printf("  Enter=skip (keep current) | edit=open editor | type text to override\n  > ")
 
-			var lines []string
-			for {
-				line, err := reader.ReadString('\n')
+			input, err := reader.ReadString('\n')
+			// io.EOF on the final line without a trailing newline is not an
+			// error here; treat whatever was read as valid input.
+			if err != nil && !errors.Is(err, io.EOF) {
+				return nil, fmt.Errorf("failed to read input: %w", err)
+			}
+			input = strings.TrimRight(input, "\r\n")
+
+			switch {
+			case input == "":
+				value = defaultValue // skip, keep current
+			case input == "edit":
+				value, err = Edit(defaultValue, suffixFor(field.Type))
 				if err != nil {
-					return nil, fmt.Errorf("failed to read input: %w", err)
+					return nil, fmt.Errorf("[promptConfigItems] editor for %s: %w", field.Name, err)
 				}
-				line = strings.TrimRight(line, "\r\n")
-
-				if line == "..." {
-					break
-				}
-				lines = append(lines, line)
-				fmt.Printf("  > ")
-			}
-
-			value = strings.Join(lines, "\n")
-			if value == "" {
-				value = defaultValue
+			default:
+				value = input // single-line inline override
 			}
 		} else {
 			// Single-line input mode

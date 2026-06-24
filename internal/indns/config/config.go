@@ -78,6 +78,7 @@ func Setup(ver string) error {
 	if Config.Server.ConfigDirectory == "" {
 		Config.Server.ConfigDirectory = Prefix + "/etc/" + AppName + "_conf.d"
 	}
+	os.MkdirAll(Config.Server.ConfigDirectory, 0750)
 
 	htoml.EncodeToFile(Config, configFile)
 

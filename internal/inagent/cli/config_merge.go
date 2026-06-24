@@ -33,7 +33,6 @@ import (
 func NewConfigMergeCommand() *cobra.Command {
 
 	var (
-		argAppSpec         string
 		argWithConfigField string
 		argConfig          string
 	)
@@ -143,11 +142,6 @@ func NewConfigMergeCommand() *cobra.Command {
 		Short: "merge one of input text (json, yaml, toml, ini) to local config file",
 		Long:  ``,
 	}
-
-	cmd.Flags().StringVar(&argAppSpec, "app-spec",
-		"",
-		`app-spec id`,
-	)
 
 	cmd.Flags().StringVar(&argWithConfigField, "with-config-field",
 		"",

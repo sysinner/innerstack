@@ -93,11 +93,29 @@ func httpsrvPackageList(ctx httpsrv.Ctx) error {
 	defer ctx.JSON(&resp)
 
 	ctx.Request().JsonDecode(&req)
+	if req.Name == "" {
+		req.Name = ctx.Params().Value("name")
+	}
+	if req.Version == "" {
+		req.Version = ctx.Params().Value("version")
+	}
+	if req.Os == "" {
+		req.Os = ctx.Params().Value("os")
+	}
+	if req.Arch == "" {
+		req.Arch = ctx.Params().Value("arch")
+	}
+	if !req.LatestOnly && ctx.Params().Value("latest_only") == "true" {
+		req.LatestOnly = true
+	}
 
 	rs := data.Package.NewRanger(offset, append(offset, 0xff)).SetLimit(1000).Exec()
 	for _, item := range rs.Items {
 		var pkg inapi.Package
 		if err := item.JsonDecode(&pkg); err != nil {
+			continue
+		}
+		if pkg.Metadata == nil || pkg.Release == nil || pkg.File == nil {
 			continue
 		}
 		// Filter by upload status
@@ -106,24 +124,23 @@ func httpsrvPackageList(ctx httpsrv.Ctx) error {
 		}
 
 		// Filter by name (exact match)
-		if req.Name != "" && (pkg.Metadata == nil || pkg.Metadata.Name != req.Name) {
+		if req.Name != "" && pkg.Metadata.Name != req.Name {
 			continue
 		}
 
 		// Filter by version (fuzzy match)
-		if req.Version != "" {
-			if pkg.Release == nil || !versionMatch(req.Version, pkg.Release.Version) {
-				continue
-			}
+		if req.Version != "" &&
+			!versionMatch(req.Version, pkg.Release.Version) {
+			continue
 		}
 
 		// Filter by OS (exact match)
-		if req.Os != "" && (pkg.Release == nil || pkg.Release.Os != req.Os) {
+		if req.Os != "" && pkg.Release.Os != req.Os {
 			continue
 		}
 
 		// Filter by arch (exact match)
-		if req.Arch != "" && (pkg.Release == nil || pkg.Release.Arch != req.Arch) {
+		if req.Arch != "" && pkg.Release.Arch != req.Arch {
 			continue
 		}
 
