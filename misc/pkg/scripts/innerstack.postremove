@@ -1,0 +1,3 @@
+#!/bin/sh
+# RPM %postun / deb postrm for innerstack
+systemctl daemon-reload >/dev/null 2>&1 || true

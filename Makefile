@@ -84,3 +84,28 @@ $(foreach arch,$(INAGENT_CPP_ARCHS),$(eval $(call INAGENT_CPP_BUILD,$(arch))))
 
 inagent-cpp: inagent-cpp-amd64 inagent-cpp-arm64
 
+# Packaging targets (nfpm; produces rpm + deb, runs natively on macOS/Linux).
+# All builds target the repository layout; --gen places output under
+# build/<fmt>/<id>/ (the HTTP server storage path). Initial release: deb13, el10.
+deb:
+	./misc/pkg/build.sh --packager deb --gen deb13 --all-arch
+
+rpm:
+	./misc/pkg/build.sh --packager rpm --gen el10 --all-arch
+
+pkg-all-arch: deb rpm
+
+pkg-clean:
+	./misc/pkg/build.sh --clean
+
+# Repository targets (assemble per-generation DEB/RPM repos + indexes)
+repo:
+	./misc/pkg/repo-sync.sh
+
+repo-images:
+	./misc/pkg/repo-sync.sh --build-images
+
+repo-clean:
+	rm -rf build/deb/repo
+	find build/rpm -type d -name repodata -prune -exec rm -rf {} +
+

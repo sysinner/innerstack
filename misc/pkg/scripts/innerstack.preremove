@@ -1,0 +1,7 @@
+#!/bin/sh
+# RPM %preun / deb prerm for innerstack
+# $1: rpm 0=removal 1=upgrade; deb "remove"/"upgrade"
+if [ "$1" = "0" ] || [ "$1" = "remove" ]; then
+    systemctl --no-warn stop innerstack.service >/dev/null 2>&1 || true
+    systemctl --no-warn disable innerstack.service >/dev/null 2>&1 || true
+fi

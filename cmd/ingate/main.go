@@ -1010,7 +1010,16 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 				} else if st.IsDir() {
 					handleWriteHtml(w2, 403, builtin_403_HTML)
 				} else {
-					http.ServeFile(w2, r, finalPath)
+					// Use ServeContent instead of ServeFile: ServeFile issues a
+					// 301 redirect to "./" whenever r.URL.Path ends in
+					// "/index.html".
+					f, oerr := os.Open(finalPath)
+					if oerr != nil {
+						handleWriteHtml(w2, 404, builtin_404_HTML)
+					} else {
+						http.ServeContent(w2, r, st.Name(), st.ModTime(), f)
+						f.Close()
+					}
 				}
 				return route
 			}

@@ -1,0 +1,9 @@
+# InnerStack RHEL/EL repo builder.
+# Mirrors RHEL 10 tooling via Rocky Linux 10 minimal + createrepo_c. Run via:
+#   docker run --rm -v <build>:/work/build -v <misc/pkg>:/work/misc/pkg \
+#     innerstack-repo-el:10 bash /work/misc/pkg/repo-sync.sh --rhel
+FROM rockylinux/rockylinux:10-minimal
+
+# Minimal images ship microdnf; createrepo_c provides the createrepo_c command
+# (and a createrepo compatibility shim on EL).
+RUN microdnf install -y createrepo_c && microdnf clean all

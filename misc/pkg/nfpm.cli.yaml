@@ -1,0 +1,28 @@
+# InnerStack command line interface subpackage
+name: innerstack-cli
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+release: "1${RELEASE_SUFFIX}"
+section: utils
+priority: optional
+maintainer: SysInner <dev@sysinner.com>
+description: |
+  The InnerStack CLI provides commands to manage zones, hosts, applications,
+  and packages from the command line.
+vendor: SysInner
+homepage: https://github.com/sysinner/incore
+license: Apache-2.0
+depends:
+  - innerstack
+
+contents:
+  - src: ${STAGE}/bin/innerstack
+    dst: /opt/innerstack/bin/innerstack
+    expand: true
+    file_info:
+      mode: 0755
+
+rpm:
+  compression: xz
+  group: System Environment/Base

@@ -1,0 +1,23 @@
+# Debian generation map — single source of truth for per-generation repos.
+#
+# Format:  <codename>  <generation-id>
+#
+# A generation groups codenames that share one ABI-compatible build (one
+# physical .deb in the pool). repo-sync.sh records that .deb into every
+# codename of its generation; reprepro de-duplicates the pool, so a whole
+# generation shares a single file. Open a new generation whenever a shared
+# build stops satisfying a newer release (soname change, libc/systemd break).
+#
+# Convention: generation-id is the baseline Debian major version (deb13,
+# deb15, ...). It is also stamped into the package release via
+# `build.sh --gen <id>` and the build output dir (build/deb-<id>/).
+#
+# Initial release: Debian 13 (trixie) only. Expand by adding lines here —
+# the build and repo tooling picks them up automatically.
+#
+# codename    generation
+trixie        deb13
+
+# Examples for future expansion:
+#   forky      deb13      # Debian 14 shares trixie's deb13 build (one pool file)
+#   bookworm   deb12      # new generation -> build.sh --packager deb --gen deb12

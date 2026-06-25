@@ -1,0 +1,22 @@
+# InnerStack Debian repo builder.
+# Provides reprepro (+ gpg for optional repo signing). Run via:
+#   docker run --rm -v <build>:/work/build -v <misc/pkg>:/work/misc/pkg \
+#     innerstack-repo-deb bash /work/misc/pkg/repo-sync.sh --debian
+#
+# In regions where the default mirror (deb.debian.org, Fastly CDN) is slow,
+# override it at build time:
+#   APT_MIRROR=mirrors.aliyun.com make repo-images
+# (repo-sync.sh forwards the APT_MIRROR env var to this build automatically.)
+FROM debian:bookworm-slim
+
+ARG APT_MIRROR=deb.debian.org
+RUN if [ "$APT_MIRROR" != "deb.debian.org" ]; then \
+        sed -i "s|deb.debian.org|$APT_MIRROR|g" \
+            /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list 2>/dev/null || true; \
+    fi \
+ && apt-get -o Acquire::Retries=4 -o Acquire::http::Timeout=15 update \
+ && apt-get -o Acquire::Retries=4 -o Acquire::http::Timeout=15 install -y --no-install-recommends \
+      reprepro \
+      gpg \
+      ca-certificates \
+ && rm -rf /var/lib/apt/lists/*

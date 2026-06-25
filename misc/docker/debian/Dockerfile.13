@@ -1,0 +1,17 @@
+FROM debian:13.5-slim
+
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources \
+    || sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -d /home/action -s /bin/sh -u 2048 action
+
+WORKDIR /home/action
+
+ENV USER=action
+ENV HOME=/home/action
+

@@ -1,0 +1,71 @@
+# InnerStack main package (innerstackd + inagent)
+# Built via misc/pkg/build.sh which sets VERSION / ARCH / STAGE / RELEASE_SUFFIX env vars.
+name: innerstack
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+release: "1${RELEASE_SUFFIX}"
+section: utils
+priority: optional
+maintainer: SysInner <dev@sysinner.com>
+description: |
+  InnerStack Enterprise PaaS Engine — application orchestration,
+  container management, and VPC networking. This package contains the
+  main server daemon (innerstackd) and the inagent binary for both
+  amd64 and arm64 architectures.
+vendor: SysInner
+homepage: https://github.com/sysinner/incore
+license: Apache-2.0
+depends:
+  - systemd
+
+contents:
+  - dst: /opt/innerstack
+    type: dir
+  - dst: /opt/innerstack/bin
+    type: dir
+  - dst: /opt/innerstack/etc
+    type: dir
+  - dst: /opt/innerstack/var/log
+    type: dir
+  - dst: /opt/innerstack/cmd/inagent
+    type: dir
+
+  - src: ${STAGE}/bin/innerstackd
+    dst: /opt/innerstack/bin/innerstackd
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/bin/inagent-linux-amd64
+    dst: /opt/innerstack/bin/inagent-linux-amd64
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/bin/inagent-linux-arm64
+    dst: /opt/innerstack/bin/inagent-linux-arm64
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/ininit
+    dst: /opt/innerstack/cmd/inagent/ininit
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/systemd/innerstack.service
+    dst: /usr/lib/systemd/system/innerstack.service
+    expand: true
+  - src: ${STAGE}/empty/innerstack.toml
+    dst: /opt/innerstack/etc/innerstack.toml
+    expand: true
+    type: config|noreplace
+    file_info:
+      mode: 0600
+
+scripts:
+  postinstall: scripts/innerstack.postinstall
+  preremove: scripts/innerstack.preremove
+  postremove: scripts/innerstack.postremove
+
+rpm:
+  compression: xz
+  group: System Environment/Base

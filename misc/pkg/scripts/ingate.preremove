@@ -1,0 +1,6 @@
+#!/bin/sh
+# RPM %preun / deb prerm for innerstack-ingate
+if [ "$1" = "0" ] || [ "$1" = "remove" ]; then
+    systemctl --no-warn stop ingate.service >/dev/null 2>&1 || true
+    systemctl --no-warn disable ingate.service >/dev/null 2>&1 || true
+fi

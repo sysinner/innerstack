@@ -1,0 +1,43 @@
+# InnerStack InGate HTTP Gateway subpackage
+name: innerstack-ingate
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+release: "1${RELEASE_SUFFIX}"
+section: utils
+priority: optional
+maintainer: SysInner <dev@sysinner.com>
+description: |
+  InGate is the HTTP reverse proxy and gateway component for InnerStack.
+  It handles domain routing, TLS termination, and load balancing.
+vendor: SysInner
+homepage: https://github.com/sysinner/incore
+license: Apache-2.0
+depends:
+  - systemd
+  - innerstack
+
+contents:
+  - src: ${STAGE}/bin/ingated
+    dst: /opt/innerstack/bin/ingated
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/systemd/ingate.service
+    dst: /usr/lib/systemd/system/ingate.service
+    expand: true
+  - src: ${STAGE}/empty/ingate.toml
+    dst: /opt/innerstack/etc/ingate.toml
+    expand: true
+    type: config|noreplace
+    file_info:
+      mode: 0600
+
+scripts:
+  postinstall: scripts/ingate.postinstall
+  preremove: scripts/ingate.preremove
+  postremove: scripts/ingate.postremove
+
+rpm:
+  compression: xz
+  group: System Environment/Base

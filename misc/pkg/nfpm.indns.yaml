@@ -1,0 +1,43 @@
+# InnerStack built-in DNS server subpackage
+name: innerstack-indns
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+release: "1${RELEASE_SUFFIX}"
+section: utils
+priority: optional
+maintainer: SysInner <dev@sysinner.com>
+description: |
+  InDNS is the built-in DNS server for InnerStack, providing internal
+  service discovery and DNS record management.
+vendor: SysInner
+homepage: https://github.com/sysinner/incore
+license: Apache-2.0
+depends:
+  - systemd
+  - innerstack
+
+contents:
+  - src: ${STAGE}/bin/indnsd
+    dst: /opt/innerstack/bin/indnsd
+    expand: true
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/systemd/indns.service
+    dst: /usr/lib/systemd/system/indns.service
+    expand: true
+  - src: ${STAGE}/empty/indnsd.toml
+    dst: /opt/innerstack/etc/indnsd.toml
+    expand: true
+    type: config|noreplace
+    file_info:
+      mode: 0640
+
+scripts:
+  postinstall: scripts/indns.postinstall
+  preremove: scripts/indns.preremove
+  postremove: scripts/indns.postremove
+
+rpm:
+  compression: xz
+  group: System Environment/Base
