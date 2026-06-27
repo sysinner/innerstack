@@ -74,6 +74,10 @@ type HostletConfig struct {
 
 	LxcFsEnable bool `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
 
+	// InagentSlimEnable selects the C++ inagent-slim binary as the container
+	// inagent when true. Defaults to false, using the Go inagent build.
+	InagentSlimEnable bool `json:"inagent_slim_enable,omitempty" toml:"inagent_slim_enable,omitempty"`
+
 	VpcBridgeIP     string `json:"vpc_bridge_ip,omitempty" toml:"vpc_bridge_ip,omitempty"`
 	VpcInstanceCIDR string `json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
 

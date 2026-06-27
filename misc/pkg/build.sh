@@ -18,6 +18,9 @@
 #   --without-indns          Exclude indns subpackage
 #   --with-cli               Include cli subpackage (default: yes)
 #   --without-cli            Exclude cli subpackage
+#   --with-inagent-slim      Include inagent-slim (C++) binary (default: yes;
+#                            requires Docker to build)
+#   --without-inagent-slim   Exclude inagent-slim binary (no Docker needed)
 #   --packager <rpm|deb>     Package format (default: both)
 #   --gen <id>               (required) generation id: tags release with +<id>,
 #                            places output at build/deb/<id>/ or
@@ -47,6 +50,7 @@ GOBUILD_ARGS=(-trimpath -ldflags "-s -w")
 WITH_INGATE="yes"
 WITH_INDNS="yes"
 WITH_CLI="yes"
+WITH_INAGENT_SLIM="yes"
 
 # Target architectures
 TARGET_ARCHES=()
@@ -85,6 +89,9 @@ Options:
   --without-indns          Exclude indns subpackage
   --with-cli               Include cli subpackage (default: yes)
   --without-cli            Exclude cli subpackage
+  --with-inagent-slim      Include inagent-slim (C++) binary (default: yes;
+                           requires Docker to build)
+  --without-inagent-slim   Exclude inagent-slim binary (no Docker needed)
   --packager <rpm|deb>     Package format (default: both)
   --gen <id>               (required) generation id; output build/deb/<id>/ or build/rpm/<id>/<arch>/
   --version <ver>          Package version (default: $DEFAULT_VERSION)
@@ -102,6 +109,7 @@ Prerequisites:
   nfpm (https://nfpm.goreleaser.com/install/)
        macOS:   brew install nfpm
        Linux:   go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+  docker + make (only when --with-inagent-slim, the default)
 EOF
 }
 
@@ -137,6 +145,8 @@ parse_args() {
             --without-indns)  WITH_INDNS="no" ;;
             --with-cli)     WITH_CLI="yes" ;;
             --without-cli)  WITH_CLI="no" ;;
+            --with-inagent-slim)  WITH_INAGENT_SLIM="yes" ;;
+            --without-inagent-slim) WITH_INAGENT_SLIM="no" ;;
             --packager)
                 shift
                 case "$1" in
@@ -189,6 +199,12 @@ parse_args() {
 check_prerequisites() {
     command -v go >/dev/null 2>&1 || die "go compiler not found in PATH"
     command -v nfpm >/dev/null 2>&1 || die "nfpm not found in PATH (see https://nfpm.goreleaser.com/install/)"
+    if [[ "$WITH_INAGENT_SLIM" == "yes" ]]; then
+        command -v docker >/dev/null 2>&1 \
+            || die "docker not found in PATH (required to build inagent-slim; use --without-inagent-slim to skip)"
+        command -v make >/dev/null 2>&1 \
+            || die "make not found in PATH (required to build inagent-slim)"
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -201,20 +217,30 @@ go_build() {
         go build "${GOBUILD_ARGS[@]}" -o "$out" "$pkg"
 }
 
-# inagent ships both arches in the main package; build each arch once.
-build_inagent_all_arches() {
-    local built_dir="$1"
-    for a in amd64 arm64; do
-        [[ -f "$built_dir/inagent-linux-$a" ]] && continue
-        go_build "$a" "$PROJECT_ROOT/cmd/inagent/inagent.go" \
-            "$PROJECT_ROOT/bin/inagent-linux-$a"
-    done
+# Build the Go inagent for a single target arch.
+build_inagent_go() {
+    local arch="$1"
+    [[ -f "$PROJECT_ROOT/bin/inagent-linux-$arch" ]] && return
+    go_build "$arch" "$PROJECT_ROOT/cmd/inagent/inagent.go" \
+        "$PROJECT_ROOT/bin/inagent-linux-$arch"
+}
+
+# Build the C++ inagent-slim for a single target arch (Docker-based).
+build_inagent_slim() {
+    local arch="$1"
+    [[ -f "$PROJECT_ROOT/bin/inagent-slim-linux-$arch" ]] && return
+    log_info "  building inagent-slim-linux-$arch (docker) ..."
+    (cd "$PROJECT_ROOT" && make "inagent-slim-$arch")
 }
 
 build_arch_binaries() {
     local arch="$1"
     go_build "$arch" "$PROJECT_ROOT/cmd/server/main.go" \
         "$PROJECT_ROOT/bin/innerstackd-linux-$arch"
+    build_inagent_go "$arch"
+    if [[ "$WITH_INAGENT_SLIM" == "yes" ]]; then
+        build_inagent_slim "$arch"
+    fi
     if [[ "$WITH_INGATE" == "yes" ]]; then
         go_build "$arch" "$PROJECT_ROOT/cmd/ingate/main.go" \
             "$PROJECT_ROOT/bin/ingated-linux-$arch"
@@ -243,8 +269,9 @@ stage_arch() {
 
     # binaries
     cp "$PROJECT_ROOT/bin/innerstackd-linux-$arch" "$stage/bin/innerstackd"
-    cp "$PROJECT_ROOT/bin/inagent-linux-amd64"     "$stage/bin/inagent-linux-amd64"
-    cp "$PROJECT_ROOT/bin/inagent-linux-arm64"     "$stage/bin/inagent-linux-arm64"
+    cp "$PROJECT_ROOT/bin/inagent-linux-$arch"     "$stage/bin/inagent-linux-$arch"
+    [[ "$WITH_INAGENT_SLIM" == "yes" ]] && \
+        cp "$PROJECT_ROOT/bin/inagent-slim-linux-$arch" "$stage/bin/inagent-slim-linux-$arch"
     [[ "$WITH_INGATE" == "yes" ]] && \
         cp "$PROJECT_ROOT/bin/ingated-linux-$arch" "$stage/bin/ingated"
     [[ "$WITH_INDNS" == "yes" ]] && \
@@ -276,13 +303,24 @@ stage_arch() {
 run_nfpm() {
     local pkg_yaml="$1" arch="$2" stage="$3"
 
+    # The main package yaml embeds an optional inagent-slim content block
+    # between marker comments. When slim is disabled, strip that block into a
+    # generated yaml so nfpm does not reference an unstaged binary.
+    local eff_yaml="$pkg_yaml"
+    if [[ "$WITH_INAGENT_SLIM" != "yes" ]] && grep -q '# >>> inagent-slim >>>' "$pkg_yaml"; then
+        local gen_dir="$PROJECT_ROOT/build/pkg-yaml"
+        mkdir -p "$gen_dir"
+        eff_yaml="$gen_dir/$(basename "$pkg_yaml" .yaml)-noslim-$arch.yaml"
+        sed '/# >>> inagent-slim >>>/,/# <<< inagent-slim <<</d' "$pkg_yaml" > "$eff_yaml"
+    fi
+
     # nfpm resolves relative content/script paths against CWD, so run from the
     # packaging dir where scripts/ lives. Binary/unit/config paths use absolute
     # ${STAGE} via env expansion (expand: true in the yaml).
     (
         cd "$PKG_DIR"
         for fmt in "${PACKAGERS[@]}"; do
-            log_info "  nfpm pkg: $(basename "$pkg_yaml") [$fmt, linux/$arch]"
+            log_info "  nfpm pkg: $(basename "$eff_yaml") [$fmt, linux/$arch]"
             # Place directly into the repository layout (the HTTP server storage
             # path): deb -> build/deb/<gen>/, rpm -> build/rpm/<gen>/<arch>/.
             local outdir
@@ -295,7 +333,7 @@ run_nfpm() {
             fi
             mkdir -p "$outdir"
             VERSION="$VERSION" ARCH="$arch" STAGE="$stage" RELEASE_SUFFIX="$RELEASE_SUFFIX" \
-                nfpm package --config "$pkg_yaml" --packager "$fmt" --target "$outdir/"
+                nfpm package --config "$eff_yaml" --packager "$fmt" --target "$outdir/"
         done
     )
 }
@@ -324,6 +362,7 @@ clean_artifacts() {
     rm -f  "$PROJECT_ROOT/bin/indnsd-linux-"*
     rm -f  "$PROJECT_ROOT/bin/innerstack-linux-"*
     rm -f  "$PROJECT_ROOT/bin/inagent-linux-"*
+    rm -f  "$PROJECT_ROOT/bin/inagent-slim-linux-"*
 }
 
 # ---------------------------------------------------------------------------
@@ -356,15 +395,13 @@ main() {
     echo "  Format(s):    $summary_fmts"
     echo "  Components:"
     echo "    innerstack (main) + inagent : yes (always)"
+    echo "    inagent-slim                : $WITH_INAGENT_SLIM"
     echo "    ingate                      : $WITH_INGATE"
     echo "    indns                       : $WITH_INDNS"
     echo "    cli                         : $WITH_CLI"
     echo ""
 
     cd "$PROJECT_ROOT"
-
-    # inagent is arch-independent of the target loop; build both arches once.
-    build_inagent_all_arches "$PROJECT_ROOT/bin"
 
     for arch in "${TARGET_ARCHES[@]}"; do
         log_info "=========================================="

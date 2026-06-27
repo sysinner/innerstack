@@ -909,7 +909,8 @@ func provisionInnerStack(rep *inapi.AppReplicaInstance) error {
 	}
 	slog.Debug("ininit script written", "path", ininitPath)
 
-	// inagent binary: prefer the C++ build, fall back to the Go build.
+	// inagent binary: default to the Go build; use the C++ slim build when
+	// enabled, falling back to the Go build if the slim binary is absent.
 	arch := "amd64"
 	if info, ok := hoststatus.StatusSet.Load("docker"); ok {
 		if driverInfo, ok := info.(*hostapi.DriverInfo); ok && driverInfo.Arch != "" {
@@ -918,12 +919,20 @@ func provisionInnerStack(rep *inapi.AppReplicaInstance) error {
 	}
 	srcPaths := hostSrcPaths()
 	inagentPath := appPaths.InagentFile()
-	srcInagentPath := srcPaths.InagentSlimSrc(arch)
-	if _, err := os.Stat(srcInagentPath); err != nil {
-		srcInagentPath = srcPaths.InagentSrc(arch)
-		if _, err = os.Stat(srcInagentPath); err != nil {
-			return fmt.Errorf("[provisionInnerStack] inagent source binary not found at %s: %w", srcInagentPath, err)
+
+	var srcInagentPath string
+	if config.Config.Hostlet.InagentSlimEnable {
+		srcInagentPath = srcPaths.InagentSlimSrc(arch)
+		if _, err := os.Stat(srcInagentPath); err != nil {
+			slog.Warn("inagent-slim binary not found, falling back to Go inagent",
+				"path", srcInagentPath, "err", err.Error())
+			srcInagentPath = srcPaths.InagentSrc(arch)
 		}
+	} else {
+		srcInagentPath = srcPaths.InagentSrc(arch)
+	}
+	if _, err := os.Stat(srcInagentPath); err != nil {
+		return fmt.Errorf("[provisionInnerStack] inagent source binary not found at %s: %w", srcInagentPath, err)
 	}
 	if _, err := exec.Command("install", srcInagentPath, inagentPath).Output(); err != nil {
 		return fmt.Errorf("[provisionInnerStack] copy inagent binary failed: %w", err)

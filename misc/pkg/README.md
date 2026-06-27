@@ -2,15 +2,17 @@
 
 Cross-platform packaging for InnerStack using [nfpm](https://nfpm.goreleaser.com/).
 nfpm is a single static Go binary that runs natively on macOS and Linux and
-produces `.rpm` / `.deb` archives from YAML configs — no `rpmbuild`, no Docker,
-no root required on the build host. Go binaries are cross-compiled via `GOARCH`,
-so a macOS laptop can produce linux/amd64 + linux/arm64 packages directly.
+produces `.rpm` / `.deb` archives from YAML configs — no `rpmbuild`, no root
+required on the build host. Go binaries are cross-compiled via `GOARCH`, so a
+macOS laptop can produce linux/amd64 + linux/arm64 packages directly. The
+inagent-slim (C++) binary is built via Docker (`make inagent-slim-<arch>`);
+pass `--without-inagent-slim` to skip it and avoid the Docker dependency.
 
 ## Components / Packages
 
 | Package             | Binary        | Required |
 |---------------------|---------------|----------|
-| `innerstack`        | `innerstackd` + `inagent-linux-{amd64,arm64}` | Yes |
+| `innerstack`        | `innerstackd` + `inagent-linux-<arch>` (+ `inagent-slim-linux-<arch>`) | Yes |
 | `innerstack-ingate` | `ingated`     | No       |
 | `innerstack-indns`  | `indnsd`      | No       |
 | `innerstack-cli`    | `innerstack`  | No       |
@@ -25,6 +27,7 @@ alongside the matching main package, so no exact-version pin is needed).
 # nfpm:
 #   macOS: brew install nfpm
 #   Linux: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+# docker + make: required only for inagent-slim (default); skip with --without-inagent-slim
 ```
 
 ## Build
@@ -52,6 +55,7 @@ make pkg-clean                    # remove build artifacts
 | `--without-ingate`  | Exclude ingate subpackage         | include |
 | `--without-indns`   | Exclude indns subpackage          | include |
 | `--without-cli`     | Exclude CLI subpackage            | include |
+| `--without-inagent-slim` | Exclude inagent-slim binary  | include |
 | `--version <ver>`   | Package version                   | git tag |
 | `--clean`           | Clean artifacts and exit          | no      |
 
@@ -81,8 +85,8 @@ sudo systemctl enable --now innerstack
 /opt/innerstack/
   bin/
     innerstackd              # main daemon
-    inagent-linux-amd64      # container guest agent (amd64)
-    inagent-linux-arm64      # container guest agent (arm64)
+    inagent-linux-<arch>     # container guest agent, Go build (target arch)
+    inagent-slim-linux-<arch> # container guest agent, C++ build (target arch)
     ingated                  # HTTP gateway (optional)
     indnsd                   # DNS server (optional)
     innerstack               # CLI tool (optional)
@@ -124,8 +128,9 @@ systemd units are colocated with their binaries, not under `misc/pkg/`:
   (`configure` / `remove`) argument conventions.
 - Config files use `type: config|noreplace` (RPM `%config(noreplace)`, deb
   conffile) so upgrades preserve local edits.
-- `innerstack` always ships both amd64 and arm64 `inagent` binaries regardless
-  of target arch (container guest agent runs inside images of either arch).
+- `innerstack` ships the `inagent` (Go) and `inagent-slim` (C++) binaries for
+  the target arch only — not both amd64 and arm64. The container guest agent
+  runs inside images of the host's arch, so the matching arch suffices.
 
 ## Repository (per-generation DEB/RPM repos)
 

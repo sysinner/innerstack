@@ -11,8 +11,8 @@ maintainer: SysInner <dev@sysinner.com>
 description: |
   InnerStack Enterprise PaaS Engine — application orchestration,
   container management, and VPC networking. This package contains the
-  main server daemon (innerstackd) and the inagent binary for both
-  amd64 and arm64 architectures.
+  main server daemon (innerstackd) and the inagent binaries (Go and
+  C++ slim) for the target architecture.
 vendor: SysInner
 homepage: https://github.com/sysinner/incore
 license: Apache-2.0
@@ -36,16 +36,18 @@ contents:
     expand: true
     file_info:
       mode: 0755
-  - src: ${STAGE}/bin/inagent-linux-amd64
-    dst: /opt/innerstack/bin/inagent-linux-amd64
+  - src: ${STAGE}/bin/inagent-linux-${ARCH}
+    dst: /opt/innerstack/bin/inagent-linux-${ARCH}
     expand: true
     file_info:
       mode: 0755
-  - src: ${STAGE}/bin/inagent-linux-arm64
-    dst: /opt/innerstack/bin/inagent-linux-arm64
+  # >>> inagent-slim >>>
+  - src: ${STAGE}/bin/inagent-slim-linux-${ARCH}
+    dst: /opt/innerstack/bin/inagent-slim-linux-${ARCH}
     expand: true
     file_info:
       mode: 0755
+  # <<< inagent-slim <<<
   - src: ${STAGE}/ininit
     dst: /opt/innerstack/cmd/inagent/ininit
     expand: true
