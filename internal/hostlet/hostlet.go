@@ -21,10 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"
-	"github.com/sysinner/incore/v2/internal/inutil"
-	"github.com/sysinner/incore/v2/pkg/signals"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/hostlet/hoststatus"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
+	"github.com/sysinner/innerstack/v2/pkg/signals"
 )
 
 //go:embed scripts/ininit

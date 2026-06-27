@@ -23,10 +23,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inconf"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inconf"
 )
 
 const minRetryIntervalSeconds int64 = 10

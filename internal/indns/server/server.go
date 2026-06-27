@@ -21,7 +21,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/sysinner/incore/v2/internal/indns/config"
+	"github.com/sysinner/innerstack/v2/internal/indns/config"
 )
 
 type inServer struct {

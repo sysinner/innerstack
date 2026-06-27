@@ -24,14 +24,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sysinner/incore/v2/internal/auth"
-	"github.com/sysinner/incore/v2/internal/client"
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/internal/status"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inauth"
-	"github.com/sysinner/incore/v2/pkg/inetutil"
+	"github.com/sysinner/innerstack/v2/internal/auth"
+	"github.com/sysinner/innerstack/v2/internal/client"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/internal/status"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inauth"
+	"github.com/sysinner/innerstack/v2/pkg/inetutil"
 )
 
 // uploadMutex provides per-package mutex for concurrent upload protection

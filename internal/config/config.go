@@ -27,10 +27,10 @@ import (
 	"github.com/hooto/htoml4g/htoml"
 	kvclient "github.com/lynkdb/kvgo/v2/pkg/client"
 
-	"github.com/sysinner/incore/v2/internal/inutil"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inauth"
-	"github.com/sysinner/incore/v2/pkg/inlog"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inauth"
+	"github.com/sysinner/innerstack/v2/pkg/inlog"
 )
 
 var (

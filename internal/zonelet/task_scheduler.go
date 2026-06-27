@@ -21,12 +21,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/internal/status"
-	"github.com/sysinner/incore/v2/internal/zonelet/network"
-	"github.com/sysinner/incore/v2/internal/zonelet/scheduler"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/internal/status"
+	"github.com/sysinner/innerstack/v2/internal/zonelet/network"
+	"github.com/sysinner/innerstack/v2/internal/zonelet/scheduler"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 var (

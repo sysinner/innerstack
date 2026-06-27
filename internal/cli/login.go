@@ -26,8 +26,8 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/internal/client"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/client"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 func NewLoginCommand(rootCmd *cobra.Command) *cobra.Command {

@@ -22,12 +22,12 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/internal/status"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inauth"
-	"github.com/sysinner/incore/v2/pkg/inetutil"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/internal/status"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inauth"
+	"github.com/sysinner/innerstack/v2/pkg/inetutil"
 )
 
 type zoneInternalServer struct {

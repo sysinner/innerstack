@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
 )
 
 const accessKeyPrefix = "ak_"

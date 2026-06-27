@@ -19,9 +19,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/internal/inutil/syncx"
-	"github.com/sysinner/incore/v2/internal/stateflow"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/inutil/syncx"
+	"github.com/sysinner/innerstack/v2/internal/stateflow"
 )
 
 var (

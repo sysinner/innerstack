@@ -15,7 +15,7 @@
 package cli
 
 import (
-	"github.com/sysinner/incore/v2/pkg/inconf"
+	"github.com/sysinner/innerstack/v2/pkg/inconf"
 )
 
 var appConfigHelper *inconf.AppConfigHelper

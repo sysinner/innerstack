@@ -20,7 +20,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 func TestPriorityList(t *testing.T) {

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 func TestSuffixFor(t *testing.T) {

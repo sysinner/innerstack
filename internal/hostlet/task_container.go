@@ -28,12 +28,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/hostlet/docker"
-	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
-	"github.com/sysinner/incore/v2/internal/hostlet/hoststatus"
-	"github.com/sysinner/incore/v2/internal/inutil"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/hostlet/docker"
+	"github.com/sysinner/innerstack/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/innerstack/v2/internal/hostlet/hoststatus"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 // hostSrcPaths returns source file paths based on the current config prefix.

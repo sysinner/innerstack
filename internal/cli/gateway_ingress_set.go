@@ -29,8 +29,8 @@ import (
 	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/internal/client"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/client"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 func NewGatewayIngressSetCommand() *cobra.Command {

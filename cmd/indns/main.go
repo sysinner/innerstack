@@ -20,9 +20,9 @@ import (
 	"os/signal"
 	"runtime"
 
-	"github.com/sysinner/incore/v2/internal/indns/config"
-	"github.com/sysinner/incore/v2/internal/indns/server"
-	"github.com/sysinner/incore/v2/pkg/inlog"
+	"github.com/sysinner/innerstack/v2/internal/indns/config"
+	"github.com/sysinner/innerstack/v2/internal/indns/server"
+	"github.com/sysinner/innerstack/v2/pkg/inlog"
 )
 
 func init() {

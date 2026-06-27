@@ -22,7 +22,7 @@ import (
 
 	"github.com/hooto/htoml4g/htoml"
 
-	"github.com/sysinner/incore/v2/pkg/inauth"
+	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
 // Config represents the CLI configuration file

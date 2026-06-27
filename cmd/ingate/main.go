@@ -46,12 +46,12 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/time/rate"
 
-	"github.com/sysinner/incore/v2/internal/client"
-	"github.com/sysinner/incore/v2/internal/inutil/tplrender"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inauth"
-	"github.com/sysinner/incore/v2/pkg/inlog"
-	"github.com/sysinner/incore/v2/pkg/signals"
+	"github.com/sysinner/innerstack/v2/internal/client"
+	"github.com/sysinner/innerstack/v2/internal/inutil/tplrender"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inauth"
+	"github.com/sysinner/innerstack/v2/pkg/inlog"
+	"github.com/sysinner/innerstack/v2/pkg/signals"
 )
 
 //go:embed builtin/403.html

@@ -45,7 +45,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/internal/cli"
+	"github.com/sysinner/innerstack/v2/internal/cli"
 )
 
 const AppName = "innerstack"

@@ -28,8 +28,8 @@ import (
 
 	drvClient "github.com/fsouza/go-dockerclient"
 
-	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 // dockerStateMap maps Docker container states to inapi replica states.

@@ -18,7 +18,7 @@ import (
 	"errors"
 
 	"github.com/spf13/cobra"
-	"github.com/sysinner/incore/v2/pkg/inconf"
+	"github.com/sysinner/innerstack/v2/pkg/inconf"
 )
 
 func NewConfigRenderCommand() *cobra.Command {

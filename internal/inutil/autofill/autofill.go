@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sysinner/incore/v2/internal/inutil"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
 )
 
 const (

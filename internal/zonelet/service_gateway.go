@@ -29,12 +29,12 @@ import (
 	"golang.org/x/net/idna"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/internal/inutil"
-	"github.com/sysinner/incore/v2/internal/status"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inauth"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
+	"github.com/sysinner/innerstack/v2/internal/status"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
 func (it *zoneServer) GatewayIngressList(

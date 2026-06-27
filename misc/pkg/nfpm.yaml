@@ -14,7 +14,7 @@ description: |
   main server daemon (innerstackd) and the inagent binaries (Go and
   C++ slim) for the target architecture.
 vendor: SysInner
-homepage: https://github.com/sysinner/incore
+homepage: https://github.com/sysinner/innerstack
 license: Apache-2.0
 depends:
   - systemd

@@ -24,9 +24,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inetutil"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inetutil"
 )
 
 type NetworkManager struct {

@@ -11,7 +11,7 @@ description: |
   InDNS is the built-in DNS server for InnerStack, providing internal
   service discovery and DNS record management.
 vendor: SysInner
-homepage: https://github.com/sysinner/incore
+homepage: https://github.com/sysinner/innerstack
 license: Apache-2.0
 depends:
   - systemd

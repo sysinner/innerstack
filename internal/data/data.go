@@ -21,7 +21,7 @@ import (
 	"github.com/lynkdb/kvgo/v2/pkg/kvrep"
 	"github.com/lynkdb/kvgo/v2/pkg/storage"
 
-	"github.com/sysinner/incore/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/config"
 )
 
 var (

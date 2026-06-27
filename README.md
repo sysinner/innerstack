@@ -1,4 +1,4 @@
-# incore
+# innerstack
 
 [简体中文](./README.zh-CN.md)
 
@@ -22,7 +22,7 @@ It delivers industrial-grade stability through a radically simplified architectu
 
 ## Project Status
 
-incore v2 is currently in **active development** (alpha stage). The architecture and core functionality are stable; features are being added incrementally.
+innerstack v2 is currently in **active development** (alpha stage). The architecture and core functionality are stable; features are being added incrementally.
 
 ## License
 

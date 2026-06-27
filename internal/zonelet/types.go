@@ -20,9 +20,9 @@ import (
 
 	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 type appInstanceEntry struct {

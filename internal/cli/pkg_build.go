@@ -19,7 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/internal/pkgbuild"
+	"github.com/sysinner/innerstack/v2/internal/pkgbuild"
 )
 
 // NewPkgBuildCommand creates the "pkg-build" command for building .ipk packages.
@@ -77,7 +77,7 @@ func NewPkgBuildCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "pkg-build",
-		Short: "Build an incore binary package",
+		Short: "Build an innerstack binary package",
 		Long: `Build a distributable .ipk package from a local project.
 
 Packages the project into a deployable archive based on ipk.toml specification.

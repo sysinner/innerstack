@@ -10,7 +10,7 @@ example/
 history-v1/
 
 batch-*.sh
-instack
+innerstack
 
 go.sum
 perf.md

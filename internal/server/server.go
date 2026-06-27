@@ -22,8 +22,8 @@ import (
 	"github.com/hooto/httpsrv"
 	"google.golang.org/grpc"
 
-	"github.com/sysinner/incore/v2/internal/auth"
-	"github.com/sysinner/incore/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/auth"
+	"github.com/sysinner/innerstack/v2/internal/config"
 )
 
 type RpcServer = grpc.Server

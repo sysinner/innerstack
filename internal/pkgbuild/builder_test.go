@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 func TestReplaceMetadataVersion(t *testing.T) {

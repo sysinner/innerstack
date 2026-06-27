@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 // Edit opens the user's preferred editor on a temp file pre-filled with seed
@@ -40,7 +40,7 @@ func Edit(seed string, suffix string) (string, error) {
 		return "", fmt.Errorf("no editor found (set $EDITOR or $VISUAL)")
 	}
 
-	dir, err := os.MkdirTemp("", "incore-edit-*")
+	dir, err := os.MkdirTemp("", "innerstack-edit-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp dir: %w", err)
 	}

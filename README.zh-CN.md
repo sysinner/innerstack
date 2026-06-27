@@ -1,4 +1,4 @@
-# incore
+# innerstack
 
 [English](./README.md)
 
@@ -23,7 +23,7 @@
 
 ## 项目状态
 
-incore v2 目前处于**活跃开发**阶段（alpha）。架构和核心功能已稳定，功能正在逐步增加。
+innerstack v2 目前处于**活跃开发**阶段（alpha）。架构和核心功能已稳定，功能正在逐步增加。
 
 ## 许可证
 

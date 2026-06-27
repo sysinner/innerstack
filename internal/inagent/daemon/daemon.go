@@ -27,11 +27,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/internal/hostlet/hostapi"
-	"github.com/sysinner/incore/v2/internal/inagent/task"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inlog"
-	"github.com/sysinner/incore/v2/pkg/signals"
+	"github.com/sysinner/innerstack/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/innerstack/v2/internal/inagent/task"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inlog"
+	"github.com/sysinner/innerstack/v2/pkg/signals"
 )
 
 var (

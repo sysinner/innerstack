@@ -18,9 +18,9 @@ import (
 	"errors"
 
 	"github.com/hooto/httpsrv"
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/internal/status"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/internal/status"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 func NewPublicModule() *httpsrv.Module {

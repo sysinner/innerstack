@@ -23,8 +23,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sysinner/incore/v2/internal/inutil"
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 const (

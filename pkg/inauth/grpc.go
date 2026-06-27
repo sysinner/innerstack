@@ -67,11 +67,11 @@ func NewGrpcAppValidator(ctx context.Context, keyMgr *AccessKeyManager) (AppVali
 
 	av, err := NewAppValidator(values[0])
 	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, err.Error())
+		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
 	if err = av.Verify(keyMgr); err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, err.Error())
+		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 
 	return av, nil

@@ -21,8 +21,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/incore/v2/internal/inagent/cli"
-	"github.com/sysinner/incore/v2/internal/inagent/daemon"
+	"github.com/sysinner/innerstack/v2/internal/inagent/cli"
+	"github.com/sysinner/innerstack/v2/internal/inagent/daemon"
 )
 
 var (

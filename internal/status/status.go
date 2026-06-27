@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sysinner/incore/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/config"
 )
 
 var (

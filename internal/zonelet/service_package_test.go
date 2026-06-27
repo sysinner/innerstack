@@ -17,7 +17,7 @@ package zonelet
 import (
 	"testing"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 func TestSemverCompare(t *testing.T) {

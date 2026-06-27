@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/pkg/inauth"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
 type hostInternalServer struct {

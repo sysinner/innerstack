@@ -17,15 +17,15 @@ package main
 import (
 	"log"
 
-	"github.com/sysinner/incore/v2/internal/auth"
-	"github.com/sysinner/incore/v2/internal/config"
-	"github.com/sysinner/incore/v2/internal/data"
-	"github.com/sysinner/incore/v2/internal/hostlet"
-	"github.com/sysinner/incore/v2/internal/server"
-	"github.com/sysinner/incore/v2/internal/zonelet"
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/pkg/inlog"
-	"github.com/sysinner/incore/v2/pkg/signals"
+	"github.com/sysinner/innerstack/v2/internal/auth"
+	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/internal/hostlet"
+	"github.com/sysinner/innerstack/v2/internal/server"
+	"github.com/sysinner/innerstack/v2/internal/zonelet"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/pkg/inlog"
+	"github.com/sysinner/innerstack/v2/pkg/signals"
 )
 
 var (
@@ -37,7 +37,7 @@ func main() {
 	inlog.Setup()
 
 	if err := config.Setup(version); err != nil {
-		log.Fatalf("incore/config init error %s", err.Error())
+		log.Fatalf("config init error %s", err.Error())
 	}
 
 	if err := auth.Setup(); err != nil {
@@ -45,12 +45,12 @@ func main() {
 	}
 
 	if err := data.Setup(); err != nil {
-		log.Fatalf("incore/data init error %s", err.Error())
+		log.Fatalf("data init error %s", err.Error())
 	}
 	defer data.Close()
 
 	if err := server.Setup(); err != nil {
-		log.Fatalf("incore/server setup error %s", err.Error())
+		log.Fatalf("server setup error %s", err.Error())
 	}
 
 	if err := server.RegisterServer(func(s *server.RpcServer) {
@@ -58,7 +58,7 @@ func main() {
 		inapi.RegisterZoneServiceServer(s, zonelet.NewServer())
 		inapi.RegisterZoneInternalServiceServer(s, zonelet.NewInternalServer())
 	}); err != nil {
-		log.Fatalf("incore/server start error %s", err.Error())
+		log.Fatalf("server start error %s", err.Error())
 	}
 
 	if config.Config.Server.PublicApiEnable {

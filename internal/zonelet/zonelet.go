@@ -19,9 +19,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/sysinner/incore/v2/pkg/inapi"
-	"github.com/sysinner/incore/v2/internal/zonelet/network"
-	"github.com/sysinner/incore/v2/pkg/signals"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"github.com/sysinner/innerstack/v2/internal/zonelet/network"
+	"github.com/sysinner/innerstack/v2/pkg/signals"
 )
 
 var (
