@@ -63,7 +63,8 @@ func NewConfigRenderCommand() *cobra.Command {
 		`output file path`,
 	)
 
-	cmd.MarkFlagRequired("app-spec")
+	_ = cmd.MarkFlagRequired("in")
+	_ = cmd.MarkFlagRequired("out")
 
 	return cmd
 }

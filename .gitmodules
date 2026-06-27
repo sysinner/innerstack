@@ -1,0 +1,9 @@
+[submodule "toml11"]
+	path = cmd/inagent-slim/third_party/toml11
+	url = https://github.com/ToruNiina/toml11.git
+[submodule "yaml-cpp"]
+	path = cmd/inagent-slim/third_party/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
+[submodule "nlohmann"]
+	path = cmd/inagent-slim/third_party/nlohmann
+	url = https://github.com/nlohmann/json.git

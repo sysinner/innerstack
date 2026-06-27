@@ -1,0 +1,7 @@
+ARG TARGETPLATFORM
+FROM --platform=${TARGETPLATFORM} alpine:3.23
+
+RUN echo "https://mirrors.aliyun.com/alpine/v3.23/main" > /etc/apk/repositories && \
+    echo "https://mirrors.aliyun.com/alpine/v3.23/community" >> /etc/apk/repositories
+
+RUN apk add --no-cache cmake make gcc g++ musl-dev

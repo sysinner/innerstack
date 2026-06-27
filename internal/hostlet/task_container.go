@@ -918,7 +918,7 @@ func provisionInnerStack(rep *inapi.AppReplicaInstance) error {
 	}
 	srcPaths := hostSrcPaths()
 	inagentPath := appPaths.InagentFile()
-	srcInagentPath := srcPaths.InagentCppSrc(arch)
+	srcInagentPath := srcPaths.InagentSlimSrc(arch)
 	if _, err := os.Stat(srcInagentPath); err != nil {
 		srcInagentPath = srcPaths.InagentSrc(arch)
 		if _, err = os.Stat(srcInagentPath); err != nil {

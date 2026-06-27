@@ -39,7 +39,7 @@ func NewConfigMergeCommand() *cobra.Command {
 
 	configMergeCommand := func(cmd *cobra.Command, args []string) error {
 
-		argWithConfigField = strings.TrimLeft(argWithConfigField, "cfg/")
+		argWithConfigField = strings.TrimPrefix(argWithConfigField, "cfg/")
 		if argWithConfigField == "" {
 			return errors.New("invalid --with-config-field value")
 		}

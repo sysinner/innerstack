@@ -49,40 +49,40 @@ inagent-go:
 	GOOS=linux GOARCH=amd64 go build $(GOBUILD_ARGS) -ldflags="-s -w" -o bin/inagent-linux-amd64 cmd/inagent/inagent.go
 	GOOS=linux GOARCH=arm64 go build $(GOBUILD_ARGS) -ldflags="-s -w" -o bin/inagent-linux-arm64 cmd/inagent/inagent.go
 
-INAGENT_CPP_BASE = sysinner/innerstack-alpine-inagent-cpp:3.23
+INAGENT_SLIM_BASE = sysinner/innerstack-alpine-inagent-slim:3.23
 
-.PHONY: inagent-cpp-base inagent-cpp-base-amd64 inagent-cpp-base-arm64
+.PHONY: inagent-slim-base inagent-slim-base-amd64 inagent-slim-base-arm64
 
-inagent-cpp-base-amd64:
+inagent-slim-base-amd64:
 	docker build --platform linux/amd64 \
 		--build-arg TARGETPLATFORM=linux/amd64 \
-		-t $(INAGENT_CPP_BASE)-amd64 -f cmd/inagent-cpp/Dockerfile.base cmd/inagent-cpp
+		-t $(INAGENT_SLIM_BASE)-amd64 -f cmd/inagent-slim/Dockerfile.base cmd/inagent-slim
 
-inagent-cpp-base-arm64:
+inagent-slim-base-arm64:
 	docker build --platform linux/arm64 \
 		--build-arg TARGETPLATFORM=linux/arm64 \
-		-t $(INAGENT_CPP_BASE)-arm64 -f cmd/inagent-cpp/Dockerfile.base cmd/inagent-cpp
+		-t $(INAGENT_SLIM_BASE)-arm64 -f cmd/inagent-slim/Dockerfile.base cmd/inagent-slim
 
-inagent-cpp-base: inagent-cpp-base-amd64 inagent-cpp-base-arm64
+inagent-slim-base: inagent-slim-base-amd64 inagent-slim-base-arm64
 
-INAGENT_CPP_ARCHS = amd64 arm64
+INAGENT_SLIM_ARCHS = amd64 arm64
 
-define INAGENT_CPP_BUILD
-inagent-cpp-$(1):
-	@docker image inspect $(INAGENT_CPP_BASE)-$(1) >/dev/null 2>&1 || \
-		$(MAKE) inagent-cpp-base-$(1)
+define INAGENT_SLIM_BUILD
+inagent-slim-$(1):
+	@docker image inspect $(INAGENT_SLIM_BASE)-$(1) >/dev/null 2>&1 || \
+		$(MAKE) inagent-slim-base-$(1)
 	docker build --platform linux/$(1) \
 		--build-arg TARGETPLATFORM=linux/$(1) \
-		--build-arg BUILDER=$(INAGENT_CPP_BASE)-$(1) \
-		-t inagent-cpp-builder-$(1) -f cmd/inagent-cpp/Dockerfile .
+		--build-arg BUILDER=$(INAGENT_SLIM_BASE)-$(1) \
+		-t inagent-slim-builder-$(1) -f cmd/inagent-slim/Dockerfile .
 	docker run --rm --platform linux/$(1) \
-		-v $(CURDIR)/bin:/output inagent-cpp-builder-$(1) \
-		cp /build/build/inagent /output/inagent-cpp-linux-$(1)
+		-v $(CURDIR)/bin:/output inagent-slim-builder-$(1) \
+		cp /build/build/inagent /output/inagent-slim-linux-$(1)
 endef
 
-$(foreach arch,$(INAGENT_CPP_ARCHS),$(eval $(call INAGENT_CPP_BUILD,$(arch))))
+$(foreach arch,$(INAGENT_SLIM_ARCHS),$(eval $(call INAGENT_SLIM_BUILD,$(arch))))
 
-inagent-cpp: inagent-cpp-amd64 inagent-cpp-arm64
+inagent-slim: inagent-slim-amd64 inagent-slim-arm64
 
 # Packaging targets (nfpm; produces rpm + deb, runs natively on macOS/Linux).
 # All builds target the repository layout; --gen places output under

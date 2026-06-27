@@ -5,7 +5,7 @@ var/
 test/
 pod/
 example/
-cmd/inagent-cpp
+/cmd/inagent-slim/build
 
 history-v1/
 
