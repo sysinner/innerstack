@@ -100,10 +100,14 @@ func main() {
 	// - app-info: Display detailed information about a specific application
 	// - app-deploy: Deploy a new application or update an existing one
 	// - app-delete: Remove an application from the zone
+	// - app-spec-list: List all application specs in the zone
+	// - app-spec-info: Look up an application spec by name
 	rootCmd.AddCommand(cli.NewAppListCommand())
 	rootCmd.AddCommand(cli.NewAppInfoCommand())
 	rootCmd.AddCommand(cli.NewAppDeployCommand())
 	rootCmd.AddCommand(cli.NewAppDeleteCommand())
+	rootCmd.AddCommand(cli.NewAppSpecListCommand())
+	rootCmd.AddCommand(cli.NewAppSpecInfoCommand())
 
 	// Register gateway ingress management commands
 	// - gw-ingress-list: List all gateway ingress rules

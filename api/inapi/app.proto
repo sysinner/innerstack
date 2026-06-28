@@ -54,7 +54,8 @@ message AppInstance {
 // services, executors, packages, dependencies, and configuration.
 message AppSpec {
   // kind indicates the type of application (e.g., "app", "service").
-  string kind = 1;
+  // Temporarily disabled.
+  // string kind = 1;
 
   // name is the unique name of the application specification.
   string name = 2;

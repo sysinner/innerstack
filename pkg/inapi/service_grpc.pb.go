@@ -43,6 +43,7 @@ const (
 	ZoneService_AppInstanceInfo_FullMethodName    = "/inapi.ZoneService/AppInstanceInfo"
 	ZoneService_AppInstanceList_FullMethodName    = "/inapi.ZoneService/AppInstanceList"
 	ZoneService_AppInstanceDelete_FullMethodName  = "/inapi.ZoneService/AppInstanceDelete"
+	ZoneService_AppSpecList_FullMethodName        = "/inapi.ZoneService/AppSpecList"
 	ZoneService_GatewayIngressInfo_FullMethodName = "/inapi.ZoneService/GatewayIngressInfo"
 	ZoneService_GatewayIngressList_FullMethodName = "/inapi.ZoneService/GatewayIngressList"
 	ZoneService_GatewayIngressSet_FullMethodName  = "/inapi.ZoneService/GatewayIngressSet"
@@ -78,6 +79,9 @@ type ZoneServiceClient interface {
 	AppInstanceList(ctx context.Context, in *AppInstanceListRequest, opts ...grpc.CallOption) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(ctx context.Context, in *AppInstanceDeleteRequest, opts ...grpc.CallOption) (*AppInstanceDeleteResponse, error)
+	// AppSpecList lists application specifications stored in the zone.
+	// When name is set, only the spec with that exact name is returned.
+	AppSpecList(ctx context.Context, in *AppSpecListRequest, opts ...grpc.CallOption) (*AppSpecListResponse, error)
 	// GatewayIngressInfo retrieves details of a specific gateway ingress.
 	GatewayIngressInfo(ctx context.Context, in *GatewayIngressInfoRequest, opts ...grpc.CallOption) (*GatewayIngressInfoResponse, error)
 	// GatewayIngressList retrieves all gateway ingress entries.
@@ -190,6 +194,15 @@ func (c *zoneServiceClient) AppInstanceDelete(ctx context.Context, in *AppInstan
 	return out, nil
 }
 
+func (c *zoneServiceClient) AppSpecList(ctx context.Context, in *AppSpecListRequest, opts ...grpc.CallOption) (*AppSpecListResponse, error) {
+	out := new(AppSpecListResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AppSpecList_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *zoneServiceClient) GatewayIngressInfo(ctx context.Context, in *GatewayIngressInfoRequest, opts ...grpc.CallOption) (*GatewayIngressInfoResponse, error) {
 	out := new(GatewayIngressInfoResponse)
 	err := c.cc.Invoke(ctx, ZoneService_GatewayIngressInfo_FullMethodName, in, out, opts...)
@@ -271,6 +284,9 @@ type ZoneServiceServer interface {
 	AppInstanceList(context.Context, *AppInstanceListRequest) (*AppInstanceListResponse, error)
 	// AppInstanceDelete deletes an application instance from the zone.
 	AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error)
+	// AppSpecList lists application specifications stored in the zone.
+	// When name is set, only the spec with that exact name is returned.
+	AppSpecList(context.Context, *AppSpecListRequest) (*AppSpecListResponse, error)
 	// GatewayIngressInfo retrieves details of a specific gateway ingress.
 	GatewayIngressInfo(context.Context, *GatewayIngressInfoRequest) (*GatewayIngressInfoResponse, error)
 	// GatewayIngressList retrieves all gateway ingress entries.
@@ -319,6 +335,9 @@ func (UnimplementedZoneServiceServer) AppInstanceList(context.Context, *AppInsta
 }
 func (UnimplementedZoneServiceServer) AppInstanceDelete(context.Context, *AppInstanceDeleteRequest) (*AppInstanceDeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppInstanceDelete not implemented")
+}
+func (UnimplementedZoneServiceServer) AppSpecList(context.Context, *AppSpecListRequest) (*AppSpecListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AppSpecList not implemented")
 }
 func (UnimplementedZoneServiceServer) GatewayIngressInfo(context.Context, *GatewayIngressInfoRequest) (*GatewayIngressInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GatewayIngressInfo not implemented")
@@ -531,6 +550,24 @@ func _ZoneService_AppInstanceDelete_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ZoneService_AppSpecList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppSpecListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AppSpecList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AppSpecList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AppSpecList(ctx, req.(*AppSpecListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ZoneService_GatewayIngressInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GatewayIngressInfoRequest)
 	if err := dec(in); err != nil {
@@ -685,6 +722,10 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AppInstanceDelete",
 			Handler:    _ZoneService_AppInstanceDelete_Handler,
+		},
+		{
+			MethodName: "AppSpecList",
+			Handler:    _ZoneService_AppSpecList_Handler,
 		},
 		{
 			MethodName: "GatewayIngressInfo",

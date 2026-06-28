@@ -65,6 +65,10 @@ service ZoneService {
   rpc AppInstanceDelete(AppInstanceDeleteRequest)
       returns (AppInstanceDeleteResponse) {}
 
+  // AppSpecList lists application specifications stored in the zone.
+  // When name is set, only the spec with that exact name is returned.
+  rpc AppSpecList(AppSpecListRequest) returns (AppSpecListResponse) {}
+
   // GatewayIngressInfo retrieves details of a specific gateway ingress.
   rpc GatewayIngressInfo(GatewayIngressInfoRequest)
       returns (GatewayIngressInfoResponse) {}
@@ -314,6 +318,20 @@ message AppInstanceDeleteRequest {
 // AppInstanceDeleteResponse is the response message after deleting an
 // application instance.
 message AppInstanceDeleteResponse {}
+
+// AppSpecListRequest is the request message for listing application specs.
+message AppSpecListRequest {
+  // name filters specs by exact name match (optional). When set, only the
+  // spec with the matching name is returned.
+  string name = 1;
+}
+
+// AppSpecListResponse is the response message containing the list of
+// application specs.
+message AppSpecListResponse {
+  // items is the list of application specs.
+  repeated AppSpec items = 1;
+}
 
 // GatewayIngressListRequest is the request message for listing gateway ingress
 // entries.

@@ -64,37 +64,30 @@ func (s *zoneServer) AppInstanceDeploy(
 		return nil, errors.New("spec is required for new instance")
 	}
 
-	var cpuLimit, memoryLimit, volumeLimit int64
+	var (
+		cpuLimit, memoryLimit, volumeLimit int64
+
+		// appSpecPrev* describe the currently persisted AppSpec for the
+		// requested spec name. They are loaded once during validation so the
+		// version can be resolved against the existing one, and reused by
+		// refreshAppSpec when persisting the resolved version.
+		appSpecPrevVersion uint64
+		appSpecPrevExists  bool
+	)
 
 	refreshAppSpec := func(spec *inapi.AppSpec) error {
 
-		var (
-			key         = inapi.NsAppSpec(spec.Name)
-			prevSpec    inapi.AppSpec
-			prevVersion uint64
-		)
+		key := inapi.NsAppSpec(spec.Name)
 
-		if rs := data.Zonelet.NewReader(key).Exec(); rs.NotFound() {
+		if !appSpecPrevExists {
 			if rs := data.Zonelet.NewWriter(key, spec).SetCreateOnly(true).Exec(); !rs.OK() {
 				return rs.Error()
-			} else {
-				return nil
 			}
-		} else if !rs.OK() {
-			return rs.Error()
-		} else if err := rs.Item().JsonDecode(&prevSpec); err != nil {
-			return err
-		} else {
-			prevVersion = rs.Item().Meta.Version
-		}
-
-		if semverCompare(prevSpec.Version, spec.Version) > 0 {
-			slog.Info("app-spec skip version")
 			return nil
 		}
 
 		if rs := data.Zonelet.NewWriter(key, spec).SetPrevVersion(
-			prevVersion).Exec(); !rs.OK() {
+			appSpecPrevVersion).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 
@@ -106,10 +99,32 @@ func (s *zoneServer) AppInstanceDeploy(
 			return nil, fmt.Errorf("spec.name: %w", err)
 		}
 
-		if req.Spec.Version != "" {
-			if err := inapi.SemverValid(req.Spec.Version); err != nil {
-				return nil, fmt.Errorf("spec.version: %w", err)
+		// Resolve the spec version against any previously persisted spec.
+		// An empty version defaults to "0.0.1"; a provided version is validated.
+		// When a previous spec exists, the request main version (MAJOR.MINOR.PATCH)
+		// must not be lower than the existing one; an equal main version bumps the
+		// release number on top of the previous version (0.0.1 -> 0.0.1-1,
+		// 0.0.1-1 -> 0.0.1-2).
+		{
+			var prev inapi.AppSpec
+			if rs := data.Zonelet.NewReader(
+				inapi.NsAppSpec(req.Spec.Name)).Exec(); rs.NotFound() {
+				// no previous spec persisted yet
+			} else if !rs.OK() {
+				return nil, rs.Error()
+			} else if err := rs.Item().JsonDecode(&prev); err != nil {
+				return nil, err
+			} else {
+				appSpecPrevExists = true
+				appSpecPrevVersion = rs.Item().Meta.Version
 			}
+
+			resolved, err := appSpecResolveVersion(
+				req.Spec.Version, prev.Version, appSpecPrevExists)
+			if err != nil {
+				return nil, err
+			}
+			req.Spec.Version = resolved
 		}
 
 		if req.Spec.Resources == nil {
