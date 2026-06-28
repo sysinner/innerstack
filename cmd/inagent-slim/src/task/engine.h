@@ -19,5 +19,11 @@ namespace inagent {
         int kill_all();
         void reap_children();
 
+        // on_startup_aggregate reports the aggregate state of OnStartup tasks:
+        // "success" when all done (or none), "running" while any pending/
+        // running, "failed" if any failed. msg holds a short summary.
+        void on_startup_aggregate(const model::AppReplicaInstance& app,
+                                  std::string& state, std::string& msg);
+
     } // namespace task
 } // namespace inagent

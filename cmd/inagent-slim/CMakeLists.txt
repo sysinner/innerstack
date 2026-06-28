@@ -24,6 +24,7 @@ set(SOURCES
     src/task/cron.cpp
     src/log/logger.cpp
     src/signal/signal_handler.cpp
+    src/status/reporter.cpp
     src/util/fs.cpp
     src/util/string_util.cpp
     src/util/time_util.cpp

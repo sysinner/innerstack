@@ -271,6 +271,9 @@ message AppDeployStage {
   // (e.g., "scheduler", "zonelet", "hostlet").
   string owner = 2;
 
+  // revision is the AppDeploy.revision for concurrency control.
+  uint64 revision = 6;
+
   // state is the current execution status of the stage.
   // Valid values: pending, running, success, failed.
   string state = 7;
@@ -286,17 +289,35 @@ message AppDeployStage {
   // information or the last error description.
   string message = 12;
 
-  // created is the time the stage was created, as a unix timestamp in seconds.
+  // created is the time the stage started, as a unix timestamp in
+  // milliseconds.
   int64 created = 14;
 
   // finished is the time the stage reached a terminal state (success or
-  // failure), as a unix timestamp in seconds. A value of 0 means the stage
-  // is still pending or running.
+  // failure), as a unix timestamp in milliseconds. A value of 0 means the
+  // stage is still pending or running (an instantaneous value); a value
+  // greater than or equal to created denotes a duration.
   int64 finished = 15;
 
   // stages is a list of nested child stages that make up this stage,
   // enabling hierarchical deployment workflows.
   repeated AppDeployStage stages = 16;
+}
+
+// HostReplicaStageReport carries a hostlet's per-replica deploy stage
+// progress, reported upward to the zone leader via HostStatusUpdate. The
+// zone leader merges these host-side stage nodes into the matching replica
+// stage subtree of AppDeploy.Stages.
+message HostReplicaStageReport {
+  // instance_name is the name of the app instance this report belongs to.
+  string instance_name = 1;
+
+  // replica_id is the id of the replica this report belongs to.
+  uint32 replica_id = 2;
+
+  // stages is the set of host-side stage nodes to merge into the replica's
+  // stage subtree.
+  repeated AppDeployStage stages = 3;
 }
 
 // AppStatus represents the current observed status of an application.
@@ -377,4 +398,36 @@ message AppReplicaInstance {
   AppDeployReplica replica = 2;
 
   string zone_base_domain = 3;
+
+  // hostlet_endpoint is the hostlet status-report API endpoint the inagent
+  // posts its stage progress to. Written by the hostlet into app_replica.json.
+  HostletStatusEndpoint hostlet_endpoint = 4;
+}
+
+// HostletStatusEndpoint describes how the inagent reaches the hostlet local
+// HTTP API to report in-container stage progress.
+message HostletStatusEndpoint {
+  // url is the full HTTP URL, e.g. http://10.0.1.5:9534/inagent/status.
+  string url = 1;
+
+  // secret_key is a per-replica random secret the inagent presents for
+  // authentication.
+  string secret_key = 2;
+}
+
+// InagentStatusReport is the body the inagent POSTs to the hostlet status
+// API. The hostlet merges its stages into the matching replica stage subtree
+// and relays them upward to the zone leader.
+message InagentStatusReport {
+  // instance_name is the app instance name this report belongs to.
+  string instance_name = 1;
+
+  // replica_id is the replica id this report belongs to.
+  uint32 replica_id = 2;
+
+  // updated is the millisecond unix timestamp this report was generated.
+  int64 updated = 3;
+
+  // stages is the set of inagent-owned stage nodes to merge.
+  repeated AppDeployStage stages = 4;
 }

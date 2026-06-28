@@ -16,9 +16,15 @@ package hoststatus
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/sysinner/innerstack/v2/internal/inutil"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/internal/inutil/syncx"
 	"github.com/sysinner/innerstack/v2/internal/stateflow"
@@ -36,6 +42,12 @@ var (
 	Active HostActiveConfig
 
 	AppWorkflow stateflow.AppStateWorkflow
+
+	// ReplicaStages holds the host-side deploy stage progress per replica,
+	// keyed by ReplicaStageKey(instanceName, repId). It is hostlet-local and
+	// persisted across ticks; the status loop reports dirty entries upward
+	// via HostStatusUpdate.
+	ReplicaStages syncx.Map
 )
 
 var (
@@ -53,6 +65,11 @@ type HostActiveConfig struct {
 	// Deploy.Revision increment issued while the hostlet was down is still
 	// detected after restart and triggers a container recreate.
 	AppliedRevisions map[string]uint64 `json:"applied_revisions,omitempty"`
+
+	// SecretKeys holds the per-replica inagent status API secret keyed by
+	// container name. Persisted to hostlet_active.json so it survives hostlet
+	// restart and stays consistent with the secret written into app_replica.json.
+	SecretKeys map[string]string `json:"secret_keys,omitempty"`
 
 	index map[string]*inapi.AppInstance
 }
@@ -78,6 +95,53 @@ func (it *HostActiveConfig) AppliedRevision(containerName string) (uint64, bool)
 	}
 	rev, ok := it.AppliedRevisions[containerName]
 	return rev, ok
+}
+
+// SecretKey returns the inagent API secret for a container, or "" if none.
+func (it *HostActiveConfig) SecretKey(containerName string) string {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	if it.SecretKeys == nil {
+		return ""
+	}
+	return it.SecretKeys[containerName]
+}
+
+// SetSecretKey sets the inagent API secret for a container.
+func (it *HostActiveConfig) SetSecretKey(containerName, secret string) {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.SecretKeys == nil {
+		it.SecretKeys = make(map[string]string)
+	}
+	it.SecretKeys[containerName] = secret
+}
+
+// EnsureSecretKey returns the existing inagent API secret for a container,
+// generating a new random one if absent. changed is true if a new secret was
+// created (the caller should persist the active config to disk).
+func (it *HostActiveConfig) EnsureSecretKey(containerName string) (string, bool) {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.SecretKeys == nil {
+		it.SecretKeys = make(map[string]string)
+	}
+	if s := it.SecretKeys[containerName]; s != "" {
+		return s, false
+	}
+	s := inutil.SeqRandHexString(2, 32)
+	it.SecretKeys[containerName] = s
+	return s, true
+}
+
+// DeleteSecretKey removes the inagent API secret for a container.
+func (it *HostActiveConfig) DeleteSecretKey(containerName string) {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.SecretKeys == nil {
+		return
+	}
+	delete(it.SecretKeys, containerName)
 }
 
 // MarshalJSON serializes the persisted fields under the read lock. The alias
@@ -110,4 +174,182 @@ func (h *HostActiveConfig) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// ReplicaStageEntry holds the host-side stage node for a replica and a dirty
+// flag indicating whether it needs to be reported upward. The mutex guards
+// Stage/Dirty against concurrent access from the hostlet main loop and the
+// inagent status HTTP handler.
+type ReplicaStageEntry struct {
+	mu       sync.Mutex
+	Stage    *inapi.AppDeployStage
+	Dirty    bool
+	Revision uint64 // AppDeploy.Revision this entry's stages are based on
+}
+
+// ReplicaStageKey returns the map key for a (instanceName, repId) pair.
+func ReplicaStageKey(instanceName string, repId uint32) string {
+	return fmt.Sprintf("%s/%d", instanceName, repId)
+}
+
+// ParseReplicaStageKey splits a ReplicaStageKey back into its instance name
+// and replica id. ok is false if the key is malformed.
+func ParseReplicaStageKey(key string) (string, uint32, bool) {
+	idx := strings.LastIndex(key, "/")
+	if idx < 0 {
+		return "", 0, false
+	}
+	repId, err := strconv.ParseUint(key[idx+1:], 10, 32)
+	if err != nil {
+		return "", 0, false
+	}
+	return key[:idx], uint32(repId), true
+}
+
+// ReplicaStage returns the host-side stage entry for the given replica,
+// creating it if absent. The entry's Stage is a holder node whose children
+// are the host-side deploy stages (host_recv, image_pull, ...).
+func ReplicaStage(instanceName string, repId uint32) *ReplicaStageEntry {
+	key := ReplicaStageKey(instanceName, repId)
+	if v, ok := ReplicaStages.Load(key); ok {
+		return v.(*ReplicaStageEntry)
+	}
+	entry := &ReplicaStageEntry{
+		Stage: &inapi.AppDeployStage{
+			Name:  inapi.AppDeployStageNameReplica,
+			Owner: inapi.AppStageOwnerHostlet,
+			Attrs: map[string]string{
+				inapi.AppDeployStageReplicaAttrRepId: strconv.FormatUint(uint64(repId), 10),
+			},
+		},
+	}
+	ReplicaStages.Store(key, entry)
+	return entry
+}
+
+// ReplicaStageDelete removes the host-side stage entry for a replica.
+func ReplicaStageDelete(instanceName string, repId uint32) {
+	ReplicaStages.Delete(ReplicaStageKey(instanceName, repId))
+}
+
+// SyncRevision aligns the entry with the current AppDeploy.Revision. When
+// the revision changed, all stage children are cleared (the prior revision's
+// progress is stale) and the dirty flag is set so the reset propagates
+// upward. Returns true if a reset occurred.
+func (e *ReplicaStageEntry) SyncRevision(rev uint64) bool {
+	if e == nil {
+		return false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.Revision == rev {
+		return false
+	}
+	e.Revision = rev
+	e.Stage.Stages = nil
+	e.Dirty = true
+	return true
+}
+
+// stageName applies a stage transition by name, stamps it with the entry's
+// revision, and marks the entry dirty.
+func (e *ReplicaStageEntry) stageName(name, msg string, fn func(*inapi.AppDeployStage, string)) {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	s := e.Stage.Child(name, inapi.AppStageOwnerHostlet)
+	fn(s, msg)
+	s.Revision = e.Revision
+	e.Dirty = true
+}
+
+func (e *ReplicaStageEntry) SetRunning(name, msg string) {
+	e.stageName(name, msg, (*inapi.AppDeployStage).SetRunning)
+}
+
+func (e *ReplicaStageEntry) SetSuccess(name, msg string) {
+	e.stageName(name, msg, (*inapi.AppDeployStage).SetSuccess)
+}
+
+func (e *ReplicaStageEntry) SetFailed(name, msg string) {
+	e.stageName(name, msg, (*inapi.AppDeployStage).SetFailed)
+}
+
+func (e *ReplicaStageEntry) SetInstant(name, msg string) {
+	e.stageName(name, msg, (*inapi.AppDeployStage).SetInstant)
+}
+
+// MergeInagent replaces the inagent-owned children of this entry's stage
+// with the reported stages, and marks the entry dirty. Host-side children
+// are preserved. Safe for concurrent use.
+func (e *ReplicaStageEntry) MergeInagent(stages []*inapi.AppDeployStage) {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.Stage.PruneChildren(func(name string) bool {
+		_, isInagent := inapi.AppDeployStageInagentNames[name]
+		return !isInagent // keep non-inagent (host-side) children
+	})
+	for _, s := range stages {
+		if s == nil || s.Name == "" {
+			continue
+		}
+		// Discard stages based on a stale deploy revision.
+		if s.Revision > 0 && e.Revision > 0 && s.Revision < e.Revision {
+			continue
+		}
+		dst := e.Stage.Child(s.Name, inapi.AppStageOwnerInagent)
+		dst.State = s.State
+		dst.Attempt = s.Attempt
+		dst.Created = s.Created
+		dst.Finished = s.Finished
+		dst.Message = s.Message
+		dst.Revision = s.Revision
+	}
+	e.Dirty = true
+}
+
+// SnapshotIfDirty returns a clone of the stage children if the entry is dirty,
+// or nil if nothing changed. It does not clear the dirty flag; the caller
+// clears it via ClearDirty after a successful upward push so a failed push is
+// retried on the next tick.
+func (e *ReplicaStageEntry) SnapshotIfDirty() []*inapi.AppDeployStage {
+	if e == nil {
+		return nil
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !e.Dirty {
+		return nil
+	}
+	stages := make([]*inapi.AppDeployStage, 0, len(e.Stage.Stages))
+	for _, s := range e.Stage.Stages {
+		if s == nil {
+			continue
+		}
+		stages = append(stages, cloneStage(s))
+	}
+	return stages
+}
+
+// ClearDirty clears the dirty flag. Called after a successful upward push.
+func (e *ReplicaStageEntry) ClearDirty() {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.Dirty = false
+}
+
+// cloneStage returns a deep copy of an AppDeployStage.
+func cloneStage(s *inapi.AppDeployStage) *inapi.AppDeployStage {
+	if s == nil {
+		return nil
+	}
+	return proto.Clone(s).(*inapi.AppDeployStage)
 }

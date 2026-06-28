@@ -15,6 +15,7 @@
 package zonelet
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -150,7 +151,70 @@ func (s *zoneInternalServer) HostStatusUpdate(
 		return true
 	})
 
+	// Merge hostlet-reported per-replica stage progress into AppDeploy.Stages.
+	if len(req.ReplicaStages) > 0 {
+		mergeHostReplicaStages(req.ReplicaStages)
+	}
+
 	return resp, nil
+}
+
+// mergeHostReplicaStages merges hostlet-reported host-side stage nodes into
+// the matching per-replica stage subtree of each AppInstance. Zone-side
+// children (schedule, ipam_alloc, ...) are preserved; host-side children are
+// replaced by the report. The instance is flushed only when the subtree
+// actually changed, to avoid a kvgo write on every 3-second status poll.
+func mergeHostReplicaStages(reports []*inapi.HostReplicaStageReport) {
+	for _, rpt := range reports {
+		if rpt == nil || rpt.InstanceName == "" {
+			continue
+		}
+		app := gAppInstanceSet.Load(rpt.InstanceName)
+		if app == nil || app.Value == nil || app.Value.Deploy == nil {
+			continue
+		}
+
+		repNode := app.Value.Deploy.StagesRoot().ReplicaStage(rpt.ReplicaId)
+
+		before, errBefore := proto.Marshal(repNode)
+
+		// Drop existing relayed (host-side + inagent) children; keep zone-side.
+		repNode.PruneChildren(func(name string) bool {
+			_, isRelayed := inapi.AppDeployStageRelayedNames[name]
+			return !isRelayed
+		})
+		// Apply reported relayed (host-side/inagent) stages. Discard stages
+		// based on a stale deploy revision (the meta they were recorded
+		// against has since changed).
+		curRev := app.Value.Deploy.Revision
+		for _, s := range rpt.Stages {
+			if s == nil || s.Name == "" {
+				continue
+			}
+			if s.Revision > 0 && curRev > 0 && s.Revision < curRev {
+				continue
+			}
+			dst := repNode.Child(s.Name, s.Owner)
+			dst.State = s.State
+			dst.Attempt = s.Attempt
+			dst.Created = s.Created
+			dst.Finished = s.Finished
+			dst.Message = s.Message
+			dst.Revision = s.Revision
+		}
+
+		after, errAfter := proto.Marshal(repNode)
+		if errBefore != nil || errAfter != nil || bytes.Equal(before, after) {
+			continue
+		}
+
+		if err := gAppInstanceSet.Flush(app); err != nil {
+			slog.Warn("merge host replica stages flush failed",
+				"instance_name", rpt.InstanceName,
+				"replica_id", rpt.ReplicaId,
+				"err", err.Error())
+		}
+	}
 }
 
 func (s *zoneInternalServer) PackageChunk(

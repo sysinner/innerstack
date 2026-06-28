@@ -28,6 +28,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/innerstack/v2/internal/hostlet/hostapi"
+	"github.com/sysinner/innerstack/v2/internal/inagent/status"
 	"github.com/sysinner/innerstack/v2/internal/inagent/task"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/inlog"
@@ -142,11 +143,22 @@ func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 
 			case <-tr.C:
 				if app, dur, ok := specRefresh(); ok {
+					if app.App != nil && app.App.Deploy != nil {
+						status.SetRevision(app.App.Deploy.Revision)
+					}
+					status.SetBoot()
+					status.SetSpecLoad(inapi.AppStageStateSuccess, "")
 					if err := task.Run(app); err != nil {
 						slog.Error(fmt.Sprintf("task [*] run failed, err %s", err.Error()))
 					}
+					if st, msg := task.OnStartupAggregate(app); st != "" {
+						status.SetTaskRun(st, msg)
+					}
+					status.Flush(app.HostletEndpoint, appName, repId)
 					tr.Reset(dur)
 				} else {
+					status.SetSpecLoad(inapi.AppStageStateFailed, "spec refresh failed")
+					status.Flush(app.HostletEndpoint, appName, repId)
 					tr.Reset(10e9)
 				}
 			}

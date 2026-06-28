@@ -42,6 +42,10 @@ func schedulerRefresh(forceRefresh bool) error {
 
 	tn := time.Now().Unix()
 
+	// bumped tracks apps whose Deploy.Revision has been incremented in this
+	// tick due to a resource-binding change on an already-placed replica.
+	bumped := map[string]bool{}
+
 	if !forceRefresh &&
 		(lastRefreshed+forceFreshTTL < tn || gHostOperateSet.Len() == 0 ||
 			status.Zonelet_ForceRefresh.Load()) {
@@ -294,6 +298,12 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			rep.ServicePorts = setPorts
 
+			rev := schedulerBumpRevision(app, bumped)
+			repStage := app.Value.Deploy.StagesRoot().ReplicaStage(rep.Id)
+			pa := repStage.Child(inapi.AppDeployStageNamePortAlloc, inapi.AppStageOwnerZonelet)
+			pa.SetInstant("")
+			pa.Revision = rev
+
 			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
 					"instance_name", app.Value.InstanceName(),
@@ -345,6 +355,12 @@ func schedulerRefresh(forceRefresh bool) error {
 			if rep.VpcIpv4 == "" {
 				continue
 			}
+
+			rev := schedulerBumpRevision(app, bumped)
+			repStage := app.Value.Deploy.StagesRoot().ReplicaStage(rep.Id)
+			ia := repStage.Child(inapi.AppDeployStageNameIpamAlloc, inapi.AppStageOwnerZonelet)
+			ia.SetInstant(rep.VpcIpv4)
+			ia.Revision = rev
 
 			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
@@ -474,20 +490,41 @@ func schedulerRefresh(forceRefresh bool) error {
 				Vol:   app.Value.Deploy.VolumeLimit,
 			}
 
+			repStage := app.Value.Deploy.StagesRoot().ReplicaStage(rep.Id)
+			rev := app.Value.Deploy.Revision
+			schedStage := repStage.Child(inapi.AppDeployStageNameSchedule, inapi.AppStageOwnerZonelet)
+			schedStage.SetRunning("")
+			schedStage.Revision = rev
+
 			hit, err := sched.ScheduleHost(srep, schedResources, nil)
 			if err != nil {
 				slog.Warn("scheduler failed",
 					"instance_name", app.Value.InstanceName(),
 					"sched-hosts", len(schedResources.Hosts),
 					"err", err.Error())
+				schedStage.SetFailed(err.Error())
+				schedStage.Revision = rev
+				if ferr := gAppInstanceSet.Flush(app); ferr != nil {
+					return ferr
+				}
 				break
 			}
 
 			if hit == nil {
 				slog.Warn("scheduler no host fit",
 					"instance_name", app.Value.InstanceName())
+				schedStage.SetFailed("no host fit")
+				schedStage.Revision = rev
+				if ferr := gAppInstanceSet.Flush(app); ferr != nil {
+					return ferr
+				}
 				break
 			}
+
+			schedStage.Child(inapi.AppDeployStageNameHostFit, inapi.AppStageOwnerZonelet).SetInstant("")
+			schedStage.Child(inapi.AppDeployStageNameHostPrioritize, inapi.AppStageOwnerZonelet).SetInstant(
+				hit.HostId)
+			schedStage.SetSuccess(hit.HostId)
 
 			kvHost := gHostSet.Load(hit.HostId)
 			if kvHost == nil {
@@ -504,6 +541,7 @@ func schedulerRefresh(forceRefresh bool) error {
 						hit.HostId, app.Value.InstanceName(), rep.Id)
 				}
 			}
+			repStage.Child(inapi.AppDeployStageNameIpamAlloc, inapi.AppStageOwnerZonelet).SetInstant(rep.VpcIpv4)
 
 			rep.ServicePorts = []*inapi.AppDeployServicePort{}
 
@@ -527,6 +565,14 @@ func schedulerRefresh(forceRefresh bool) error {
 					HostPort: hp,
 				})
 			}
+			repStage.Child(inapi.AppDeployStageNamePortAlloc, inapi.AppStageOwnerZonelet).SetInstant("")
+
+			// The instance is now addressed to this host; delivery begins on
+			// the host's next status poll.
+			repStage.Child(inapi.AppDeployStageNameDeliver, inapi.AppStageOwnerZonelet).SetInstant(hit.HostId)
+
+			// Stamp the zone-side stages with the current deploy revision.
+			repStage.SetRevisionDeep(rev)
 
 			if err := gAppInstanceSet.Flush(app); err != nil {
 				slog.Warn("scheduler update instance fail",
@@ -570,4 +616,19 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	return nil
+}
+
+// schedulerBumpRevision increments AppDeploy.Revision for an app at most once
+// per schedulerRefresh tick, recording that a resource-binding change
+// occurred on an already-placed replica. Returns the (possibly new) revision.
+func schedulerBumpRevision(app *appInstanceEntry, bumped map[string]bool) uint64 {
+	if app == nil || app.Value == nil || app.Value.Deploy == nil {
+		return 0
+	}
+	name := app.Value.InstanceName()
+	if !bumped[name] {
+		app.Value.Deploy.Revision += 1
+		bumped[name] = true
+	}
+	return app.Value.Deploy.Revision
 }

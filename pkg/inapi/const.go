@@ -127,6 +127,104 @@ const (
 	OpLogError = "error" // error message
 )
 
+// AppDeployStage state constants. These are the values of
+// AppDeployStage.state.
+const (
+	AppStageStatePending = "pending" // stage not yet started
+	AppStageStateRunning = "running" // stage in progress
+	AppStageStateSuccess = "success" // stage completed successfully
+	AppStageStateFailed  = "failed"  // stage failed
+)
+
+// AppDeployStage owner constants. These identify the component responsible
+// for executing a stage.
+const (
+	AppStageOwnerZonelet = "zonelet" // stage owned by the zone leader
+	AppStageOwnerHostlet = "hostlet" // stage owned by the hostlet
+	AppStageOwnerInagent = "inagent" // stage owned by the in-agent (in-container)
+)
+
+// AppDeployStage name constants. Each name is the unique identifier of a
+// stage within its parent. The root stage (AppDeployStageNameDeploy) holds
+// instance-level children and one AppDeployStageNameReplica node per
+// replica (keyed by attrs "rep_id"); the replica node in turn holds the
+// per-replica chain below.
+const (
+	// root + instance-level stages (owner: zonelet)
+	AppDeployStageNameDeploy          = "deploy"           // root deploy lifecycle
+	AppDeployStageNameReqValidate     = "req_validate"     // deploy request validation
+	AppDeployStageNameInstancePersist = "instance_persist" // AppInstance written to kvgo
+
+	// per-replica node (attrs "rep_id" = replica id)
+	AppDeployStageNameReplica = "replica"
+
+	// per-replica zone-side stages (owner: zonelet)
+	AppDeployStageNameSchedule       = "schedule"        // host placement
+	AppDeployStageNameHostFit        = "host_fit"        // filter fitting hosts
+	AppDeployStageNameHostPrioritize = "host_prioritize" // rank and pick host
+	AppDeployStageNameIpamAlloc      = "ipam_alloc"      // VPC IP allocation
+	AppDeployStageNamePortAlloc      = "port_alloc"      // host port allocation
+	AppDeployStageNameDeliver        = "deliver"         // instance delivered to host
+
+	// per-replica host-side stages (owner: hostlet)
+	AppDeployStageNameHostRecv         = "host_recv"          // hostlet received assignment
+	AppDeployStageNameImagePull        = "image_pull"         // container image pull
+	AppDeployStageNamePkgDownload      = "pkg_download"       // package download
+	AppDeployStageNameProvision        = "provision"          // write innerstack files
+	AppDeployStageNameContainerCreate  = "container_create"   // container create
+	AppDeployStageNameContainerStart   = "container_start"    // container start
+	AppDeployStageNameContainerRunning = "container_running"  // container reached running
+	AppDeployStageNameContainerStop    = "container_stop"     // container stop
+	AppDeployStageNameContainerDestroy = "container_destroy"  // container destroy
+
+	// per-replica in-agent stages (owner: inagent), reported via hostlet API
+	AppDeployStageNameInagentBoot = "inagent_boot" // inagent daemon started
+	AppDeployStageNameSpecLoad    = "spec_load"    // app_replica.json loaded
+	AppDeployStageNameTaskRun     = "task_run"     // OnStartup tasks aggregate
+)
+
+// AppDeployStageHostSideNames is the set of host-side stage names reported
+// by the hostlet. The zone leader uses it to prune stale host-side children
+// when merging an incoming HostReplicaStageReport.
+var AppDeployStageHostSideNames = map[string]struct{}{
+	AppDeployStageNameHostRecv:         {},
+	AppDeployStageNameImagePull:        {},
+	AppDeployStageNamePkgDownload:      {},
+	AppDeployStageNameProvision:        {},
+	AppDeployStageNameContainerCreate:  {},
+	AppDeployStageNameContainerStart:   {},
+	AppDeployStageNameContainerRunning: {},
+	AppDeployStageNameContainerStop:    {},
+	AppDeployStageNameContainerDestroy: {},
+}
+
+// AppDeployStageInagentNames is the set of in-agent stage names reported by
+// the inagent via the hostlet local API.
+var AppDeployStageInagentNames = map[string]struct{}{
+	AppDeployStageNameInagentBoot: {},
+	AppDeployStageNameSpecLoad:    {},
+	AppDeployStageNameTaskRun:     {},
+}
+
+// AppDeployStageRelayedNames is the union of host-side and in-agent stage
+// names — i.e. all stages relayed upward by the hostlet (non-zonelet). The
+// zone leader prunes these when merging an incoming report so stale relayed
+// children are replaced rather than accumulated.
+var AppDeployStageRelayedNames = func() map[string]struct{} {
+	m := make(map[string]struct{}, len(AppDeployStageHostSideNames)+len(AppDeployStageInagentNames))
+	for k, v := range AppDeployStageHostSideNames {
+		m[k] = v
+	}
+	for k, v := range AppDeployStageInagentNames {
+		m[k] = v
+	}
+	return m
+}()
+
+// AppDeployStageReplicaAttrRepId is the attrs key holding the replica id on
+// an AppDeployStageNameReplica node.
+const AppDeployStageReplicaAttrRepId = "rep_id"
+
 // Zone replica migration operation log namespaces
 // Used for tracking migration progress across zone replicas
 const (

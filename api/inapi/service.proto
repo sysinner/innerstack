@@ -175,6 +175,10 @@ message HostStatusUpdateRequest {
 
   // status contains the current status metrics of the host.
   HostStatus status = 3;
+
+  // replica_stages reports per-replica deploy stage progress from the
+  // hostlet. The zone leader merges these into AppDeploy.Stages.
+  repeated HostReplicaStageReport replica_stages = 4;
 }
 
 // HostStatusUpdateResponse is the response message after updating host status.

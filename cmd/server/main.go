@@ -65,6 +65,10 @@ func main() {
 		server.HandleHttpModule("/in/api/v2/public", zonelet.NewPublicModule())
 	}
 
+	// Hostlet local API (inagent stage-progress reporting), served on the
+	// shared HTTP server (ServerConfig.HttpPort).
+	server.HandleHttpModule("/in/api/v2/hostlet", hostlet.NewHostletModule())
+
 	signals.Go(server.Run, server.Close)
 
 	if err := hostlet.TryRun(); err != nil {

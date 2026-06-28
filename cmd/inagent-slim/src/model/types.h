@@ -110,6 +110,11 @@ namespace inagent {
             std::vector<AppDeployReplica> replicas;
         };
 
+        struct HostletStatusEndpoint {
+            std::string url;
+            std::string secret_key;
+        };
+
         struct AppDeploy {
             std::string action;
             uint64_t revision = 0;
@@ -134,6 +139,7 @@ namespace inagent {
             AppInstance app;
             AppDeployReplica replica;
             std::string zone_base_domain;
+            HostletStatusEndpoint hostlet_endpoint;
         };
 
         // JSON deserialization
@@ -149,6 +155,7 @@ namespace inagent {
         void from_json(const nlohmann::json& j, AppDeployServicePort& v);
         void from_json(const nlohmann::json& j, AppDeployReplica& v);
         void from_json(const nlohmann::json& j, AppDeployDepend& v);
+        void from_json(const nlohmann::json& j, HostletStatusEndpoint& v);
         void from_json(const nlohmann::json& j, AppDeploy& v);
         void from_json(const nlohmann::json& j, AppInstance& v);
         void from_json(const nlohmann::json& j, AppReplicaInstance& v);

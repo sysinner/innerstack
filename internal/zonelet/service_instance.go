@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 	"github.com/sysinner/innerstack/v2/internal/config"
@@ -42,6 +43,9 @@ func (s *zoneServer) AppInstanceDeploy(
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
+
+	// rpcStartMs anchors the deploy lifecycle timing for this request.
+	rpcStartMs := time.Now().UnixMilli()
 
 	// name is the primary logical key for both create and update.
 	if req.Name == "" {
@@ -262,6 +266,8 @@ func (s *zoneServer) AppInstanceDeploy(
 		prevDepNames := deployDependInstanceNames(existingByName.Deploy)
 		nextDepNames := deployDependInstanceNames(instance.Deploy)
 
+		appDeployStagesMarkPreHost(instance.Deploy, rpcStartMs)
+
 		if rs := data.Zonelet.NewWriter(key, instance).SetPrevVersion(
 			prevVersion).Exec(); !rs.OK() {
 			return nil, rs.Error()
@@ -293,6 +299,7 @@ func (s *zoneServer) AppInstanceDeploy(
 			MemoryLimit: memoryLimit,
 			VolumeLimit: volumeLimit,
 			ReplicaCap:  max(1, min(inapi.AppReplicaCapMax, req.ReplicaCap)),
+			Revision:    1,
 		}
 
 		if req.Deploy != nil {
@@ -318,6 +325,8 @@ func (s *zoneServer) AppInstanceDeploy(
 
 		// Resolve config field auto-fill values
 		resolveDeployConfigFields(instance)
+
+		appDeployStagesMarkPreHost(instance.Deploy, rpcStartMs)
 
 		key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.InstanceName())
 
@@ -467,6 +476,30 @@ func loadInstanceByName(name string) (*inapi.AppInstance, *kvapi.Meta, error) {
 		return nil, nil, err
 	}
 	return &instance, rs.Item().Meta, nil
+}
+
+// appDeployStagesMarkPreHost records the zone-side, pre-host stages of a
+// deploy lifecycle on the AppDeploy root stage: the root is marked running,
+// req_validate is marked successful (spanning from rpcStartMs to now), and
+// instance_persist is recorded as an instantaneous event. Existing per-
+// replica stage subtrees are preserved.
+func appDeployStagesMarkPreHost(deploy *inapi.AppDeploy, rpcStartMs int64) {
+	if deploy == nil {
+		return
+	}
+	rev := deploy.Revision
+	root := deploy.StagesRoot()
+	root.SetRunning("")
+	root.Revision = rev
+
+	rv := root.Child(inapi.AppDeployStageNameReqValidate, inapi.AppStageOwnerZonelet)
+	rv.Created = rpcStartMs // reset to this deploy's start on every submit
+	rv.SetSuccess("")
+	rv.Revision = rev
+
+	ip := root.Child(inapi.AppDeployStageNameInstancePersist, inapi.AppStageOwnerZonelet)
+	ip.SetInstant("")
+	ip.Revision = rev
 }
 
 // validateInstanceNameUnique checks that no other app instance in the zone

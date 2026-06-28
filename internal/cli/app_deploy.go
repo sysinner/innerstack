@@ -35,11 +35,13 @@ import (
 func NewAppDeployCommand() *cobra.Command {
 
 	var (
-		specFile     string
-		instanceName string
-		replicaCap   uint32
-		skipConfig   bool
-		action       string
+		specFile      string
+		instanceName  string
+		replicaCap    uint32
+		skipConfig    bool
+		action        string
+		noWait        bool
+		watchTimeout  time.Duration
 	)
 
 	var deployRun = func(cmd *cobra.Command, args []string) error {
@@ -223,6 +225,12 @@ func NewAppDeployCommand() *cobra.Command {
 			break
 		}
 
+		if !noWait {
+			if err := watchDeployStages(zc, instanceName, action, watchTimeout); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}
 
@@ -262,6 +270,10 @@ If the instance name already exists, the existing app instance will be updated.`
 		false, "Skip interactive config input")
 	cmd.Flags().StringVarP(&action, "action", "",
 		"", "Deploy action (start, stop, destroy)")
+	cmd.Flags().BoolVar(&noWait, "no-wait",
+		false, "Do not watch deploy stages after submission")
+	cmd.Flags().DurationVar(&watchTimeout, "watch-timeout",
+		5*time.Minute, "Maximum duration to watch deploy stages")
 
 	cmd.MarkFlagRequired("name")
 

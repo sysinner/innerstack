@@ -15,6 +15,7 @@
 
 #include "log/logger.h"
 #include "signal/signal_handler.h"
+#include "status/reporter.h"
 #include "task/cron.h"
 #include "task/engine.h"
 #include "util/fs.h"
@@ -100,6 +101,9 @@ namespace inagent {
                 std::string content = util::read_file(config_path);
                 if (content.empty()) {
                     log::error("failed to open app instance file");
+                    status::set_spec_load(status::kStateFailed,
+                                          "spec file empty");
+                    status::flush(app.hostlet_endpoint, app_name, rep_id_u32);
                     timer_duration_ms = 10000;
                     continue;
                 }
@@ -110,6 +114,9 @@ namespace inagent {
                 } catch (const std::exception& e) {
                     log::error(std::string("failed to decode app instance: ") +
                                e.what());
+                    status::set_spec_load(status::kStateFailed,
+                                          "spec decode failed");
+                    status::flush(app.hostlet_endpoint, app_name, rep_id_u32);
                     timer_duration_ms = 10000;
                     continue;
                 }
@@ -126,9 +133,18 @@ namespace inagent {
                 }
                 if (!found) {
                     log::error("replica not found in app instance config");
+                    status::set_spec_load(status::kStateFailed,
+                                          "replica not found");
+                    status::flush(app.hostlet_endpoint, app_name, rep_id_u32);
                     timer_duration_ms = 10000;
                     continue;
                 }
+
+                // align stage revision with the current deploy revision; a
+                // new revision clears prior (stale) stages.
+                status::set_revision(app.app.deploy.revision);
+                status::set_boot();
+                status::set_spec_load(status::kStateSuccess, "");
 
                 // calculate timer duration based on cron schedules
                 timer_duration_ms = 10000;
@@ -154,6 +170,14 @@ namespace inagent {
                 if (task::run(app) != 0) {
                     log::error("task run failed");
                 }
+
+                std::string task_state, task_msg;
+                task::on_startup_aggregate(app, task_state, task_msg);
+                if (!task_state.empty()) {
+                    status::set_task_run(task_state, task_msg);
+                }
+
+                status::flush(app.hostlet_endpoint, app_name, rep_id_u32);
             }
 
             // shutdown

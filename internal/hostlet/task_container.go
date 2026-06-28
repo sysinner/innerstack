@@ -384,6 +384,15 @@ func containerControlRefresh() error {
 				ZoneBaseDomain: zoneNetworkMap.VpcNetworkDomain,
 			}
 
+			// Mark host-receive on first sight of an assigned replica.
+			re := hoststatus.ReplicaStage(app.InstanceName(), rep.Id)
+			// Align with the current deploy revision; a new revision clears
+			// stale stage progress from a prior deploy.
+			re.SyncRevision(app.Deploy.Revision)
+			if re.Stage.Find(inapi.AppDeployStageNameHostRecv) == nil {
+				re.SetInstant(inapi.AppDeployStageNameHostRecv, "")
+			}
+
 			if runtime.GOOS != "linux" {
 				repInstance.Replica.VpcIpv4 = ""
 
@@ -456,6 +465,16 @@ func containerControlRefresh() error {
 			}
 			if nextState != "" {
 				repInstance.Replica.State = nextState
+			}
+
+			// Record terminal host-side stages from the resolved next state.
+			switch nextState {
+			case inapi.OpStateRunning:
+				re.SetInstant(inapi.AppDeployStageNameContainerRunning, "")
+			case inapi.OpStateStopped:
+				re.SetInstant(inapi.AppDeployStageNameContainerStop, "")
+			case inapi.OpStateDestroyed:
+				re.SetInstant(inapi.AppDeployStageNameContainerDestroy, "")
 			}
 		}
 		return true
@@ -697,6 +716,8 @@ func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 						slog.Warn("provision innerstack files failed on start, using existing files",
 							"container", containerName, "error", err)
 					}
+					re := hoststatus.ReplicaStage(rep.App.InstanceName(), rep.Replica.Id)
+					re.SetRunning(inapi.AppDeployStageNameContainerStart, "")
 					ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 					if err := ctrDriver.ContainerStart(ctx, containerName); err != nil {
 						cancel()
@@ -705,12 +726,14 @@ func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 						if err := ctrDriver.ContainerRemove(ctx2, containerName); err != nil {
 							cancel2()
 							slog.Warn("container remove failed", "container", containerName, "error", err)
+							re.SetFailed(inapi.AppDeployStageNameContainerStart, err.Error())
 							return inapi.OpStateFailed, fmt.Errorf("container remove failed: %w", err)
 						}
 						cancel2()
 						hoststatus.ContainerList.Delete(containerName)
 					} else {
 						cancel()
+						re.SetSuccess(inapi.AppDeployStageNameContainerStart, "")
 						slog.Info("container started", "container", containerName)
 						return inapi.OpStateRunning, nil
 					}
@@ -725,13 +748,17 @@ func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 	}
 
 	// Start container
+	re := hoststatus.ReplicaStage(rep.App.InstanceName(), rep.Replica.Id)
+	re.SetRunning(inapi.AppDeployStageNameContainerStart, "")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 	if err := ctrDriver.ContainerStart(ctx, containerName); err != nil {
 		cancel()
 		slog.Warn("container start failed", "container", containerName, "error", err)
+		re.SetFailed(inapi.AppDeployStageNameContainerStart, err.Error())
 		return inapi.OpStateFailed, fmt.Errorf("container start failed: %w", err)
 	}
 	cancel()
+	re.SetSuccess(inapi.AppDeployStageNameContainerStart, "")
 
 	slog.Info("container started", "container", containerName)
 	return inapi.OpStateRunning, nil
@@ -834,6 +861,8 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 	appPaths := hostapi.NewContainerPath(appBasePath, rep.ContainerName())
 	appInstancePath := appPaths.AppReplicaFile()
 
+	ensureHostletEndpoint(rep)
+
 	// Read existing file content
 	existingData, err := os.ReadFile(appInstancePath)
 	if err != nil {
@@ -895,6 +924,7 @@ func provisionInnerStack(rep *inapi.AppReplicaInstance) error {
 
 	// app_replica.json: non-fatal on failure.
 	appInstancePath := appPaths.AppReplicaFile()
+	ensureHostletEndpoint(rep)
 	if err := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); err != nil {
 		slog.Warn("app_replica.json create failed",
 			"path", appInstancePath, "err", err.Error())
@@ -975,18 +1005,23 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		return fmt.Errorf("app spec resources is nil")
 	}
 
+	re := hoststatus.ReplicaStage(rep.App.InstanceName(), rep.Replica.Id)
+
 	image := rep.App.Spec.Image
 
 	// Pull image if not exists
 	if _, exists := hoststatus.ImageList.Load(image); !exists {
 		slog.Info("pulling container image", "image", image)
+		re.SetRunning(inapi.AppDeployStageNameImagePull, image)
 		ctx, cancel := context.WithTimeout(context.Background(), imagePullTimeout)
 		if err := ctrDriver.ImagePull(ctx, image); err != nil {
 			cancel()
 			slog.Warn("image pull failed", "image", image, "error", err)
+			re.SetFailed(inapi.AppDeployStageNameImagePull, err.Error())
 			return fmt.Errorf("image pull failed: %w", err)
 		}
 		cancel()
+		re.SetSuccess(inapi.AppDeployStageNameImagePull, "")
 
 		// Refresh image list
 		ctx2, cancel2 := context.WithTimeout(context.Background(), defaultContainerTimeout)
@@ -1000,13 +1035,16 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	}
 
 	// Download and prepare packages
+	re.SetRunning(inapi.AppDeployStageNamePkgDownload, "")
 	pkgMounts, err := EnsurePackages(rep.App)
 	if err != nil {
 		slog.Warn("package preparation failed",
 			"app", rep.App.InstanceName(),
 			"error", err)
+		re.SetFailed(inapi.AppDeployStageNamePkgDownload, err.Error())
 		return fmt.Errorf("package preparation failed: %w", err)
 	}
+	re.SetSuccess(inapi.AppDeployStageNamePkgDownload, "")
 
 	opts := &hostapi.ContainerCreateOptions{
 		Name:          containerName,
@@ -1104,17 +1142,23 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	// Provision the bind-mounted .innerstack files (app_replica.json,
 	// ininit, inagent) before the container is created so the entrypoint
 	// finds them on first start. Fatal on ininit/inagent failure.
+	re.SetRunning(inapi.AppDeployStageNameProvision, "")
 	if err := provisionInnerStack(rep); err != nil {
+		re.SetFailed(inapi.AppDeployStageNameProvision, err.Error())
 		return err
 	}
+	re.SetSuccess(inapi.AppDeployStageNameProvision, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+	re.SetRunning(inapi.AppDeployStageNameContainerCreate, "")
 	_, err = ctrDriver.ContainerCreate(ctx, opts)
 	cancel()
 	if err != nil {
 		slog.Warn("container create failed", "container", containerName, "error", err)
+		re.SetFailed(inapi.AppDeployStageNameContainerCreate, err.Error())
 		return fmt.Errorf("container create failed: %w", err)
 	}
+	re.SetSuccess(inapi.AppDeployStageNameContainerCreate, "")
 
 	hoststatus.ContainerList.Store(containerName, &hostapi.ContainerInfo{
 		Name: containerName, Image: image, State: inapi.OpStateStarting,

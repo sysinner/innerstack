@@ -154,6 +154,14 @@ namespace inagent {
             if (j.contains("replica")) j.at("replica").get_to(v.replica);
             if (j.contains("zone_base_domain"))
                 j.at("zone_base_domain").get_to(v.zone_base_domain);
+            if (j.contains("hostlet_endpoint"))
+                j.at("hostlet_endpoint").get_to(v.hostlet_endpoint);
+        }
+
+        void from_json(const nlohmann::json& j, HostletStatusEndpoint& v) {
+            if (j.contains("url")) j.at("url").get_to(v.url);
+            if (j.contains("secret_key"))
+                j.at("secret_key").get_to(v.secret_key);
         }
 
     } // namespace model

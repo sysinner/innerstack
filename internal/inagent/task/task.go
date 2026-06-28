@@ -92,6 +92,8 @@ func Run(app *inapi.AppReplicaInstance) error {
 
 	appReplicaInstance = app
 
+	appReplicaInstance = app
+
 	var (
 		params map[string]string
 
@@ -173,6 +175,57 @@ func Run(app *inapi.AppReplicaInstance) error {
 	}
 
 	return nil
+}
+
+// OnStartupAggregate reports the aggregate state of OnStartup tasks for
+// stage reporting. Returns one of inapi.AppStageState* (success/running/
+// failed) and a short summary message. With no OnStartup tasks the result
+// is success (nothing to run).
+func OnStartupAggregate(app *inapi.AppReplicaInstance) (string, string) {
+	if app == nil || app.App == nil || app.App.Spec == nil {
+		return inapi.AppStageStateSuccess, ""
+	}
+	var (
+		pending, running, failed int
+		failedName               string
+		names                    []string
+	)
+	for _, t := range app.App.Spec.Tasks {
+		if t == nil || !t.GetOnStartup() {
+			continue
+		}
+		names = append(names, t.Name)
+		es, ok := execStatuses[t.Name]
+		if !ok {
+			pending++
+			continue
+		}
+		switch {
+		case es.FailUpdated > 0 && es.DoneUpdated < es.FailUpdated:
+			failed++
+			if failedName == "" {
+				failedName = t.Name
+			}
+		case es.DoneUpdated > 0:
+			// succeeded
+		case es.State == execRunning:
+			running++
+		default:
+			pending++
+		}
+	}
+	if len(names) == 0 {
+		return inapi.AppStageStateSuccess, ""
+	}
+	switch {
+	case failed > 0:
+		return inapi.AppStageStateFailed, fmt.Sprintf("%d/%d tasks failed (first: %s)",
+			failed, len(names), failedName)
+	case running > 0 || pending > 0:
+		return inapi.AppStageStateRunning, fmt.Sprintf("%d/%d tasks running", len(names)-pending, len(names))
+	default:
+		return inapi.AppStageStateSuccess, fmt.Sprintf("%d/%d tasks done", len(names), len(names))
+	}
 }
 
 func taskSyncAction(

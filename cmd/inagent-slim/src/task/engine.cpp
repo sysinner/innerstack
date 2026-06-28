@@ -453,6 +453,52 @@ namespace inagent {
             return 0;
         }
 
+        void on_startup_aggregate(const model::AppReplicaInstance& app,
+                                  std::string& state, std::string& msg) {
+            state.clear();
+            msg.clear();
+
+            int pending = 0, running = 0, failed = 0, total = 0;
+            std::string failed_name;
+            for (const auto& t : app.app.spec.tasks) {
+                if (!t.on_startup) continue;
+                total++;
+                auto it = g_exec_statuses.find(t.name);
+                if (it == g_exec_statuses.end()) {
+                    pending++;
+                    continue;
+                }
+                const ExecutorStatus& es = it->second;
+                if (es.fail_updated > 0 && es.done_updated < es.fail_updated) {
+                    failed++;
+                    if (failed_name.empty()) failed_name = t.name;
+                } else if (es.done_updated > 0) {
+                    // succeeded
+                } else if (es.state == "running") {
+                    running++;
+                } else {
+                    pending++;
+                }
+            }
+
+            if (total == 0) {
+                state = "success";
+                return;
+            }
+            if (failed > 0) {
+                state = "failed";
+                msg = util::fmt_sprintf("%d/%d tasks failed (first: %s)",
+                                        failed, total, failed_name.c_str());
+            } else if (running > 0 || pending > 0) {
+                state = "running";
+                msg = util::fmt_sprintf("%d/%d tasks running", total - pending,
+                                        total);
+            } else {
+                state = "success";
+                msg = util::fmt_sprintf("%d/%d tasks done", total, total);
+            }
+        }
+
         int kill_all() {
             if (g_app.app.spec.tasks.empty()) return 0;
 

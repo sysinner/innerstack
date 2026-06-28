@@ -201,11 +201,21 @@ func statusRefresh() error {
 			PeerAddr: fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
 		},
 		Status: hs,
+		ReplicaStages: buildReplicaStageReports(),
 	})
 	if err != nil {
 		slog.Warn("status update failed", "err", err)
 		return err
 	}
+
+	// The leader has accepted the reported stage progress; clear dirty flags
+	// so unchanged entries are not re-sent on every tick.
+	hoststatus.ReplicaStages.Range(func(key, value any) bool {
+		if entry, ok := value.(*hoststatus.ReplicaStageEntry); ok {
+			entry.ClearDirty()
+		}
+		return true
+	})
 
 	for _, app := range resp.AppInstances {
 		hoststatus.ActiveAppList.Store(app.InstanceName(), app)
@@ -264,4 +274,32 @@ func diskDevName(pls []ps_disk.PartitionStat, path string) (string, string) {
 		}
 	}
 	return "", ""
+}
+
+// buildReplicaStageReports collects dirty per-replica host-side stage
+// progress into upward reports. Only entries that changed since the last
+// successful push are included.
+func buildReplicaStageReports() []*inapi.HostReplicaStageReport {
+	var reports []*inapi.HostReplicaStageReport
+	hoststatus.ReplicaStages.Range(func(key, value any) bool {
+		entry, ok := value.(*hoststatus.ReplicaStageEntry)
+		if !ok {
+			return true
+		}
+		stages := entry.SnapshotIfDirty()
+		if stages == nil {
+			return true
+		}
+		name, repId, ok := hoststatus.ParseReplicaStageKey(fmt.Sprintf("%v", key))
+		if !ok {
+			return true
+		}
+		reports = append(reports, &inapi.HostReplicaStageReport{
+			InstanceName: name,
+			ReplicaId:    repId,
+			Stages:       stages,
+		})
+		return true
+	})
+	return reports
 }
