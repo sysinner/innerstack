@@ -154,3 +154,271 @@ func ValidateTaskTrigger(task *AppSpecTask) error {
 
 	return nil
 }
+
+// ValidateSpecConfigField validates the schema of a single AppSpecConfigItem.
+// It checks that the field and each of its items has a non-empty, sibling-
+// unique name, and that "group" / "array_group" types carry the required
+// structure (at least one item; for array_group a key_item naming one item).
+func ValidateSpecConfigField(field *AppSpecConfigItem) error {
+	if field == nil {
+		return errors.New("config field is nil")
+	}
+	if field.Name == "" {
+		return errors.New("config field name is required")
+	}
+
+	// Validate child items: names non-empty, unique among siblings, recursively
+	// well-formed.
+	if len(field.Items) > 0 {
+		names := make(map[string]struct{}, len(field.Items))
+		for _, sub := range field.Items {
+			if sub == nil {
+				continue
+			}
+			if sub.Name == "" {
+				return fmt.Errorf("config field %q: sub-item name is required", field.Name)
+			}
+			if _, ok := names[sub.Name]; ok {
+				return fmt.Errorf("config field %q: duplicate sub-item name %q", field.Name, sub.Name)
+			}
+			names[sub.Name] = struct{}{}
+			if err := ValidateSpecConfigField(sub); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Validate the unique scope (if declared).
+	if field.Unique != "" &&
+		field.Unique != SpecConfigUniqueArrayGroup &&
+		field.Unique != SpecConfigUniqueApp {
+		return fmt.Errorf("config field %q: invalid unique scope %q (want %q or %q)",
+			field.Name, field.Unique, SpecConfigUniqueArrayGroup, SpecConfigUniqueApp)
+	}
+
+	switch field.Type {
+	case SpecFieldTypeGroup:
+		if len(field.Items) == 0 {
+			return fmt.Errorf("config field %q: group requires at least one item", field.Name)
+		}
+	case SpecFieldTypeArrayGroup:
+		if len(field.Items) == 0 {
+			return fmt.Errorf("config field %q: array_group requires at least one item", field.Name)
+		}
+		if field.KeyItem == "" {
+			return fmt.Errorf("config field %q: array_group requires key_item", field.Name)
+		}
+		if !specConfigItemContainsName(field.Items, field.KeyItem) {
+			return fmt.Errorf(
+				"config field %q: array_group key_item %q does not match any item name",
+				field.Name, field.KeyItem)
+		}
+	}
+
+	return nil
+}
+
+// specConfigItemContainsName reports whether any non-nil item has the given name.
+func specConfigItemContainsName(items []*AppSpecConfigItem, name string) bool {
+	for _, it := range items {
+		if it != nil && it.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateDeployConfigItems validates deploy-time config values against their
+// spec schema:
+//
+//   - For each "array_group" spec field: every instance carries a non-empty key
+//     (the key_item value) and keys are unique within the array_group. Any child
+//     field declared unique="array_group" is likewise distinct across instances.
+//   - For any field declared unique="app": its values are pooled by field name
+//     across the entire deploy tree (flat fields + every array_group instance)
+//     and must be mutually distinct.
+//
+// Spec fields without a matching deploy item are skipped (a deploy may omit
+// optional configs).
+func ValidateDeployConfigItems(
+	spec []*AppSpecConfigItem, deploy []*AppDeployConfigItem,
+) error {
+	if len(spec) == 0 || len(deploy) == 0 {
+		return nil
+	}
+
+	specByName := make(map[string]*AppSpecConfigItem, len(spec))
+	for _, sf := range spec {
+		if sf != nil && sf.Name != "" {
+			specByName[sf.Name] = sf
+		}
+	}
+
+	// 1. array_group-scope uniqueness (key_item + unique="array_group" children)
+	for _, sf := range spec {
+		if sf == nil || sf.Type != SpecFieldTypeArrayGroup {
+			continue
+		}
+		di := deployConfigItem(deploy, sf.Name)
+		if di == nil {
+			continue
+		}
+
+		// key_item: required non-empty and unique.
+		if sf.KeyItem != "" {
+			if err := checkArrayGroupUnique(di, sf.KeyItem, true); err != nil {
+				return err
+			}
+		}
+		// additional array_group-unique child fields.
+		for _, child := range sf.Items {
+			if child == nil || child.Name == "" ||
+				child.Unique != SpecConfigUniqueArrayGroup ||
+				child.Name == sf.KeyItem {
+				continue
+			}
+			if err := checkArrayGroupUnique(di, child.Name, false); err != nil {
+				return err
+			}
+		}
+	}
+
+	// 2. app-scope uniqueness (pool by field name across the whole deploy tree)
+	appUniqueNames := map[string]struct{}{}
+	collectAppUniqueNames(spec, appUniqueNames)
+	if len(appUniqueNames) == 0 {
+		return nil
+	}
+
+	pool := map[string][]string{}
+	for _, di := range deploy {
+		if di == nil {
+			continue
+		}
+		collectDeployValues(di, specByName[di.Name], pool, appUniqueNames)
+	}
+	for name, vals := range pool {
+		if err := checkDistinctAppScoped(name, vals); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// deployConfigItem returns the deploy item with the given name, or nil.
+func deployConfigItem(items []*AppDeployConfigItem, name string) *AppDeployConfigItem {
+	for _, it := range items {
+		if it != nil && it.Name == name {
+			return it
+		}
+	}
+	return nil
+}
+
+// checkArrayGroupUnique scans the instances of an array_group deploy item for
+// duplicate values of fieldName. When requireNonEmpty is true (used for
+// key_item), an empty value is itself an error.
+func checkArrayGroupUnique(di *AppDeployConfigItem, fieldName string,
+	requireNonEmpty bool) error {
+
+	seen := map[string]struct{}{}
+	for i, inst := range di.Items {
+		if inst == nil {
+			continue
+		}
+		v := ""
+		if it := inst.Item(fieldName); it != nil {
+			v = it.Value
+		}
+		if v == "" {
+			if requireNonEmpty {
+				return fmt.Errorf(
+					"config %q: array_group instance #%d missing key field %q",
+					di.Name, i+1, fieldName)
+			}
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			return fmt.Errorf("config %q: array_group duplicate %s %q",
+				di.Name, fieldName, v)
+		}
+		seen[v] = struct{}{}
+	}
+	return nil
+}
+
+// collectAppUniqueNames gathers the set of field names declared unique="app"
+// anywhere in the spec tree (top-level fields and group/array_group child
+// definitions). Uniqueness for such a name then applies to every value of that
+// field across the deploy tree.
+func collectAppUniqueNames(spec []*AppSpecConfigItem, out map[string]struct{}) {
+	for _, sf := range spec {
+		if sf == nil {
+			continue
+		}
+		if sf.Unique == SpecConfigUniqueApp && sf.Name != "" {
+			out[sf.Name] = struct{}{}
+		}
+		if len(sf.Items) > 0 {
+			collectAppUniqueNames(sf.Items, out)
+		}
+	}
+}
+
+// collectDeployValues walks a top-level deploy item and appends, into pool, the
+// values of fields whose name is in appUniqueNames. The deploy item structure
+// (flat / group / array_group) is interpreted via the matching spec field.
+func collectDeployValues(di *AppDeployConfigItem, sf *AppSpecConfigItem,
+	pool map[string][]string, appUniqueNames map[string]struct{}) {
+
+	want := func(name string) bool {
+		_, ok := appUniqueNames[name]
+		return ok
+	}
+	record := func(name, value string) {
+		if name != "" && want(name) {
+			pool[name] = append(pool[name], value)
+		}
+	}
+
+	switch {
+	case sf != nil && sf.Type == SpecFieldTypeArrayGroup:
+		for _, inst := range di.Items {
+			if inst == nil {
+				continue
+			}
+			for _, f := range inst.Items {
+				if f != nil {
+					record(f.Name, f.Value)
+				}
+			}
+		}
+	case sf != nil && sf.Type == SpecFieldTypeGroup:
+		for _, f := range di.Items {
+			if f != nil {
+				record(f.Name, f.Value)
+			}
+		}
+	default: // flat
+		record(di.Name, di.Value)
+	}
+}
+
+// checkDistinctAppScoped reports an error if the (non-empty) values collected
+// for an app-scoped unique field contain any duplicate.
+func checkDistinctAppScoped(name string, vals []string) error {
+	seen := map[string]struct{}{}
+	for _, v := range vals {
+		if v == "" {
+			continue // unset values are not duplicates of each other
+		}
+		if _, ok := seen[v]; ok {
+			return fmt.Errorf(
+				"config %q: value %q must be unique (app scope) but is duplicated",
+				name, v)
+		}
+		seen[v] = struct{}{}
+	}
+	return nil
+}

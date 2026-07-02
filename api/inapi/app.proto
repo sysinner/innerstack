@@ -374,7 +374,24 @@ message AppSpecConfigItem {
   // description provides a detailed description of the field.
   string description = 8;
 
+  // items holds the child fields of this item. For type "group" it is the
+  // group's field set; for type "array_group" it defines the field schema of
+  // each replicated group instance.
   repeated AppSpecConfigItem items = 9;
+
+  // key_item applies when type is "array_group": it names the item within
+  // items whose value uniquely identifies each replicated group instance
+  // (e.g. the database name). The value must match the name of one of items.
+  string key_item = 10;
+
+  // unique, when set, requires this field's value to be distinct within a
+  // scope. Recognized scopes:
+  //   "array_group" : distinct across all instances of the enclosing array_group
+  //   "app"         : distinct across the whole app config (flat fields plus
+  //                   every array_group instance), values pooled by field name
+  // Empty means no uniqueness constraint. The key_item field is always unique
+  // within its array_group regardless of this attribute.
+  string unique = 11;
 }
 
 message AppDeployServicePort {

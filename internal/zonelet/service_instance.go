@@ -184,6 +184,16 @@ func (s *zoneServer) AppInstanceDeploy(
 			}
 		}
 
+		// Validate config field schemas (names, group/array_group structure)
+		for _, cfg := range req.Spec.Configs {
+			if cfg == nil {
+				continue
+			}
+			if err := inapi.ValidateSpecConfigField(cfg); err != nil {
+				return nil, fmt.Errorf("config %q: %w", cfg.Name, err)
+			}
+		}
+
 		// Validate app-level dependencies (spec.depends) exist as deployed instances
 		if err := validateAppDependencies(req.Spec.Depends); err != nil {
 			return nil, err
@@ -192,6 +202,14 @@ func (s *zoneServer) AppInstanceDeploy(
 		// Validate deploy-time dependency bindings (deploy.depends)
 		if req.Deploy != nil && len(req.Deploy.Depends) > 0 {
 			if err := validateDeployDependencies(req.Spec.Name, req.Deploy.Depends); err != nil {
+				return nil, err
+			}
+		}
+
+		// Validate deploy configs against the spec (e.g. array_group key
+		// presence and uniqueness within each array_group).
+		if req.Deploy != nil && len(req.Deploy.Configs) > 0 {
+			if err := inapi.ValidateDeployConfigItems(req.Spec.Configs, req.Deploy.Configs); err != nil {
 				return nil, err
 			}
 		}
@@ -483,6 +501,13 @@ func loadInstanceByName(name string) (*inapi.AppInstance, *kvapi.Meta, error) {
 // req_validate is marked successful (spanning from rpcStartMs to now), and
 // instance_persist is recorded as an instantaneous event. Existing per-
 // replica stage subtrees are preserved.
+//
+// The root's Revision is intentionally left at its previous value: it is a
+// sync barrier meaning "the revision the zone leader has reconciled into the
+// stage tree". The scheduler advances it to the current Deploy.Revision via
+// schedulerReconcileDeployRevision once stale replica stages have been
+// cleared. This lets clients (the CLI watch) wait for a stage tree that
+// actually reflects the new revision rather than reading back stale state.
 func appDeployStagesMarkPreHost(deploy *inapi.AppDeploy, rpcStartMs int64) {
 	if deploy == nil {
 		return
@@ -490,7 +515,6 @@ func appDeployStagesMarkPreHost(deploy *inapi.AppDeploy, rpcStartMs int64) {
 	rev := deploy.Revision
 	root := deploy.StagesRoot()
 	root.SetRunning("")
-	root.Revision = rev
 
 	rv := root.Child(inapi.AppDeployStageNameReqValidate, inapi.AppStageOwnerZonelet)
 	rv.Created = rpcStartMs // reset to this deploy's start on every submit
@@ -500,6 +524,43 @@ func appDeployStagesMarkPreHost(deploy *inapi.AppDeploy, rpcStartMs int64) {
 	ip := root.Child(inapi.AppDeployStageNameInstancePersist, inapi.AppStageOwnerZonelet)
 	ip.SetInstant("")
 	ip.Revision = rev
+}
+
+// appDeployStagesReconcile advances the deploy stage root to the current
+// Deploy.Revision, clearing stale relayed (host-side/inagent) replica stages
+// left from a prior revision. It is the scheduler-side complement to
+// appDeployStagesMarkPreHost: the deploy RPC bumps Deploy.Revision but leaves
+// root.Revision behind as a sync barrier; this function lifts the barrier once
+// the stage tree has been reconciled to the new revision.
+//
+// It mutates only the in-memory stage tree and returns whether a reconcile was
+// performed (false when the root is already current, i.e. a no-op). The caller
+// persists the result.
+func appDeployStagesReconcile(deploy *inapi.AppDeploy) bool {
+	if deploy == nil {
+		return false
+	}
+	curRev := deploy.Revision
+	root := deploy.StagesRoot()
+	if root.Revision >= curRev {
+		return false
+	}
+	root.SetRunning("")
+	// Drop stale relayed children from each replica node; the hostlet
+	// re-reports them at the current revision. Zone-side children
+	// (schedule/ipam_alloc/port_alloc/deliver) stay valid for placed replicas.
+	for _, repNode := range root.Stages {
+		if repNode == nil || repNode.Name != inapi.AppDeployStageNameReplica {
+			continue
+		}
+		repNode.PruneChildren(func(name string) bool {
+			_, isRelayed := inapi.AppDeployStageRelayedNames[name]
+			return !isRelayed
+		})
+	}
+	// Stamp the root and its remaining descendants with the current revision.
+	root.SetRevisionDeep(curRev)
+	return true
 }
 
 // validateInstanceNameUnique checks that no other app instance in the zone
@@ -570,62 +631,141 @@ func validateAppDependencies(depends []*inapi.AppSpecDepend) error {
 }
 
 // resolveDeployConfigFields resolves config field auto-fill values and defaults
-// for an app instance. If Spec.Config is set, it ensures all config fields have
-// values in Deploy.Configs, applying auto-fill expressions or defaults as needed.
+// for an app instance. For each spec config field it ensures a deploy value
+// exists, applying auto-fill expressions or defaults as needed. Flat fields are
+// resolved directly; "group" fields resolve their single child set; "array_group"
+// fields resolve each replicated instance's child set (so e.g. each database
+// gets its own auto-generated password). Existing non-empty values are always
+// preserved (idempotent on update).
 func resolveDeployConfigFields(instance *inapi.AppInstance) {
 	if instance == nil || instance.Spec == nil ||
 		len(instance.Spec.Configs) == 0 || instance.Deploy == nil {
 		return
 	}
 
-	// Resolve each config field
 	for _, field := range instance.Spec.Configs {
 		if field == nil || field.Name == "" {
 			continue
 		}
 
-		var currentValue string
+		switch field.Type {
+		case inapi.SpecFieldTypeGroup, inapi.SpecFieldTypeArrayGroup:
+			resolveGroupedConfigField(field, instance.Deploy)
+		default:
+			resolveFlatConfigField(field, instance.Deploy)
+		}
+	}
+}
 
-		idx := slices.IndexFunc(instance.Deploy.Configs, func(v *inapi.AppDeployConfigItem) bool {
-			return v.Name == field.Name
-		})
-		if idx >= 0 {
-			if instance.Deploy.Configs[idx].Value != "" {
+// configFieldAutoValue derives a value for a spec config field from its
+// auto-fill expression or default. Returns "" when no value can be derived.
+func configFieldAutoValue(field *inapi.AppSpecConfigItem) string {
+	if field == nil {
+		return ""
+	}
+	if field.AutoFill != "" {
+		val, err := autofill.GenerateIfEmpty(field.AutoFill, "")
+		if err != nil {
+			slog.Warn("config auto-fill failed",
+				"field", field.Name,
+				"autofill", field.AutoFill,
+				"err", err.Error())
+			return ""
+		}
+		if val != "" {
+			return val
+		}
+		if field.Default != "" {
+			return field.Default
+		}
+		return ""
+	}
+	return field.Default
+}
+
+// resolveFlatConfigField applies auto-fill/default to a flat deploy config
+// field, preserving any existing non-empty value.
+func resolveFlatConfigField(field *inapi.AppSpecConfigItem, deploy *inapi.AppDeploy) {
+	idx := slices.IndexFunc(deploy.Configs, func(v *inapi.AppDeployConfigItem) bool {
+		return v != nil && v.Name == field.Name
+	})
+	if idx >= 0 && deploy.Configs[idx].Value != "" {
+		return
+	}
+	val := configFieldAutoValue(field)
+	if val == "" {
+		return
+	}
+	if idx >= 0 {
+		deploy.Configs[idx].Value = val
+		return
+	}
+	deploy.Configs = append(deploy.Configs, &inapi.AppDeployConfigItem{
+		Name:  field.Name,
+		Value: val,
+	})
+}
+
+// resolveGroupedConfigField resolves child-field values within a "group" or
+// "array_group" deploy item. For a group the deploy item's items hold the field
+// values directly; for an array_group each element of the deploy item's items is
+// a replicated instance whose own items hold the field values. Empty child
+// values are filled from each child spec field's auto-fill/default; existing
+// values are preserved.
+func resolveGroupedConfigField(field *inapi.AppSpecConfigItem, deploy *inapi.AppDeploy) {
+	if len(field.Items) == 0 {
+		return
+	}
+	idx := slices.IndexFunc(deploy.Configs, func(v *inapi.AppDeployConfigItem) bool {
+		return v != nil && v.Name == field.Name
+	})
+	if idx < 0 {
+		return
+	}
+	item := deploy.Configs[idx]
+
+	if field.Type == inapi.SpecFieldTypeArrayGroup {
+		for _, inst := range item.Items {
+			if inst == nil {
 				continue
 			}
-			currentValue = instance.Deploy.Configs[idx].Value
+			resolveChildConfigFields(field.Items, &inst.Items)
 		}
+		return
+	}
+	// group: the deploy item's items are the field values.
+	resolveChildConfigFields(field.Items, &item.Items)
+}
 
-		// Apply auto-fill or default
-		if field.AutoFill != "" {
-			val, err := autofill.GenerateIfEmpty(field.AutoFill, "")
-			if err != nil {
-				slog.Warn("config auto-fill failed",
-					"field", field.Name,
-					"autofill", field.AutoFill,
-					"err", err.Error())
-				continue
-			}
-			if val != "" {
-				currentValue = val
-			} else if field.Default != "" {
-				currentValue = field.Default
-			}
-		} else if field.Default != "" {
-			currentValue = field.Default
-		}
-
-		if currentValue == "" {
+// resolveChildConfigFields fills empty child deploy values referenced by dst
+// using the child spec field definitions (specItems), applying auto-fill/
+// default. Missing children with a derivable value are appended.
+func resolveChildConfigFields(
+	specItems []*inapi.AppSpecConfigItem,
+	dst *[]*inapi.AppDeployConfigItem,
+) {
+	for _, sf := range specItems {
+		if sf == nil || sf.Name == "" {
 			continue
 		}
-
-		if idx >= 0 {
-			instance.Deploy.Configs[idx].Value = currentValue
+		var cur *inapi.AppDeployConfigItem
+		for _, d := range *dst {
+			if d != nil && d.Name == sf.Name {
+				cur = d
+				break
+			}
+		}
+		if cur != nil && cur.Value != "" {
+			continue
+		}
+		val := configFieldAutoValue(sf)
+		if val == "" {
+			continue
+		}
+		if cur != nil {
+			cur.Value = val
 		} else {
-			instance.Deploy.Configs = append(instance.Deploy.Configs, &inapi.AppDeployConfigItem{
-				Name:  field.Name,
-				Value: currentValue,
-			})
+			*dst = append(*dst, &inapi.AppDeployConfigItem{Name: sf.Name, Value: val})
 		}
 	}
 }

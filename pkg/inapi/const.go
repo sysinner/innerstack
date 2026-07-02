@@ -20,7 +20,8 @@ const (
 	SpecFieldTypeString = "string" // string type
 	SpecFieldTypeSelect = "select" // select type
 
-	SpecFieldTypeGroup = "group" // array type
+	SpecFieldTypeGroup      = "group"       // group type: a fixed set of child fields
+	SpecFieldTypeArrayGroup = "array_group" // array group type: a group replicated 1~n times
 
 	SpecFieldTypeText         = "text"          // text type
 	SpecFieldTypeTextJSON     = "text_json"     // json text
@@ -31,6 +32,12 @@ const (
 	SpecFieldTypeTextMarkdown = "text_markdown" // markdown text
 
 	SpecFieldTypeAuthCert = "auth_cert" // auth certificate
+)
+
+// AppSpecConfigItem unique-scope constants (the `unique` field attribute).
+const (
+	SpecConfigUniqueArrayGroup = "array_group" // unique across instances of the enclosing array_group
+	SpecConfigUniqueApp        = "app"         // unique across the whole app config, pooled by field name
 )
 
 const (

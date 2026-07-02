@@ -176,6 +176,18 @@ func renderDeployStages(
 		return false, false, false
 	}
 
+	// Sync barrier: the stage tree is only valid when its root revision has
+	// caught up to the desired Deploy.Revision. A lagging root means the
+	// deploy RPC bumped Deploy.Revision but the scheduler has not yet
+	// reconciled the stage tree (e.g. stale replica stages from the previous
+	// revision are still present). Wait for the new state to sync rather than
+	// risking a premature terminal evaluation.
+	if instance.Deploy != nil && root.Revision < instance.Deploy.Revision {
+		fmt.Printf("waiting for stage data to sync (stages rev %d -> deploy rev %d)...\n",
+			root.Revision, instance.Deploy.Revision)
+		return false, false, false
+	}
+
 	// Instance-level stages and replica nodes.
 	renderStageChildren(root.Stages, 0, nowMs)
 

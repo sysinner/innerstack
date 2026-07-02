@@ -20,8 +20,8 @@ require (
 	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/htoml4g v0.9.5
 	github.com/hooto/httpsrv v0.13.0
-	github.com/lynkdb/kvgo/v2 v2.0.15
-	github.com/lynkdb/lynkapi v0.0.11
+	github.com/lynkdb/kvgo/v2 v2.0.16
+	github.com/lynkdb/lynkapi v0.0.12
 	github.com/mattn/go-shellwords v1.0.13
 	github.com/miekg/dns v1.1.72
 	github.com/olekukonko/tablewriter v1.1.4
@@ -69,8 +69,6 @@ require (
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
-	github.com/hooto/hauth/go v0.1.5 // indirect
-	github.com/hooto/hauth/go/v2 v2.0.0-20260125120444-4cbf92d8d081 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

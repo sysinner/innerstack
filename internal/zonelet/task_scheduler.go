@@ -227,6 +227,12 @@ func schedulerRefresh(forceRefresh bool) error {
 		}
 	}
 
+	// Advance each app's stage root to the current Deploy.Revision before any
+	// resource work that may itself bump the revision (port/IPAM rebinds).
+	for _, app := range instanceMap {
+		schedulerReconcileDeployRevision(app)
+	}
+
 	for _, app := range instanceMap {
 
 		ports := map[uint32]*inapi.AppSpecServicePort{}
@@ -616,6 +622,26 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	return nil
+}
+
+// schedulerReconcileDeployRevision advances the deploy stage root to the
+// current AppDeploy.Revision, clearing stale relayed (host-side/inagent)
+// replica stages left from a prior revision. The deploy RPC bumps
+// Deploy.Revision but intentionally leaves root.Revision behind as a sync
+// barrier so clients can wait for a stage tree that reflects the new revision.
+// No-op (and no kvgo write) when the root is already current.
+func schedulerReconcileDeployRevision(app *appInstanceEntry) {
+	if app == nil || app.Value == nil || app.Value.Deploy == nil {
+		return
+	}
+	if !appDeployStagesReconcile(app.Value.Deploy) {
+		return
+	}
+	if err := gAppInstanceSet.Flush(app); err != nil {
+		slog.Warn("scheduler reconcile deploy revision flush failed",
+			"instance_name", app.Value.InstanceName(),
+			"err", err.Error())
+	}
 }
 
 // schedulerBumpRevision increments AppDeploy.Revision for an app at most once
