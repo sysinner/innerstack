@@ -69,17 +69,32 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Init Config Fail : %s\n", err.Error())
 				os.Exit(1)
 			}
-
-			if _, err := cli.Config.Zone(""); err != nil && len(cli.Config.Zones) == 0 {
-				fmt.Fprintf(os.Stderr, "Init Config Fail : no zone setup\n")
-				os.Exit(1)
-			}
 		}
 
 		cobra.OnInitialize(initConfig)
 	}
 
-	rootCmd.AddCommand(cli.NewLoginCommand(rootCmd))
+	loginCmd := cli.NewLoginCommand()
+	rootCmd.AddCommand(loginCmd)
+
+	// When innerstack is run with no subcommand: if no zone is configured,
+	// guide the user to set up a login first; otherwise show the normal help.
+	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(cli.Config.Zones) == 0 {
+			fmt.Println("No zone configured. Set up a zone login first:")
+			fmt.Println()
+			return loginCmd.Help()
+		}
+		return cmd.Help()
+	}
+
+	// Before any subcommand runs, remind the operator of the active zone when
+	// more than one is configured (the login command manages zones and is
+	// skipped by PrintCurrentZoneHint itself).
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		cli.PrintCurrentZoneHint(cmd)
+		return nil
+	}
 
 	// Register zone management commands
 	// - zone-init: Initialize a new zone with specified configuration

@@ -6,7 +6,6 @@ go 1.26.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/c-bata/go-prompt v0.2.6
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/fsouza/go-dockerclient v1.13.2
 	github.com/go-playground/locales v0.14.1
@@ -20,7 +19,6 @@ require (
 	github.com/hooto/httpsrv v0.13.1
 	github.com/lynkdb/kvgo/v2 v2.0.16
 	github.com/lynkdb/lynkapi v0.0.12
-	github.com/mattn/go-shellwords v1.0.13
 	github.com/miekg/dns v1.1.72
 	github.com/olekukonko/tablewriter v1.1.4
 	github.com/pelletier/go-toml/v2 v2.3.1
@@ -76,7 +74,6 @@ require (
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
-	github.com/mattn/go-tty v0.0.8 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
 	github.com/moby/moby/api v1.54.2 // indirect
 	github.com/moby/moby/client v0.4.1 // indirect
@@ -92,7 +89,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pkg/term v1.2.0-beta.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect

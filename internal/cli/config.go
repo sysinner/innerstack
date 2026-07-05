@@ -35,7 +35,7 @@ type ConfigCommon struct {
 type ConfigZone struct {
 	Name string `toml:"name"`
 	Addr string `toml:"addr"`
-	AK   string `toml:"access_key"`
+	AK   string `toml:"access_key"` // full access key, format: ak_<id>_<secret>
 }
 
 const AppName = "innerstack"
@@ -69,19 +69,23 @@ func init() {
 	}
 }
 
-// Setup loads the CLI configuration from file
+// Setup loads the CLI configuration from file. A missing config file is not an
+// error: Config stays empty and loadedConfigPath is set to the default path so
+// that Flush can create it on the first `login add`.
 func Setup() error {
 
 	for _, path := range configPaths {
 		if err := htoml.DecodeFromFile(path, &Config); err == nil {
 			loadedConfigPath = path
-			return os.Chmod(path, 0644)
+			return os.Chmod(path, 0600)
 		} else if !os.IsNotExist(err) {
 			return err
 		}
 	}
 
-	return errors.New(configFileName + " file not found")
+	// No config found; default to the home-dir path for the next Flush.
+	loadedConfigPath = defaultConfigPath
+	return nil
 }
 
 // Zone returns the zone config by name, or the current zone if name is empty.
@@ -91,8 +95,12 @@ func (it *ConfigCommon) Zone(name string) (*ConfigZone, error) {
 		name = it.CurrentZone
 	}
 
-	if name == "" && len(Config.Zones) > 0 {
-		return Config.Zones[0], nil
+	if name == "" && len(it.Zones) == 0 {
+		return nil, fmt.Errorf("no zone configured, run `%s login -n <zone> -a <host:port> -s <access-key>` first (see `%s login --help`)", AppName, AppName)
+	}
+
+	if name == "" && len(it.Zones) > 0 {
+		return it.Zones[0], nil
 	}
 
 	for _, conn := range it.Zones {
@@ -101,10 +109,14 @@ func (it *ConfigCommon) Zone(name string) (*ConfigZone, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("zone (%s) access_key not found in %s", name, loadedConfigPath)
+	return nil, fmt.Errorf("zone (%s) not found in %s", name, loadedConfigPath)
 }
 
-// Flush writes the current configuration back to the config file.
+// Flush writes the current configuration back to the config file. The file is
+// recreated with 0600 permissions since it holds access keys.
 func Flush() error {
-	return htoml.EncodeToFile(Config, loadedConfigPath)
+	if err := htoml.EncodeToFile(Config, loadedConfigPath); err != nil {
+		return err
+	}
+	return os.Chmod(loadedConfigPath, 0600)
 }

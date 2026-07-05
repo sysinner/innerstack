@@ -15,247 +15,184 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
-	"github.com/c-bata/go-prompt"
-	"github.com/mattn/go-shellwords"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/innerstack/v2/internal/client"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewLoginCommand(rootCmd *cobra.Command) *cobra.Command {
+// NewLoginCommand wires up the `login` command: a local zone credential
+// manager. It never connects to a server; subsequent commands resolve the
+// current zone and connect on demand.
+//
+//	login -n <zone> -a <host:port> -s <access-key>   add or update a zone
+//	login <zone-name>                                switch the current zone
+//	login                                            list configured zones
+func NewLoginCommand() *cobra.Command {
 
-	var loginRun = func(cmd *cobra.Command, args []string) error {
-
-		if len(Config.Zones) == 0 {
-			return fmt.Errorf("No zones configured in %s", defaultConfigPath)
-		}
-
-		// Always list all configured zones
-		fmt.Printf("Current configured zones (%s):\n", loadedConfigPath)
-		for _, z := range Config.Zones {
-			mark := " "
-			if z.Name == Config.CurrentZone {
-				mark = "*"
-			}
-			fmt.Printf("  %s %s (%s)\n", mark, z.Name, z.Addr)
-		}
-
-		var zone *ConfigZone
-
-		// If a zone name is provided as argument, look it up directly
-		if len(args) > 0 && args[0] != "" {
-			for _, z := range Config.Zones {
-				if z.Name == args[0] {
-					zone = z
-					break
-				}
-			}
-			if zone == nil {
-				return fmt.Errorf("Zone '%s' not found in config", args[0])
-			}
-		} else if len(Config.Zones) == 1 {
-			// Single zone: auto-select
-			zone = Config.Zones[0]
-		} else if Config.CurrentZone != "" {
-			// Multiple zones with a current zone set: use it
-			for _, z := range Config.Zones {
-				if z.Name == Config.CurrentZone {
-					zone = z
-					break
-				}
-			}
-			if zone == nil {
-				// Current zone name is invalid, reset and prompt
-				Config.CurrentZone = ""
-			}
-		}
-
-		// If still not resolved, prompt for selection
-		if zone == nil {
-			suggests := make([]prompt.Suggest, len(Config.Zones))
-			for i, z := range Config.Zones {
-				suggests[i] = prompt.Suggest{
-					Text:        z.Name,
-					Description: z.Addr,
-				}
-			}
-
-			selected := prompt.Input("Select zone: ",
-				func(d prompt.Document) []prompt.Suggest {
-					return prompt.FilterHasPrefix(suggests, d.GetWordBeforeCursor(), true)
-				},
-			)
-			selected = strings.TrimSpace(selected)
-
-			for _, z := range Config.Zones {
-				if z.Name == selected {
-					zone = z
-					break
-				}
-			}
-
-			if zone == nil {
-				return fmt.Errorf("Zone '%s' not found in config", selected)
-			}
-		}
-
-		// Parse access key
-		ak, err := zone.AccessKey()
-		if err != nil {
-			return fmt.Errorf("Invalid access key for zone %s: %s", zone.Name, err.Error())
-		}
-
-		// Connect to server
-		conn, err := client.Connect(zone.Addr, ak, false)
-		if err != nil {
-			return fmt.Errorf("Failed to connect to %s: %s", zone.Addr, err.Error())
-		}
-
-		// Ping to verify connectivity
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		zc := inapi.NewZoneServiceClient(conn)
-		resp, err := zc.Ping(ctx, &inapi.PingRequest{})
-		if err != nil {
-			return fmt.Errorf("Ping to %s failed: %s", zone.Addr, err.Error())
-		} else if resp.Message != "pong" {
-			return fmt.Errorf("Unexpected ping response from %s: %s", zone.Addr, resp.Message)
-		}
-
-		fmt.Printf("Connected to zone %s (%s)\n", zone.Name, zone.Addr)
-
-		// Update current zone and persist to config file
-		if Config.CurrentZone != zone.Name {
-			Config.CurrentZone = zone.Name
-			if err := Flush(); err != nil {
-				return fmt.Errorf("Warning: failed to save config (%s): %s",
-					loadedConfigPath, err.Error())
-			}
-		}
-
-		fmt.Println("Type 'exit' or 'quit' to leave the terminal.")
-		fmt.Println("")
-
-		// Enter interactive loop
-		enterInteractiveMode(rootCmd)
-
-		return nil
-	}
+	var (
+		name   string
+		addr   string
+		secret string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "login [zone-name]",
-		Short: "Login to a zone and enter interactive session",
-		Long:  "Connect to a configured zone and start an interactive shell with auto-completion.",
-		RunE:  loginRun,
-		Example: `  # Login with the current default zone
-  innerstack login
+		Short: "Add/update a zone login, switch the current zone, or list zones",
+		Long: `Manage local zone logins. The login command only edits the local config
+file; it does not connect to any server.
 
-  # Login to a specific zone by name
+  # Add a new zone, or update an existing one's address and access key
+  innerstack login -n <zone-name> -a <host:port> -s <access-key>
+
+  # Switch the current zone
+  innerstack login <zone-name>
+
+  # List configured zones
+  innerstack login
+`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Flag-driven upsert mode takes precedence over positional switch.
+			if name != "" {
+				return upsertZone(name, addr, secret)
+			}
+			if len(args) == 1 {
+				return switchZone(args[0])
+			}
+			printZoneList()
+			return nil
+		},
+		Example: `  # Add or update a zone
+  innerstack login -n myzone -a 192.168.1.10:9533 -s ak_xxx_yyy
+
+  # Switch the current zone
   innerstack login myzone
 
-  # Inside the interactive session, type 'exit' or 'quit' to leave
+  # List configured zones
+  innerstack login
  `,
 	}
+
+	cmd.Flags().StringVarP(&name, "name", "n", "",
+		"Zone name; when set with --addr and --secret, adds the zone or updates its config")
+	cmd.Flags().StringVarP(&addr, "addr", "a", "", "Zone API address, e.g. 192.168.1.10:9533")
+	cmd.Flags().StringVarP(&secret, "secret", "s", "", "Access key in the form ak_<id>_<secret>")
 
 	return cmd
 }
 
-// Interactive mode core logic
-func enterInteractiveMode(rootCmd *cobra.Command) {
-	// Temporarily silence Cobra usage and error output to avoid cluttering the terminal
-	rootCmd.SilenceUsage = true
-	rootCmd.SilenceErrors = true
+// upsertZone adds a new zone, or updates an existing one's address and access
+// key, then marks it current and persists the config.
+func upsertZone(name, addr, secret string) error {
 
-	// Create an executor triggered when the user presses Enter
-	executor := func(line string) {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			return
+	if err := inapi.NameValid(name); err != nil {
+		return fmt.Errorf("invalid zone name: %s", err.Error())
+	}
+	if addr == "" {
+		return fmt.Errorf("zone address is required (--addr)")
+	}
+	if secret == "" {
+		return fmt.Errorf("access key is required (--secret)")
+	}
+
+	zone := &ConfigZone{Name: name, Addr: addr, AK: secret}
+	if _, err := zone.AccessKey(); err != nil {
+		return fmt.Errorf("invalid access key for zone %s: %s", name, err.Error())
+	}
+
+	// Replace an existing entry in place, or append a new one.
+	updated := false
+	for i, z := range Config.Zones {
+		if z.Name == name {
+			Config.Zones[i] = zone
+			updated = true
+			break
 		}
+	}
+	if !updated {
+		Config.Zones = append(Config.Zones, zone)
+	}
 
-		if line == "exit" || line == "quit" {
-			fmt.Println("Goodbye!")
-			os.Exit(0) // Exit interactive terminal
+	Config.CurrentZone = name
+
+	if err := Flush(); err != nil {
+		return fmt.Errorf("failed to save config (%s): %s", loadedConfigPath, err.Error())
+	}
+
+	verb := "added"
+	if updated {
+		verb = "updated"
+	}
+	fmt.Printf("Zone %q %s and set as current (%s)\n", name, verb, addr)
+	fmt.Printf("Saved to %s\n", loadedConfigPath)
+	return nil
+}
+
+// switchZone marks the named zone as current and persists the config.
+func switchZone(name string) error {
+
+	var zone *ConfigZone
+	for _, z := range Config.Zones {
+		if z.Name == name {
+			zone = z
+			break
 		}
+	}
+	if zone == nil {
+		return fmt.Errorf("zone %q not found in config", name)
+	}
 
-		// Parse arguments
-		args, err := shellwords.Parse(line)
-		if err != nil {
-			fmt.Printf("Argument parsing failed: %v\n", err)
-			return
-		}
-
-		// Delegate to Cobra for execution
-		rootCmd.SetArgs(args)
-		if err := rootCmd.Execute(); err != nil {
-			fmt.Printf("Error: %v\n", err)
+	if Config.CurrentZone != name {
+		Config.CurrentZone = name
+		if err := Flush(); err != nil {
+			return fmt.Errorf("failed to save config (%s): %s", loadedConfigPath, err.Error())
 		}
 	}
 
-	// Create a completer: triggered on user input or Tab press, returns dynamic suggestions
-	completer := func(d prompt.Document) []prompt.Suggest {
-		// 1. Get the full text before the cursor
-		text := d.TextBeforeCursor()
-		if text == "" {
-			return nil
-		}
+	fmt.Printf("Switched to zone %q (%s)\n", name, zone.Addr)
+	return nil
+}
 
-		// 2. If no space is present, auto-complete Cobra subcommands
-		if !strings.Contains(text, " ") {
-			var suggests []prompt.Suggest
-			for _, cmd := range rootCmd.Commands() {
-				// Filter out the login command itself and match the current input prefix
-				if cmd.Name() != "login" && strings.HasPrefix(cmd.Name(), text) {
-					suggests = append(suggests, prompt.Suggest{
-						Text:        cmd.Name(),
-						Description: cmd.Short,
-					})
-				}
-			}
-			return suggests
-		}
+// PrintCurrentZoneHint writes a one-line reminder of the active zone to stderr.
+// It helps the operator notice which zone a command will operate on when more
+// than one zone is configured. It is a no-op when:
+//   - the resolved command is the root (no subcommand) or `login` (which
+//     manages zone entries rather than operating on one),
+//   - fewer than two zones are configured (nothing to disambiguate).
+//
+// Output goes to stderr so it never pollutes the command's stdout (JSON,
+// tables, ...).
+func PrintCurrentZoneHint(cmd *cobra.Command) {
+	if cmd == nil || !cmd.HasParent() || cmd.Name() == "login" {
+		return
+	}
+	if len(Config.Zones) <= 1 {
+		return
+	}
+	z, err := Config.Zone("")
+	if err != nil || z == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "Current zone: %s (%s)\n", z.Name, z.Addr)
+}
 
-		// 3. If a space is present (e.g. "deploy --loc"), start file path completion
-		// Extract the text after the last space as the file search prefix
-		lastSpaceIdx := strings.LastIndex(text, " ")
-		currentInput := text[lastSpaceIdx+1:]
+// printZoneList renders the configured zones, marking the current one.
+func printZoneList() {
 
-		// Use Glob to match local files or directories
-		matches, err := filepath.Glob(currentInput + "*")
-		if err != nil || len(matches) == 0 {
-			return nil
-		}
-
-		var suggests []prompt.Suggest
-		for _, match := range matches {
-			desc := "file"
-			// Mark as directory if applicable
-			if info, err := os.Stat(match); err == nil && info.IsDir() {
-				desc = "directory"
-			}
-			suggests = append(suggests, prompt.Suggest{
-				Text:        match,
-				Description: desc,
-			})
-		}
-		return suggests
+	if len(Config.Zones) == 0 {
+		fmt.Printf("No zones configured. Add one with:\n  %s login -n <zone> -a <host:port> -s <access-key>\n", AppName)
+		return
 	}
 
-	// Start go-prompt interactive terminal
-	p := prompt.New(
-		executor,
-		completer,
-		prompt.OptionPrefix(AppName+" "),
-		prompt.OptionTitle(AppName+"-interactive-shell"),
-	)
-	p.Run()
+	fmt.Printf("Configured zones (%s):\n", loadedConfigPath)
+	for _, z := range Config.Zones {
+		mark := " "
+		if z.Name == Config.CurrentZone {
+			mark = "*"
+		}
+		fmt.Printf("  %s %-20s %s\n", mark, z.Name, z.Addr)
+	}
 }
