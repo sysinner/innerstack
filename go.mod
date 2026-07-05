@@ -4,8 +4,6 @@ go 1.26.0
 
 // replace github.com/lynkdb/kvgo/v2 v2.0.15 => /opt/workspace/src/github.com/lynkdb/kvgo
 
-replace github.com/hooto/httpsrv v0.13.0 => /opt/workspace/src/github.com/hooto/httpsrv
-
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/c-bata/go-prompt v0.2.6
@@ -19,7 +17,7 @@ require (
 	github.com/hooto/hlog4g v0.9.5
 	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/htoml4g v0.9.5
-	github.com/hooto/httpsrv v0.13.0
+	github.com/hooto/httpsrv v0.13.1
 	github.com/lynkdb/kvgo/v2 v2.0.16
 	github.com/lynkdb/lynkapi v0.0.12
 	github.com/mattn/go-shellwords v1.0.13
@@ -46,7 +44,7 @@ require (
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ServiceWeaver/weaver v0.24.6 // indirect
-	github.com/andybalholm/brotli v1.2.1 // indirect
+	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect

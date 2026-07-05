@@ -29,6 +29,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/innerstack/v2/internal/client"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
 	"github.com/sysinner/innerstack/v2/internal/inutil/autofill"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
@@ -36,13 +37,16 @@ import (
 func NewAppDeployCommand() *cobra.Command {
 
 	var (
-		specFile      string
-		instanceName  string
-		replicaCap    uint32
-		skipConfig    bool
-		action        string
-		noWait        bool
-		watchTimeout  time.Duration
+		specFile       string
+		instanceName   string
+		replicaCap     uint32
+		skipConfig     bool
+		action         string
+		cpuOverride    string
+		memoryOverride string
+		volumeOverride string
+		noWait         bool
+		watchTimeout   time.Duration
 	)
 
 	var deployRun = func(cmd *cobra.Command, args []string) error {
@@ -62,16 +66,21 @@ func NewAppDeployCommand() *cobra.Command {
 				return fmt.Errorf("resources is required")
 			}
 
-			if s.Resources.CpuLimit == "" {
-				return fmt.Errorf("resources.cpu_limit is required")
+			// Migrate legacy single-value fields (cpu_limit/memory_limit/
+			// volume_limit) into the min/max range before validation, so a
+			// TOML using the legacy form still deploys.
+			s.Resources.NormalizeLegacy()
+
+			if s.Resources.CpuMin == "" {
+				return fmt.Errorf("resources.cpu_min (or legacy cpu_limit) is required")
 			}
 
-			if s.Resources.MemoryLimit == "" {
-				return fmt.Errorf("resources.memory_limit is required")
+			if s.Resources.MemoryMin == "" {
+				return fmt.Errorf("resources.memory_min (or legacy memory_limit) is required")
 			}
 
-			if s.Resources.VolumeLimit == "" {
-				return fmt.Errorf("resources.volume_limit is required")
+			if s.Resources.VolumeMin == "" {
+				return fmt.Errorf("resources.volume_min (or legacy volume_limit) is required")
 			}
 
 			// Validate task trigger fields uniqueness
@@ -87,11 +96,39 @@ func NewAppDeployCommand() *cobra.Command {
 			spec = &s
 		}
 
+		deploy := &inapi.AppDeploy{}
+
+		// Optional resource overrides. Parsed here just for syntax; the
+		// server validates them against the spec [min, max] range. A flag
+		// left empty yields a zero value, which the server treats as "use
+		// the spec default (min) on create / keep current on update".
+		if cpuOverride != "" {
+			v, err := inutil.ParseCPUs(cpuOverride)
+			if err != nil {
+				return fmt.Errorf("invalid --cpu: %w", err)
+			}
+			deploy.CpuLimit = v
+		}
+		if memoryOverride != "" {
+			v, err := inutil.ParseBytes(memoryOverride)
+			if err != nil {
+				return fmt.Errorf("invalid --memory: %w", err)
+			}
+			deploy.MemoryLimit = v
+		}
+		if volumeOverride != "" {
+			v, err := inutil.ParseBytes(volumeOverride)
+			if err != nil {
+				return fmt.Errorf("invalid --volume: %w", err)
+			}
+			deploy.VolumeLimit = v
+		}
+
 		instanceReq := &inapi.AppInstanceDeployRequest{
 			Name:       instanceName,
 			Spec:       spec,
 			ReplicaCap: replicaCap,
-			Deploy:     &inapi.AppDeploy{},
+			Deploy:     deploy,
 		}
 
 		zone, err := Config.Zone("")
@@ -247,6 +284,9 @@ If the instance name already exists, the existing app instance will be updated.`
   # Update replica count of existing instance
   app deploy --spec app-spec.toml --name myapp --replica-cap 5
 
+  # Scale CPU of an existing instance within the spec [cpu_min, cpu_max] range
+  app deploy --spec app-spec.toml --name myapp --cpu 2000m
+
   # Skip interactive config input
   app deploy --spec app-spec.toml --name myapp --skip-config
 
@@ -264,6 +304,12 @@ If the instance name already exists, the existing app instance will be updated.`
 		false, "Skip interactive config input")
 	cmd.Flags().StringVarP(&action, "action", "",
 		"", "Deploy action (start, stop, destroy)")
+	cmd.Flags().StringVar(&cpuOverride, "cpu",
+		"", "Override deploy CPU (e.g. \"2000m\"); must be within spec [cpu_min, cpu_max]")
+	cmd.Flags().StringVar(&memoryOverride, "memory",
+		"", "Override deploy memory (e.g. \"2Gi\"); must be within spec [memory_min, memory_max]")
+	cmd.Flags().StringVar(&volumeOverride, "volume",
+		"", "Override deploy volume (e.g. \"20Gi\"); must be within spec [volume_min, volume_max]")
 	cmd.Flags().BoolVar(&noWait, "no-wait",
 		false, "Do not watch deploy stages after submission")
 	cmd.Flags().DurationVar(&watchTimeout, "watch-timeout",

@@ -28,7 +28,9 @@ func TestRenderAppSpec(t *testing.T) {
 		Image:       "gitea/gitea:1.21",
 		Description: "Self-hosted Git service",
 		Resources: &inapi.AppSpecResources{
-			CpuLimit: "500m", MemoryLimit: "512Mi", VolumeLimit: "10Gi",
+			CpuMin: "500m", CpuMax: "2000m",
+			MemoryMin: "512Mi", MemoryMax: "2Gi",
+			VolumeMin: "10Gi", VolumeMax: "20Gi",
 		},
 		Depends: []*inapi.AppSpecDepend{
 			{Name: "mysql-8.0", Version: "8.0.x"},
@@ -163,6 +165,32 @@ func TestSpecResourceHelpers(t *testing.T) {
 	}
 	if got := specBytes("512Mi"); got == "-" || got == "" {
 		t.Errorf("specBytes(\"512Mi\") = %q, want non-empty", got)
+	}
+}
+
+func TestSpecRangeHelpers(t *testing.T) {
+	cases := []struct {
+		name string
+		got  string
+		want string
+	}{
+		// range renders "min..max"
+		{"cpu_range", specRangeCpu("500m", "2000m"), "500m ~ 2"},
+		// min == max collapses to a single value
+		{"cpu_fixed", specRangeCpu("500m", "500m"), "500m"},
+		// max unset collapses to min
+		{"cpu_max_empty", specRangeCpu("500m", ""), "500m"},
+		// both empty -> "-"
+		{"cpu_empty", specRangeCpu("", ""), "-"},
+		// bytes ranges
+		{"mem_range", specRangeBytes("512Mi", "2Gi"), "512 MiB ~ 2 GiB"},
+		{"mem_fixed", specRangeBytes("512Mi", "512Mi"), "512 MiB"},
+		{"vol_empty", specRangeBytes("", ""), "-"},
+	}
+	for _, tc := range cases {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
 	}
 }
 

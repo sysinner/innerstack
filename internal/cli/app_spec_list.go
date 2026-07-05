@@ -26,7 +26,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/innerstack/v2/internal/client"
-	"github.com/sysinner/innerstack/v2/internal/inutil"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
@@ -77,7 +76,7 @@ func NewAppSpecListCommand() *cobra.Command {
 
 			tableBase.Header([]any{
 				"Name", "Version", "Image",
-				"CPU Limit", "Memory Limit", "Volume Limit",
+				"CPU", "Memory", "Volume",
 				"Packages", "Tasks",
 			}...)
 
@@ -86,32 +85,20 @@ func NewAppSpecListCommand() *cobra.Command {
 					continue
 				}
 
-				cpuLimit, memLimit, volLimit := "-", "-", "-"
+				cpuRange, memRange, volRange := "-", "-", "-"
 				if spec.Resources != nil {
-					if v, err := inutil.ParseCPUs(spec.Resources.CpuLimit); err == nil {
-						cpuLimit = inutil.PrettyCPUs(v)
-					} else if spec.Resources.CpuLimit != "" {
-						cpuLimit = spec.Resources.CpuLimit
-					}
-					if v, err := inutil.ParseBytes(spec.Resources.MemoryLimit); err == nil {
-						memLimit = inutil.PrettyBytes(v, 1024)
-					} else if spec.Resources.MemoryLimit != "" {
-						memLimit = spec.Resources.MemoryLimit
-					}
-					if v, err := inutil.ParseBytes(spec.Resources.VolumeLimit); err == nil {
-						volLimit = inutil.PrettyBytes(v, 1024)
-					} else if spec.Resources.VolumeLimit != "" {
-						volLimit = spec.Resources.VolumeLimit
-					}
+					cpuRange = specRangeCpu(spec.Resources.CpuMin, spec.Resources.CpuMax)
+					memRange = specRangeBytes(spec.Resources.MemoryMin, spec.Resources.MemoryMax)
+					volRange = specRangeBytes(spec.Resources.VolumeMin, spec.Resources.VolumeMax)
 				}
 
 				tableBase.Append([]any{
 					spec.Name,
 					spec.Version,
 					spec.Image,
-					cpuLimit,
-					memLimit,
-					volLimit,
+					cpuRange,
+					memRange,
+					volRange,
 					fmt.Sprintf("%d", len(spec.Packages)),
 					fmt.Sprintf("%d", len(spec.Tasks)),
 				}...)

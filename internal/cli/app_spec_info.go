@@ -153,11 +153,11 @@ func renderAppSpec(buf *bytes.Buffer, spec *inapi.AppSpec) {
 	// --- Resources (always shown; "-" when unset) ---
 	buf.WriteString("\n== Resources ==\n")
 	rt := cliNewTable(buf)
-	rt.Header([]any{"CPU Limit", "Memory Limit", "Volume Limit"})
+	rt.Header([]any{"CPU", "Memory", "Volume"})
 	rt.Append([]any{
-		specCpu(res.CpuLimit),
-		specBytes(res.MemoryLimit),
-		specBytes(res.VolumeLimit),
+		specRangeCpu(res.CpuMin, res.CpuMax),
+		specRangeBytes(res.MemoryMin, res.MemoryMax),
+		specRangeBytes(res.VolumeMin, res.VolumeMax),
 	}...)
 	rt.Render()
 
@@ -269,6 +269,36 @@ func specBytes(raw string) string {
 		return raw
 	}
 	return inutil.PrettyBytes(v, 1024)
+}
+
+// specRangeCpu formats a CPU min..max range from an app spec, collapsing to a
+// single value when min == max (or max is unset). Returns "-" when both are
+// empty.
+func specRangeCpu(minStr, maxStr string) string {
+	return specRange(minStr, maxStr, specCpu)
+}
+
+// specRangeBytes formats a memory/volume min..max range from an app spec,
+// collapsing to a single value when min == max (or max is unset). Returns "-"
+// when both are empty.
+func specRangeBytes(minStr, maxStr string) string {
+	return specRange(minStr, maxStr, specBytes)
+}
+
+// specRange formats a min/max pair using the given pretty-printer. A single
+// value is shown when max is empty or equal to min; otherwise "min ~ max".
+func specRange(minStr, maxStr string, pretty func(string) string) string {
+	if minStr == "" && maxStr == "" {
+		return "-"
+	}
+	if maxStr == "" || minStr == maxStr {
+		// Show whichever side is set.
+		if minStr != "" {
+			return pretty(minStr)
+		}
+		return pretty(maxStr)
+	}
+	return pretty(minStr) + " ~ " + pretty(maxStr)
 }
 
 // cliTaskTrigger renders the active trigger of a task as a short label. The

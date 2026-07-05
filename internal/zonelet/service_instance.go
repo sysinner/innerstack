@@ -69,7 +69,10 @@ func (s *zoneServer) AppInstanceDeploy(
 	}
 
 	var (
-		cpuLimit, memoryLimit, volumeLimit int64
+		// parsed holds the validated min/max resource ranges derived from
+		// req.Spec.Resources (after legacy migration). It is the basis for
+		// both the CREATE defaults (min) and the UPDATE range checks.
+		parsed parsedResources
 
 		// appSpecPrev* describe the currently persisted AppSpec for the
 		// requested spec name. They are loaded once during validation so the
@@ -135,43 +138,13 @@ func (s *zoneServer) AppInstanceDeploy(
 			return nil, errors.New("spec.resources is required")
 		}
 
-		if req.Spec.Resources.CpuLimit != "" {
-			if v, err := inutil.ParseCPUs(req.Spec.Resources.CpuLimit); err != nil {
-				return nil, fmt.Errorf("invalid cpu_limit: %w", err)
-			} else {
-				cpuLimit = v
-			}
-		}
+		// Migrate legacy single-value fields (cpu_limit/memory_limit/
+		// volume_limit) into the min/max range, then parse and validate.
+		req.Spec.Resources.NormalizeLegacy()
 
-		if req.Spec.Resources.MemoryLimit != "" {
-			if v, err := inutil.ParseBytes(req.Spec.Resources.MemoryLimit); err != nil {
-				return nil, fmt.Errorf("invalid memory_limit: %w", err)
-			} else {
-				memoryLimit = v
-			}
-		}
-
-		if req.Spec.Resources.VolumeLimit != "" {
-			if v, err := inutil.ParseBytes(req.Spec.Resources.VolumeLimit); err != nil {
-				return nil, fmt.Errorf("invalid volume_limit: %w", err)
-			} else {
-				volumeLimit = v
-			}
-		}
-
-		if cpuLimit < inapi.CPUMin || cpuLimit > inapi.CPUMax {
-			return nil, fmt.Errorf("spec.cpu_limit must be between %d and %d",
-				inapi.CPUMin, inapi.CPUMax)
-		}
-
-		if memoryLimit < inapi.MemoryMin || memoryLimit > inapi.MemoryMax {
-			return nil, fmt.Errorf("spec.memory_limit must be between %d and %d",
-				inapi.MemoryMin, inapi.MemoryMax)
-		}
-
-		if volumeLimit < inapi.VolumeMin || volumeLimit > inapi.VolumeMax {
-			return nil, fmt.Errorf("spec.volume_limit must be between %d and %d",
-				inapi.VolumeMin, inapi.VolumeMax)
+		parsed, err = parseSpecResources(req.Spec.Resources)
+		if err != nil {
+			return nil, err
 		}
 
 		// Validate task trigger fields uniqueness (mutually exclusive)
@@ -249,11 +222,76 @@ func (s *zoneServer) AppInstanceDeploy(
 			instance.Deploy = &inapi.AppDeploy{}
 		}
 
-		// Update resource limits only if spec is provided
-		if req.Spec != nil {
-			instance.Deploy.CpuLimit = cpuLimit
-			instance.Deploy.MemoryLimit = memoryLimit
-			instance.Deploy.VolumeLimit = volumeLimit
+		// Resolve deploy resources against the spec range.
+		//
+		// `parsed` was derived from req.Spec during validation. When the
+		// request carries an explicit override (e.g. --cpu 2000m) but no new
+		// spec, the range is taken from the persisted instance.Spec instead,
+		// so a flag-only scaling update still validates against the spec.
+		//
+		// Per resource:
+		//   - explicit override in req.Deploy -> strict requireInRange; an
+		//     out-of-range value is an error so operator typos surface.
+		//   - otherwise (only when req.Spec is provided) -> keep the existing
+		//     deploy value, clamped into the (possibly narrowed) range so a
+		//     spec-only update always lands.
+		// When neither a new spec nor an override is present, resources are
+		// left untouched (requirement: updates that don't set resources keep
+		// the prior value).
+		var (
+			hasOverride = req.Deploy != nil && (req.Deploy.CpuLimit > 0 ||
+				req.Deploy.MemoryLimit > 0 || req.Deploy.VolumeLimit > 0)
+			updParsed = parsed
+		)
+		if req.Spec == nil && hasOverride {
+			if instance.Spec == nil || instance.Spec.Resources == nil {
+				return nil, errors.New("cannot override resources: instance has no spec resources")
+			}
+			instance.Spec.Resources.NormalizeLegacy()
+			p, err := parseSpecResources(instance.Spec.Resources)
+			if err != nil {
+				return nil, err
+			}
+			updParsed = p
+		}
+
+		if req.Spec != nil || hasOverride {
+			if req.Deploy != nil && req.Deploy.CpuLimit > 0 {
+				v, err := requireInRange("deploy.cpu_limit",
+					req.Deploy.CpuLimit, updParsed.cpuMin, updParsed.cpuMax)
+				if err != nil {
+					return nil, err
+				}
+				instance.Deploy.CpuLimit = v
+			} else if req.Spec != nil {
+				instance.Deploy.CpuLimit = clampDeployRes(
+					instance.InstanceName(), "cpu_limit",
+					instance.Deploy.CpuLimit, updParsed.cpuMin, updParsed.cpuMax)
+			}
+			if req.Deploy != nil && req.Deploy.MemoryLimit > 0 {
+				v, err := requireInRange("deploy.memory_limit",
+					req.Deploy.MemoryLimit, updParsed.memMin, updParsed.memMax)
+				if err != nil {
+					return nil, err
+				}
+				instance.Deploy.MemoryLimit = v
+			} else if req.Spec != nil {
+				instance.Deploy.MemoryLimit = clampDeployRes(
+					instance.InstanceName(), "memory_limit",
+					instance.Deploy.MemoryLimit, updParsed.memMin, updParsed.memMax)
+			}
+			if req.Deploy != nil && req.Deploy.VolumeLimit > 0 {
+				v, err := requireInRange("deploy.volume_limit",
+					req.Deploy.VolumeLimit, updParsed.volMin, updParsed.volMax)
+				if err != nil {
+					return nil, err
+				}
+				instance.Deploy.VolumeLimit = v
+			} else if req.Spec != nil {
+				instance.Deploy.VolumeLimit = clampDeployRes(
+					instance.InstanceName(), "volume_limit",
+					instance.Deploy.VolumeLimit, updParsed.volMin, updParsed.volMax)
+			}
 		}
 
 		if req.ReplicaCap > 0 {
@@ -311,11 +349,38 @@ func (s *zoneServer) AppInstanceDeploy(
 			return nil, err
 		}
 
+		// Default the runtime allocation to the spec min for each resource.
+		// An explicit override in req.Deploy (e.g. --cpu 2000m) replaces the
+		// min, validated strictly against the range.
+		cpu := parsed.cpuMin
+		mem := parsed.memMin
+		vol := parsed.volMin
+		if req.Deploy != nil {
+			if v, err := requireInRange("deploy.cpu_limit",
+				req.Deploy.CpuLimit, parsed.cpuMin, parsed.cpuMax); err != nil {
+				return nil, err
+			} else {
+				cpu = v
+			}
+			if v, err := requireInRange("deploy.memory_limit",
+				req.Deploy.MemoryLimit, parsed.memMin, parsed.memMax); err != nil {
+				return nil, err
+			} else {
+				mem = v
+			}
+			if v, err := requireInRange("deploy.volume_limit",
+				req.Deploy.VolumeLimit, parsed.volMin, parsed.volMax); err != nil {
+				return nil, err
+			} else {
+				vol = v
+			}
+		}
+
 		deploy := &inapi.AppDeploy{
 			Action:      inapi.OpActionStart,
-			CpuLimit:    cpuLimit,
-			MemoryLimit: memoryLimit,
-			VolumeLimit: volumeLimit,
+			CpuLimit:    cpu,
+			MemoryLimit: mem,
+			VolumeLimit: vol,
 			ReplicaCap:  max(1, min(inapi.AppReplicaCapMax, req.ReplicaCap)),
 			Revision:    1,
 		}
@@ -473,6 +538,115 @@ func (s *zoneServer) AppInstanceDelete(
 	status.Zonelet_ForceRefresh.Store(true)
 
 	return &inapi.AppInstanceDeleteResponse{}, nil
+}
+
+// parsedResources holds the int64 min/max ranges for the three deploy
+// resources, derived from a normalized AppSpecResources.
+type parsedResources struct {
+	cpuMin, cpuMax int64
+	memMin, memMax int64
+	volMin, volMax int64
+}
+
+// parseSpecResources parses a normalized AppSpecResources into int64 ranges
+// and validates system bounds and min<=max. The caller must run
+// NormalizeLegacy first so the legacy single-value fields have been migrated
+// into the range fields.
+func parseSpecResources(res *inapi.AppSpecResources) (parsedResources, error) {
+	var p parsedResources
+	if res == nil {
+		return p, errors.New("spec.resources is required")
+	}
+	var err error
+	if p.cpuMin, err = inutil.ParseCPUs(res.CpuMin); err != nil {
+		return p, fmt.Errorf("invalid cpu_min: %w", err)
+	}
+	if p.cpuMax, err = inutil.ParseCPUs(res.CpuMax); err != nil {
+		return p, fmt.Errorf("invalid cpu_max: %w", err)
+	}
+	if p.memMin, err = inutil.ParseBytes(res.MemoryMin); err != nil {
+		return p, fmt.Errorf("invalid memory_min: %w", err)
+	}
+	if p.memMax, err = inutil.ParseBytes(res.MemoryMax); err != nil {
+		return p, fmt.Errorf("invalid memory_max: %w", err)
+	}
+	if p.volMin, err = inutil.ParseBytes(res.VolumeMin); err != nil {
+		return p, fmt.Errorf("invalid volume_min: %w", err)
+	}
+	if p.volMax, err = inutil.ParseBytes(res.VolumeMax); err != nil {
+		return p, fmt.Errorf("invalid volume_max: %w", err)
+	}
+
+	if p.cpuMin < inapi.CPUMin || p.cpuMin > inapi.CPUMax ||
+		p.cpuMax < inapi.CPUMin || p.cpuMax > inapi.CPUMax {
+		return p, fmt.Errorf("spec.cpu_min/cpu_max must be between %d and %d",
+			inapi.CPUMin, inapi.CPUMax)
+	}
+	if p.memMin < inapi.MemoryMin || p.memMin > inapi.MemoryMax ||
+		p.memMax < inapi.MemoryMin || p.memMax > inapi.MemoryMax {
+		return p, fmt.Errorf("spec.memory_min/memory_max must be between %d and %d",
+			inapi.MemoryMin, inapi.MemoryMax)
+	}
+	if p.volMin < inapi.VolumeMin || p.volMin > inapi.VolumeMax ||
+		p.volMax < inapi.VolumeMin || p.volMax > inapi.VolumeMax {
+		return p, fmt.Errorf("spec.volume_min/volume_max must be between %d and %d",
+			inapi.VolumeMin, inapi.VolumeMax)
+	}
+
+	if p.cpuMin > p.cpuMax {
+		return p, errors.New("spec.cpu_min must be <= cpu_max")
+	}
+	if p.memMin > p.memMax {
+		return p, errors.New("spec.memory_min must be <= memory_max")
+	}
+	if p.volMin > p.volMax {
+		return p, errors.New("spec.volume_min must be <= volume_max")
+	}
+	return p, nil
+}
+
+// resolveInRange returns v clamped into [lo, hi]. A non-positive v yields lo
+// (the deploy default). Used to keep an existing deploy value when a spec is
+// updated without an explicit resource override, nudging it into a narrowed
+// range if needed.
+func resolveInRange(v, lo, hi int64) int64 {
+	if v <= 0 {
+		return lo
+	}
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+// requireInRange returns v unchanged if it is within [lo, hi]; a zero v yields
+// lo (the default). An out-of-range non-zero v yields an error. Used for
+// explicit operator overrides where silent clamping would hide a typo.
+func requireInRange(name string, v, lo, hi int64) (int64, error) {
+	if v == 0 {
+		return lo, nil
+	}
+	if v < lo || v > hi {
+		return 0, fmt.Errorf("%s %d is out of range [%d, %d]", name, v, lo, hi)
+	}
+	return v, nil
+}
+
+// clampDeployRes returns the existing deploy resource value clamped into
+// [lo, hi] via resolveInRange, logging a warn when the spec range forced a
+// change. Used on the no-override update path.
+func clampDeployRes(instanceName, name string, v, lo, hi int64) int64 {
+	next := resolveInRange(v, lo, hi)
+	if next != v {
+		slog.Warn("zonelet app-instance-update: clamped deploy resource",
+			"instance_name", instanceName,
+			"resource", name,
+			"prev", v, "next", next)
+	}
+	return next
 }
 
 // loadInstanceByName loads an app instance by its name (the logical key).

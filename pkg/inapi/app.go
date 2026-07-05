@@ -6,6 +6,47 @@ import (
 	"time"
 )
 
+// NormalizeLegacy migrates the deprecated single-value resource fields
+// (cpu_limit/memory_limit/volume_limit) into the min/max range fields and
+// clears the legacy fields. It is idempotent and operates on string values
+// only; numeric range and system-bounds validation happens in the zonelet
+// deploy path (which has access to the parsers).
+//
+// Mapping rules, applied per resource (cpu, memory, volume):
+//   - both min and max empty, legacy non-empty -> min = max = legacy
+//   - min empty, max set                      -> min = max
+//   - max empty, min set                      -> max = min
+//   - both min and max set                    -> unchanged (range wins over
+//     a concurrently set legacy field)
+//
+// The legacy field is always cleared after mapping, giving a canonical form
+// for persistence and TOML export. Mapping cpu_limit to a fixed point
+// (min = max = legacy) preserves the historical deploy behavior, since the
+// deploy runtime value defaults to the min.
+func (x *AppSpecResources) NormalizeLegacy() {
+	if x == nil {
+		return
+	}
+	x.CpuLimit = normLegacyPair(&x.CpuMin, &x.CpuMax, x.CpuLimit)
+	x.MemoryLimit = normLegacyPair(&x.MemoryMin, &x.MemoryMax, x.MemoryLimit)
+	x.VolumeLimit = normLegacyPair(&x.VolumeMin, &x.VolumeMax, x.VolumeLimit)
+}
+
+// normLegacyPair applies the per-resource NormalizeLegacy mapping to a single
+// (min, max, legacy) triple. min/max are mutated in place via pointers; the
+// residual legacy value (always "" after mapping) is returned.
+func normLegacyPair(min, max *string, legacy string) string {
+	switch {
+	case *min == "" && *max == "" && legacy != "":
+		*min, *max = legacy, legacy
+	case *min == "" && *max != "":
+		*min = *max
+	case *max == "" && *min != "":
+		*max = *min
+	}
+	return ""
+}
+
 // Field returns the AppDeployConfigItem with the given name, or nil if not found
 func (x *AppDeployConfigItem) Item(name string) *AppDeployConfigItem {
 	if x != nil {

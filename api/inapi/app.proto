@@ -93,18 +93,31 @@ message AppSpec {
   repeated AppSpecTask tasks = 30;
 }
 
-// AppSpecResources defines the resource allocation for an application.
+// AppSpecResources defines the resource allocation for an application as
+// min/max ranges. At deploy time the runtime value defaults to *_min; an
+// operator may override it within [*_min, *_max] via the app-deploy flags.
+// A legacy single-value spec (cpu_limit/memory_limit/volume_limit) is
+// auto-mapped to a fixed point min=max=legacy by NormalizeLegacy.
 message AppSpecResources {
-  // cpu_limit specifies the maximum CPU resources allowed (e.g., "500m" for 0.5
-  // cores).
+  // Legacy single-value fields (deprecated). Auto-mapped to the min/max
+  // range by NormalizeLegacy and cleared once normalized.
   string cpu_limit = 2;
-
-  // memory_limit specifies the maximum memory resources allowed (e.g.,
-  // "512Mi").
   string memory_limit = 3;
-
-  // volume_limit specifies the maximum storage volume allowed (e.g., "10Gi").
   string volume_limit = 4;
+
+  // cpu_min/cpu_max bound the CPU allocation in millicores (e.g., "500m" for
+  // 0.5 cores). cpu_min is the deploy default; cpu_max defaults to cpu_min
+  // when unset.
+  string cpu_min = 10;
+  string cpu_max = 11;
+
+  // memory_min/memory_max bound memory (e.g., "512Mi").
+  string memory_min = 12;
+  string memory_max = 13;
+
+  // volume_min/volume_max bound the storage volume (e.g., "10Gi").
+  string volume_min = 14;
+  string volume_max = 15;
 }
 
 // AppSpecPackage represents a software package dependency.
