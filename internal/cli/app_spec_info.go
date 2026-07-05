@@ -19,11 +19,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hooto/htoml4g/htoml"
-	"github.com/olekukonko/tablewriter"
-	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 
 	"github.com/sysinner/innerstack/v2/internal/client"
@@ -90,56 +89,7 @@ func NewAppSpecInfoCommand() *cobra.Command {
 				tbuf.Write(out)
 			}
 		} else if !showJson && len(resp.Items) > 0 {
-
-			tableBase := tablewriter.NewTable(&tbuf)
-
-			tableBase.Configure(func(config *tablewriter.Config) {
-				config.Header.Alignment.Global = tw.AlignLeft
-			})
-
-			tableBase.Header([]any{
-				"Name", "Version", "Image",
-				"CPU Limit", "Memory Limit", "Volume Limit",
-				"Packages", "Tasks",
-			}...)
-
-			for _, spec := range resp.Items {
-				if spec == nil {
-					continue
-				}
-
-				cpuLimit, memLimit, volLimit := "-", "-", "-"
-				if spec.Resources != nil {
-					if v, err := inutil.ParseCPUs(spec.Resources.CpuLimit); err == nil {
-						cpuLimit = inutil.PrettyCPUs(v)
-					} else if spec.Resources.CpuLimit != "" {
-						cpuLimit = spec.Resources.CpuLimit
-					}
-					if v, err := inutil.ParseBytes(spec.Resources.MemoryLimit); err == nil {
-						memLimit = inutil.PrettyBytes(v, 1024)
-					} else if spec.Resources.MemoryLimit != "" {
-						memLimit = spec.Resources.MemoryLimit
-					}
-					if v, err := inutil.ParseBytes(spec.Resources.VolumeLimit); err == nil {
-						volLimit = inutil.PrettyBytes(v, 1024)
-					} else if spec.Resources.VolumeLimit != "" {
-						volLimit = spec.Resources.VolumeLimit
-					}
-				}
-
-				tableBase.Append([]any{
-					spec.Name,
-					spec.Version,
-					spec.Image,
-					cpuLimit,
-					memLimit,
-					volLimit,
-					fmt.Sprintf("%d", len(spec.Packages)),
-					fmt.Sprintf("%d", len(spec.Tasks)),
-				}...)
-			}
-
-			tableBase.Render()
+			renderAppSpec(&tbuf, resp.Items[0])
 		} else if showJson {
 			js, _ := json.MarshalIndent(resp, "", "  ")
 			tbuf.Write(js)
@@ -177,4 +127,194 @@ Internally calls AppSpecList with a name filter, returning the matching spec.
 	cmd.MarkFlagRequired("name")
 
 	return cmd
+}
+
+// renderAppSpec writes a multi-section, human-readable view of an app spec to
+// buf, mirroring the layout of app-info: an Overview key/value block followed
+// by per-concern tables (resources, depends, service ports, packages, configs,
+// tasks). Empty sections are skipped to keep output tidy.
+func renderAppSpec(buf *bytes.Buffer, spec *inapi.AppSpec) {
+	if spec == nil {
+		return
+	}
+
+	res := spec.Resources
+	if res == nil {
+		res = &inapi.AppSpecResources{}
+	}
+
+	// --- Overview ---
+	buf.WriteString("\n== Overview ==\n")
+	writeKV(buf, "Name", strOrDash(spec.Name))
+	writeKV(buf, "Version", strOrDash(spec.Version))
+	writeKV(buf, "Image", strOrDash(spec.Image))
+	writeKV(buf, "Description", strOrDash(spec.Description))
+
+	// --- Resources (always shown; "-" when unset) ---
+	buf.WriteString("\n== Resources ==\n")
+	rt := cliNewTable(buf)
+	rt.Header([]any{"CPU Limit", "Memory Limit", "Volume Limit"})
+	rt.Append([]any{
+		specCpu(res.CpuLimit),
+		specBytes(res.MemoryLimit),
+		specBytes(res.VolumeLimit),
+	}...)
+	rt.Render()
+
+	// --- Depends (app + service level, distinguished by Kind) ---
+	if len(spec.Depends) > 0 || len(spec.ServiceDepends) > 0 {
+		buf.WriteString("\n== Depends ==\n")
+		dt := cliNewTable(buf)
+		dt.Header([]any{"Kind", "Name", "Version"})
+		for _, d := range spec.Depends {
+			if d == nil {
+				continue
+			}
+			dt.Append([]any{"app", strOrDash(d.Name), strOrDash(d.Version)}...)
+		}
+		for _, d := range spec.ServiceDepends {
+			if d == nil {
+				continue
+			}
+			dt.Append([]any{"service", strOrDash(d.Name), strOrDash(d.Version)}...)
+		}
+		dt.Render()
+	}
+
+	// --- Service Ports ---
+	if len(spec.ServicePorts) > 0 {
+		buf.WriteString("\n== Service Ports ==\n")
+		st := cliNewTable(buf)
+		st.Header([]any{"Name", "Port"})
+		for _, p := range spec.ServicePorts {
+			if p == nil {
+				continue
+			}
+			st.Append([]any{strOrDash(p.Name), fmt.Sprintf("%d", p.Port)}...)
+		}
+		st.Render()
+	}
+
+	// --- Packages ---
+	if len(spec.Packages) > 0 {
+		buf.WriteString("\n== Packages ==\n")
+		pt := cliNewTable(buf)
+		pt.Header([]any{"Name", "Version"})
+		for _, p := range spec.Packages {
+			if p == nil {
+				continue
+			}
+			pt.Append([]any{strOrDash(p.Name), strOrDash(p.Version)}...)
+		}
+		pt.Render()
+	}
+
+	// --- Configs (recursive, depth-first) ---
+	if len(spec.Configs) > 0 {
+		var rows [][]any
+		for _, c := range spec.Configs {
+			cliAppendConfigItems(&rows, c, 0)
+		}
+		if len(rows) > 0 {
+			buf.WriteString("\n== Configs ==\n")
+			ct := cliNewTable(buf)
+			ct.Header([]any{"Name", "Title", "Type", "Default"})
+			for _, row := range rows {
+				ct.Append(row...)
+			}
+			ct.Render()
+		}
+	}
+
+	// --- Tasks ---
+	if len(spec.Tasks) > 0 {
+		buf.WriteString("\n== Tasks ==\n")
+		tt := cliNewTable(buf)
+		tt.Header([]any{"Name", "Trigger", "Script"})
+		for _, task := range spec.Tasks {
+			if task == nil {
+				continue
+			}
+			tt.Append([]any{
+				strOrDash(task.Name),
+				cliTaskTrigger(task),
+				clipMsg(task.Script),
+			}...)
+		}
+		tt.Render()
+	}
+}
+
+// specCpu pretty-prints a CPU resource string (e.g. "500m") from an app spec,
+// falling back to the raw text when it cannot be parsed.
+func specCpu(raw string) string {
+	if raw == "" {
+		return "-"
+	}
+	v, err := inutil.ParseCPUs(raw)
+	if err != nil {
+		return raw
+	}
+	return inutil.PrettyCPUs(v)
+}
+
+// specBytes pretty-prints a byte-quantity resource string (e.g. "512Mi") from
+// an app spec, falling back to the raw text when it cannot be parsed.
+func specBytes(raw string) string {
+	if raw == "" {
+		return "-"
+	}
+	v, err := inutil.ParseBytes(raw)
+	if err != nil {
+		return raw
+	}
+	return inutil.PrettyBytes(v, 1024)
+}
+
+// cliTaskTrigger renders the active trigger of a task as a short label. The
+// trigger fields are mutually exclusive; the first set one wins.
+func cliTaskTrigger(t *inapi.AppSpecTask) string {
+	if t == nil {
+		return "-"
+	}
+	switch {
+	case t.OnStartup:
+		return "on_startup"
+	case t.OnShutdown:
+		return "on_shutdown"
+	case t.IntervalSeconds > 0:
+		return fmt.Sprintf("interval=%ds", t.IntervalSeconds)
+	case t.Cron != "":
+		return "cron=" + t.Cron
+	}
+	return "-"
+}
+
+// cliAppendConfigItems recursively flattens the nested config-item tree into
+// table rows in depth-first order, indenting each child item's name by two
+// spaces per depth level. array_group items annotate their key_item.
+func cliAppendConfigItems(rows *[][]any, item *inapi.AppSpecConfigItem, depth int) {
+	if item == nil {
+		return
+	}
+	name := item.Name
+	if depth > 0 {
+		name = strings.Repeat("  ", depth) + name
+	}
+	typ := item.Type
+	if item.KeyItem != "" {
+		if typ != "" {
+			typ += " "
+		}
+		typ += "(key=" + item.KeyItem + ")"
+	}
+	*rows = append(*rows, []any{
+		strOrDash(name),
+		strOrDash(item.Title),
+		strOrDash(typ),
+		strOrDash(item.Default),
+	})
+	for _, child := range item.Items {
+		cliAppendConfigItems(rows, child, depth+1)
+	}
 }

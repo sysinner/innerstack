@@ -1,6 +1,7 @@
 [Unit]
 Description=InnerStack Enterprise PaaS Engine
-After=network.target
+Requires=lxcfs.service
+After=network.target lxcfs.service
 
 [Service]
 Type=simple

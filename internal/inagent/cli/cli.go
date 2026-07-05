@@ -18,11 +18,11 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inconf"
 )
 
-var appConfigHelper *inconf.AppConfigHelper
+var appConfigHelper inconf.AppReplicaHelper
 
-func appSetup() (*inconf.AppConfigHelper, error) {
+func appSetup() (inconf.AppReplicaHelper, error) {
 	if appConfigHelper == nil {
-		if ap, err := inconf.NewAppConfigHelper(); err == nil {
+		if ap, err := inconf.NewAppReplicaHelper(); err == nil {
 			appConfigHelper = ap
 		} else {
 			return nil, err

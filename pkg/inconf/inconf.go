@@ -31,21 +31,97 @@ const (
 	confFilePath = "/home/action/.innerstack/app_replica.json"
 )
 
-type AppConfigHelper struct {
+// AppReplicaHelper is the read-only facade over the AppReplicaInstance loaded
+// from the local app_replica.json file by NewAppReplicaHelper. It is the entry
+// point used by inagent scripts to inspect the running replica's spec, config
+// items, service ports, dependencies, and the flattened template parameters.
+type AppReplicaHelper interface {
+	// ReplicaInstance returns the underlying AppReplicaInstance.
+	ReplicaInstance() *inapi.AppReplicaInstance
+
+	// Spec returns the AppSpec of the running instance.
+	Spec() *inapi.AppSpec
+
+	// ConfigItem looks up a config item by dotted name. A plain "name" matches
+	// a top-level item; "name.sub" matches the nested item "sub" within it.
+	// It returns nil when no matching item is found.
+	ConfigItem(name string) *inapi.AppDeployConfigItem
+
+	// ConfigValue returns the resolved value of the config item identified by
+	// name (see ConfigItem for the name format); it returns "" when not found.
+	// TODO ConfigValue(name string) string
+
+	// ConfigValueOK is like ConfigValue but also reports whether the item exists.
+	// TODO ConfigValueOK(name string) (string, bool)
+
+	// ConfigArrayGroup locates, within the config item identified by name, the
+	// nested group whose sub-item keyName equals keyValue, and returns a helper
+	// over that group. It returns nil when name is missing or no group matches.
+	ConfigArrayGroup(name, keyName, keyValue string) AppConfigItemHelper
+
+	// Service returns the service port matching name and, when port > 0, port.
+	// The name argument supports an exact match or a "prefix*" wildcard.
+	Service(name string, port uint32) *inapi.AppDeployServicePort
+
+	// Params returns the flattened key/value parameter map derived from the
+	// instance (self config, dependencies, packages, network endpoints),
+	// suitable for ${var} template substitution.
+	Params() map[string]string
+
+	// Depend returns a helper over the resolved dependency whose SpecName
+	// equals name, or nil when no such dependency is declared.
+	Depend(name string) AppDependConfigHelper
+
+	// Update reports whether the backing app_replica.json has been modified
+	// since the helper was created or last refreshed. When it returns true the
+	// tracked modification time is advanced, so subsequent reads observe the
+	// new values.
+	Update() bool
+}
+
+type appReplicaHelper struct {
 	*inapi.AppReplicaInstance
 	updated int64
 }
 
-type AppDependConfigHelper interface {
-	ConfigValue(cfgName string) string
-	Service(name string) (*inapi.AppDeployReplica, *inapi.AppDeployServicePort)
+// AppConfigItemHelper provides read access to a single config item, typically
+// a group selected via ConfigArrayGroup. It abstracts away whether the requested
+// item is the wrapped item itself or one of its nested sub-items.
+type AppConfigItemHelper interface {
+	// ConfigItem returns the wrapped item when name matches the item name,
+	// otherwise the matching nested sub-item; it returns nil when no match
+	// is found.
+	ConfigItem(name string) *inapi.AppDeployConfigItem
 }
 
 type appDependConfigHelper struct {
 	*inapi.AppDeployDepend
 }
 
-func NewAppConfigHelper() (*AppConfigHelper, error) {
+// AppDependConfigHelper provides read access to a resolved dependency binding
+// (inapi.AppDeployDepend): its config items, array-group selections, and the
+// service ports exposed by its replicas.
+type AppDependConfigHelper interface {
+	// ConfigItem returns the dependency config item named name, or nil when
+	// not present.
+	ConfigItem(name string) *inapi.AppDeployConfigItem
+
+	// ConfigArrayGroup locates, within the dependency config item identified
+	// by name, the nested group whose sub-item keyName equals keyValue, and
+	// returns a helper over that group. It returns nil when not found.
+	ConfigArrayGroup(name, keyName, keyValue string) AppConfigItemHelper
+
+	// Service looks up a service port named name across the dependency's
+	// replicas and returns the owning replica together with the matched port.
+	// It returns (nil, nil) when no match is found.
+	Service(name string) (*inapi.AppDeployReplica, *inapi.AppDeployServicePort)
+}
+
+type appConfigItemHelper struct {
+	item *inapi.AppDeployConfigItem
+}
+
+func NewAppReplicaHelper() (AppReplicaHelper, error) {
 
 	st, err := os.Stat(confFilePath)
 	if err != nil {
@@ -63,13 +139,17 @@ func NewAppConfigHelper() (*AppConfigHelper, error) {
 		return nil, errors.New("Not App Instance Setup")
 	}
 
-	return &AppConfigHelper{
+	return &appReplicaHelper{
 		AppReplicaInstance: &app,
 		updated:            st.ModTime().UnixMilli(),
 	}, nil
 }
 
-func (it *AppConfigHelper) Update() bool {
+func (it *appReplicaHelper) ReplicaInstance() *inapi.AppReplicaInstance {
+	return it.AppReplicaInstance
+}
+
+func (it *appReplicaHelper) Update() bool {
 	if st, err := os.Stat(confFilePath); err == nil && st.ModTime().UnixMilli() > it.updated {
 		it.updated = st.ModTime().UnixMilli()
 		return true
@@ -77,12 +157,12 @@ func (it *AppConfigHelper) Update() bool {
 	return false
 }
 
-func (it *AppConfigHelper) Spec() *inapi.AppSpec {
+func (it *appReplicaHelper) Spec() *inapi.AppSpec {
 	return it.App.Spec
 }
 
-func (it *AppConfigHelper) Config(cfgName string) *inapi.AppDeployConfigItem {
-	cfgItems := strings.Split(cfgName, ".")
+func (it *appReplicaHelper) ConfigItem(name string) *inapi.AppDeployConfigItem {
+	cfgItems := strings.Split(name, ".")
 	if len(cfgItems) > 0 {
 		for _, item := range it.App.Deploy.Configs {
 			// if prefixMatch(item.Name, cfgItems[0]) {
@@ -102,21 +182,25 @@ func (it *AppConfigHelper) Config(cfgName string) *inapi.AppDeployConfigItem {
 	return nil
 }
 
-func (it *AppConfigHelper) ConfigValue(cfgName string) string {
-	if item := it.Config(cfgName); item != nil {
+func (it *appReplicaHelper) ConfigValue(name string) string {
+	if item := it.ConfigItem(name); item != nil {
 		return item.Value
 	}
 	return ""
 }
 
-func (it *AppConfigHelper) ConfigValueOK(cfgName string) (string, bool) {
-	if item := it.Config(cfgName); item != nil {
+func (it *appReplicaHelper) ConfigValueOK(name string) (string, bool) {
+	if item := it.ConfigItem(name); item != nil {
 		return item.Value, true
 	}
 	return "", false
 }
 
-func (it *AppConfigHelper) ServiceQuery(qs ...string) *inapi.AppDeployServicePort {
+func (it *appReplicaHelper) ConfigArrayGroup(name, keyName, keyValue string) AppConfigItemHelper {
+	return findArrayGroupItem(it.ConfigItem(name), keyName, keyValue)
+}
+
+func (it *appReplicaHelper) FindService(qs ...string) *inapi.AppDeployServicePort {
 
 	for _, q := range qs {
 
@@ -151,7 +235,7 @@ func (it *AppConfigHelper) ServiceQuery(qs ...string) *inapi.AppDeployServicePor
 	return nil
 }
 
-func (it *AppConfigHelper) Service(name string, port uint32) *inapi.AppDeployServicePort {
+func (it *appReplicaHelper) Service(name string, port uint32) *inapi.AppDeployServicePort {
 	for _, rep := range it.App.Deploy.Replicas {
 		for _, v := range rep.ServicePorts {
 			if port > 0 && v.Port != port {
@@ -168,11 +252,11 @@ func (it *AppConfigHelper) Service(name string, port uint32) *inapi.AppDeploySer
 	return nil
 }
 
-func (app *AppConfigHelper) Params() map[string]string {
+func (app *appReplicaHelper) Params() map[string]string {
 	return VarParams(app.AppReplicaInstance)
 }
 
-func (it *AppConfigHelper) Depend(name string) AppDependConfigHelper {
+func (it *appReplicaHelper) Depend(name string) AppDependConfigHelper {
 	for _, dep := range it.App.Deploy.Depends {
 		if dep.SpecName == name {
 			helper := &appDependConfigHelper{}
@@ -183,15 +267,19 @@ func (it *AppConfigHelper) Depend(name string) AppDependConfigHelper {
 	return nil
 }
 
-func (it *appDependConfigHelper) ConfigValue(name string) string {
+func (it *appDependConfigHelper) ConfigItem(name string) *inapi.AppDeployConfigItem {
 	if it.AppDeployDepend != nil {
 		for _, v := range it.AppDeployDepend.Configs {
 			if v.Name == name {
-				return v.Value
+				return v
 			}
 		}
 	}
-	return ""
+	return nil
+}
+
+func (it *appDependConfigHelper) ConfigArrayGroup(name, keyName, keyValue string) AppConfigItemHelper {
+	return findArrayGroupItem(it.ConfigItem(name), keyName, keyValue)
 }
 
 func (it *appDependConfigHelper) Service(name string) (*inapi.AppDeployReplica, *inapi.AppDeployServicePort) {
@@ -205,6 +293,34 @@ func (it *appDependConfigHelper) Service(name string) (*inapi.AppDeployReplica, 
 		}
 	}
 	return nil, nil
+}
+
+func (it *appConfigItemHelper) ConfigItem(name string) *inapi.AppDeployConfigItem {
+	if it.item.Name == name {
+		return it.item
+	}
+	for _, v := range it.item.Items {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
+}
+
+func findArrayGroupItem(cfgItem *inapi.AppDeployConfigItem, keyName, keyValue string) AppConfigItemHelper {
+	if cfgItem == nil || len(cfgItem.Items) == 0 {
+		return nil
+	}
+	for _, groupItem := range cfgItem.Items {
+		for _, v := range groupItem.Items {
+			if v.Name == keyName && v.Value == keyValue {
+				return &appConfigItemHelper{
+					item: groupItem,
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // 扁平化的配置信息导出

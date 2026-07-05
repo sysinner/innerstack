@@ -18,6 +18,9 @@ homepage: https://github.com/sysinner/innerstack
 license: Apache-2.0
 depends:
   - systemd
+  # lxcfs provides the /proc and /sys views used by containers for accurate
+  # resource accounting; innerstack.service also orders after lxcfs.service.
+  - lxcfs
 
 contents:
   - dst: /opt/innerstack
@@ -62,6 +65,12 @@ contents:
     type: config|noreplace
     file_info:
       mode: 0600
+  # Container base-image templates (alpine/debian Dockerfiles) shipped under
+  # /opt/innerstack/misc/docker/<distro>/ mirroring the source misc/docker tree.
+  - src: ${STAGE}/misc/docker
+    dst: /opt/innerstack/misc/docker
+    type: tree
+    expand: true
 
 scripts:
   postinstall: scripts/innerstack.postinstall

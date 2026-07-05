@@ -282,6 +282,11 @@ stage_arch() {
     # container guest init script
     cp "$PROJECT_ROOT/internal/hostlet/scripts/ininit" "$stage/ininit"
 
+    # container base-image Dockerfile templates, shipped under
+    # /opt/innerstack/misc/docker/<distro>/ mirroring the source tree.
+    mkdir -p "$stage/misc/docker"
+    cp -R "$PROJECT_ROOT/misc/docker/alpine" "$PROJECT_ROOT/misc/docker/debian" "$stage/misc/docker/"
+
     # systemd units (colocated with each binary under cmd/<name>/)
     cp "$PROJECT_ROOT/cmd/server/innerstack.service" "$stage/systemd/innerstack.service"
     [[ "$WITH_INGATE" == "yes" ]] && \

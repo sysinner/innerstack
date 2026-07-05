@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
@@ -76,7 +77,7 @@ func NewGatewayIngressListCommand() *cobra.Command {
 			})
 
 			tableBase.Header([]any{
-				"Domain", "Description", "Action", "Routes", "Updated",
+				"Domain", "Description", "Action", "Options", "Routes", "Updated",
 			}...)
 
 			for _, v := range resp.Items {
@@ -89,6 +90,7 @@ func NewGatewayIngressListCommand() *cobra.Command {
 					v.Domain,
 					v.Description,
 					v.Action,
+					formatIngressOptions(v.Options),
 					routes,
 					time.Unix(v.Meta.Updated, 0).Format(time.DateOnly),
 				}
@@ -117,4 +119,18 @@ func NewGatewayIngressListCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&showJson, "show-json", "j", false, "show raw response with json")
 
 	return cmd
+}
+
+// formatIngressOptions renders the gateway ingress options into a compact,
+// comma-separated display string. Returns an empty string when no option is
+// set, so the column stays clean for ingress entries without features enabled.
+func formatIngressOptions(opts *inapi.GatewayIngress_Options) string {
+	if opts == nil {
+		return ""
+	}
+	var parts []string
+	if opts.LetsencryptEnable {
+		parts = append(parts, "letsencrypt")
+	}
+	return strings.Join(parts, ",")
 }

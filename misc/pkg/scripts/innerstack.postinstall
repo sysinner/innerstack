@@ -1,6 +1,28 @@
 #!/bin/sh
 # RPM %post / deb postinst for innerstack
 # $1: rpm 1=install 2=upgrade 0(remove not here); deb "configure"
+
+# Reserve the action account with a fixed uid/gid of 2048 so it matches the
+# action:2048 baked into the shipped container base images (misc/docker).
+# Host-side bind mounts then keep a consistent numeric owner and files stay
+# writable from inside the container. Target passwd entry on success:
+#   action:x:2048:2048::/home/action:/usr/sbin/nologin
+# useradd/groupadd are present on both rpm (shadow-utils) and deb (passwd).
+ACTION_UID=2048
+ACTION_GID=2048
+
+if ! getent group action >/dev/null 2>&1; then
+    if ! groupadd -g "$ACTION_GID" action 2>/dev/null; then
+        echo "[innerstack] WARN: failed to create group action (gid $ACTION_GID); create it manually before starting the service." >&2
+    fi
+fi
+
+if ! getent passwd action >/dev/null 2>&1; then
+    if ! useradd -u "$ACTION_UID" -g action -m -d /home/action -s /usr/sbin/nologin action 2>/dev/null; then
+        echo "[innerstack] WARN: failed to create user action (uid $ACTION_UID); create it manually before starting the service." >&2
+    fi
+fi
+
 systemctl daemon-reload >/dev/null 2>&1 || true
 if [ "$1" = "1" ] || [ "$1" = "configure" ]; then
     systemctl preset innerstack.service >/dev/null 2>&1 || true

@@ -53,7 +53,7 @@ func NewConfigMergeCommand() *cobra.Command {
 			return err
 		}
 
-		field := appHelper.Config(argWithConfigField)
+		field := appHelper.ConfigItem(argWithConfigField)
 		if field == nil {
 			return fmt.Errorf("config field (%s) not found", argWithConfigField)
 		}
