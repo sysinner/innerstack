@@ -186,7 +186,7 @@ message AppSpecTask {
 // application.
 message AppDeploy {
   // action specifies the desired operation (manually set by user).
-  // Valid values: start, stop, destroy.
+  // Valid values: start, stop, destroy, restart.
   string action = 1;
 
   // revision is the operational revision for optimistic concurrency control.

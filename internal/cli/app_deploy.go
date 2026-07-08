@@ -175,7 +175,6 @@ func NewAppDeployCommand() *cobra.Command {
 
 		// Interactive app name confirmation for new instance (first prompt)
 		if !isUpdate {
-			instanceReq.Name = instanceName
 			if spec != nil {
 				// For new instances with spec, confirm the name interactively
 				if err := promptAppName(reader, instanceName, instanceReq); err != nil {
@@ -224,6 +223,15 @@ func NewAppDeployCommand() *cobra.Command {
 		// Set deploy action if provided
 		if action != "" {
 			instanceReq.Deploy.Action = action
+		}
+
+		// Second confirmation before submitting a new instance (create only).
+		// An update mutates an instance that already exists and needs no extra
+		// prompt; a create is irreversible once scheduled, so confirm intent.
+		if !isUpdate {
+			if err := confirmCreateInstance(reader, instanceReq, spec); err != nil {
+				return err
+			}
 		}
 
 		// Submit loop: retry on app name conflict
@@ -290,8 +298,11 @@ If the instance name already exists, the existing app instance will be updated.`
   # Skip interactive config input
   app deploy --spec app-spec.toml --name myapp --skip-config
 
-  # Set action on existing instance (start, stop, destroy)
-  app deploy --name myapp --action start`,
+  # Set action on existing instance (start, stop, destroy, restart)
+  app deploy --name myapp --action start
+
+  # Restart an existing instance (bumps deploy revision to recreate containers)
+  app deploy --name myapp --action restart`,
 	}
 
 	cmd.Flags().StringVarP(&specFile, "spec", "s",
@@ -303,7 +314,7 @@ If the instance name already exists, the existing app instance will be updated.`
 	cmd.Flags().BoolVarP(&skipConfig, "skip-config", "k",
 		false, "Skip interactive config input")
 	cmd.Flags().StringVarP(&action, "action", "",
-		"", "Deploy action (start, stop, destroy)")
+		"", "Deploy action (start, stop, destroy, restart)")
 	cmd.Flags().StringVar(&cpuOverride, "cpu",
 		"", "Override deploy CPU (e.g. \"2000m\"); must be within spec [cpu_min, cpu_max]")
 	cmd.Flags().StringVar(&memoryOverride, "memory",
@@ -356,6 +367,39 @@ func promptAppName(reader *bufio.Reader, defaultName string, req *inapi.AppInsta
 
 	fmt.Println(strings.Repeat("-", 60))
 	fmt.Println()
+	return nil
+}
+
+// confirmCreateInstance asks the user to confirm creation of a new app instance
+// immediately before submission. It is only shown for create (no existing
+// instance was found by name), acting as a second confirmation after the
+// earlier name prompt. An empty line (Enter) confirms; any other input cancels
+// and aborts the deploy.
+func confirmCreateInstance(reader *bufio.Reader, req *inapi.AppInstanceDeployRequest,
+	spec *inapi.AppSpec) error {
+
+	fmt.Println()
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println("Ready to CREATE a new app instance:")
+	fmt.Printf("  Name: %s\n", req.Name)
+	if spec != nil && spec.Name != "" {
+		fmt.Printf("  Spec: %s\n", spec.Name)
+	}
+	if req.ReplicaCap > 0 {
+		fmt.Printf("  Replica: %d\n", req.ReplicaCap)
+	}
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Print("Press Enter to confirm and create, or type anything else to cancel: ")
+
+	input, err := reader.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("failed to read confirmation: %w", err)
+	}
+	input = strings.TrimSpace(input)
+
+	if input != "" {
+		return errors.New("app instance creation cancelled")
+	}
 	return nil
 }
 

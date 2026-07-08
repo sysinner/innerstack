@@ -303,9 +303,18 @@ func (s *zoneServer) AppInstanceDeploy(
 			instance.Deploy.Configs = req.Deploy.Configs
 		}
 
-		// Update deploy action if provided
+		// Update deploy action if provided. restart is a transient signal
+		// rather than a recorded state: the hostlet rebuilds a container
+		// whenever Deploy.Revision changes, and the unconditional revision
+		// bump below therefore performs the stop/start cycle. Normalize
+		// restart to start so the hostlet workflow (which only registers
+		// start/stop/destroy) brings the container back up after recreate.
 		if req.Deploy != nil && req.Deploy.Action != "" {
-			instance.Deploy.Action = req.Deploy.Action
+			if req.Deploy.Action == inapi.OpActionRestart {
+				instance.Deploy.Action = inapi.OpActionStart
+			} else {
+				instance.Deploy.Action = req.Deploy.Action
+			}
 		}
 
 		// Update deploy dependency bindings if provided

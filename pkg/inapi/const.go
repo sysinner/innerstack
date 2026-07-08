@@ -50,7 +50,7 @@ const (
 	MemoryMax = 512 * 1024 * 1024 * 1024 // 512 GiB
 
 	// Volume size limits in bytes
-	VolumeMin = 1 * 1024 * 1024 * 1024         // 1 GiB
+	VolumeMin = 100 * 1024 * 1024              // 100 MiB
 	VolumeMax = 10 * 1024 * 1024 * 1024 * 1024 // 10 TiB
 
 	// AppReplicaCapMax is the maximum number of replicas per app instance.
@@ -98,6 +98,10 @@ const (
 	OpActionStart   = "start"   // user action: start
 	OpActionStop    = "stop"    // user action: stop
 	OpActionDestroy = "destroy" // user action: destroy
+	// OpActionRestart recreates the container without recording a separate
+	// state: the zonelet bumps Deploy.Revision and normalizes the action to
+	// start, and the hostlet rebuilds the container on revision change.
+	OpActionRestart = "restart" // user action: restart
 )
 
 // AppReplicaState represents the actual runtime state of a replica
@@ -174,15 +178,15 @@ const (
 	AppDeployStageNameDeliver        = "deliver"         // instance delivered to host
 
 	// per-replica host-side stages (owner: hostlet)
-	AppDeployStageNameHostRecv         = "host_recv"          // hostlet received assignment
-	AppDeployStageNameImagePull        = "image_pull"         // container image pull
-	AppDeployStageNamePkgDownload      = "pkg_download"       // package download
-	AppDeployStageNameProvision        = "provision"          // write innerstack files
-	AppDeployStageNameContainerCreate  = "container_create"   // container create
-	AppDeployStageNameContainerStart   = "container_start"    // container start
-	AppDeployStageNameContainerRunning = "container_running"  // container reached running
-	AppDeployStageNameContainerStop    = "container_stop"     // container stop
-	AppDeployStageNameContainerDestroy = "container_destroy"  // container destroy
+	AppDeployStageNameHostRecv         = "host_recv"         // hostlet received assignment
+	AppDeployStageNameImagePull        = "image_pull"        // container image pull
+	AppDeployStageNamePkgDownload      = "pkg_download"      // package download
+	AppDeployStageNameProvision        = "provision"         // write innerstack files
+	AppDeployStageNameContainerCreate  = "container_create"  // container create
+	AppDeployStageNameContainerStart   = "container_start"   // container start
+	AppDeployStageNameContainerRunning = "container_running" // container reached running
+	AppDeployStageNameContainerStop    = "container_stop"    // container stop
+	AppDeployStageNameContainerDestroy = "container_destroy" // container destroy
 
 	// per-replica in-agent stages (owner: inagent), reported via hostlet API
 	AppDeployStageNameInagentBoot = "inagent_boot" // inagent daemon started

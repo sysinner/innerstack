@@ -1,0 +1,11 @@
+name = "innerstack-alpine3"
+image = "sysinner/innerstack-alpine:3.23"
+
+[resources]
+cpu_min = "100m"
+cpu_max = "32"
+memory_min = "64Mi"
+memory_max = "32Gi"
+volume_min = "100Mi"
+volume_max = "1Ti"
+

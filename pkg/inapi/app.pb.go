@@ -720,7 +720,7 @@ type AppDeploy struct {
 	unknownFields protoimpl.UnknownFields
 
 	// action specifies the desired operation (manually set by user).
-	// Valid values: start, stop, destroy.
+	// Valid values: start, stop, destroy, restart.
 	Action string `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
 	// revision is the operational revision for optimistic concurrency control.
 	Revision uint64 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty" toml:"revision,omitempty"`
