@@ -408,8 +408,10 @@ func (s *zoneServer) AppInstanceDeploy(
 
 		instance = &inapi.AppInstance{
 			Meta: &inapi.Metadata{
-				Id:   inutil.SeqRandHexString(4, 8),
-				Name: req.Name,
+				Id:      inutil.SeqRandHexString(4, 8),
+				Name:    req.Name,
+				Created: rpcStartMs / 1000,
+				Updated: rpcStartMs / 1000,
 			},
 			Deploy: deploy,
 			Spec:   req.Spec,

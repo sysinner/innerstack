@@ -21,7 +21,7 @@
 //   - Zone Management: zone-init, zone-info
 //   - Host Management: host-join, host-list
 //   - Application Management: app-list, app-info, app-deploy, app-delete
-//   - Package Management: pkg-build, pkg-push, pkg-list, pkg-info, pkg-del
+//   - Package Management: pkg-build, pkg-push, pkg-list, pkg-info, pkg-export, pkg-del
 //
 // Usage:
 //
@@ -137,11 +137,13 @@ func main() {
 	// - pkg-push: Upload a package to the package repository
 	// - pkg-list: List available packages in the repository
 	// - pkg-info: Display detailed information about a specific package
+	// - pkg-export: Extract a package into a local directory
 	// - pkg-del: Delete a package from the repository
 	rootCmd.AddCommand(cli.NewPkgBuildCommand())
 	rootCmd.AddCommand(cli.NewPkgPushCommand())
 	rootCmd.AddCommand(cli.NewPkgListCommand())
 	rootCmd.AddCommand(cli.NewPkgInfoCommand())
+	rootCmd.AddCommand(cli.NewPkgExportCommand())
 	rootCmd.AddCommand(cli.NewPkgDelCommand())
 
 	// Execute the root command and handle errors

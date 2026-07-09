@@ -15,32 +15,22 @@
 package hostlet
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
-	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"hash/crc32"
-	"io"
 	"log/slog"
 	"os"
 	"path"
 	"runtime"
-	"strings"
 	"time"
-
-	"github.com/ulikunitz/xz"
 
 	"github.com/sysinner/innerstack/v2/internal/client"
 	"github.com/sysinner/innerstack/v2/internal/config"
 	"github.com/sysinner/innerstack/v2/internal/hostlet/hostapi"
 	"github.com/sysinner/innerstack/v2/internal/hostlet/hoststatus"
+	"github.com/sysinner/innerstack/v2/internal/pkgbuild"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
-
-// ipkMagic is the magic number for .ipk files (4 bytes: "IPK1")
-const ipkMagic = "\x49\x50\x4b\x31"
 
 // PackagePaths provides path utilities for package storage.
 type PackagePaths struct {
@@ -229,12 +219,8 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 		"package_id", pkgId,
 		"ipk_file", ipkFile)
 
-	// Extract tarball
-	compress := ""
-	if pkg.Release != nil {
-		compress = pkg.Release.Compress
-	}
-	if err := extractTarball(ipkFile, installPath, compress); err != nil {
+	// Extract the package archive into the install directory.
+	if err := pkgbuild.Extract(ipkFile, installPath); err != nil {
 		return "", fmt.Errorf("[PackageDownload] failed to extract package: %w", err)
 	}
 
@@ -248,132 +234,6 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 // calcTotalChunks calculates total chunks from file size and chunk size
 func calcTotalChunks(totalSize, chunkSize int64) int64 {
 	return (totalSize + chunkSize - 1) / chunkSize
-}
-
-// extractTarball extracts an IPK package file to the target directory.
-// IPK file format:
-//   - Magic Number (4 bytes): "IPK1"
-//   - Header Length (4 bytes): uint32, little-endian
-//   - Header Block (JSON): inapi.Package
-//   - Data Block: compressed tarball (xz/gzip/none)
-func extractTarball(ipkPath, targetDir, compress string) error {
-	f, err := os.Open(ipkPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	// Read and verify magic number
-	magicBuf := make([]byte, 4)
-	if _, err := io.ReadFull(f, magicBuf); err != nil {
-		return fmt.Errorf("failed to read magic number: %w", err)
-	}
-	if string(magicBuf) != ipkMagic {
-		return fmt.Errorf("invalid ipk file: bad magic number")
-	}
-
-	// Read header length
-	var headerLen uint32
-	if err := binary.Read(f, binary.LittleEndian, &headerLen); err != nil {
-		return fmt.Errorf("failed to read header length: %w", err)
-	}
-
-	// Read header block (JSON)
-	headerBuf := make([]byte, headerLen)
-	if _, err := io.ReadFull(f, headerBuf); err != nil {
-		return fmt.Errorf("failed to read header block: %w", err)
-	}
-
-	// Parse header to get compress type if not specified
-	var pkgHeader inapi.Package
-	if err := json.Unmarshal(headerBuf, &pkgHeader); err != nil {
-		return fmt.Errorf("failed to parse header block: %w", err)
-	}
-
-	// Use compress from header if not specified
-	if compress == "" && pkgHeader.Release != nil {
-		compress = pkgHeader.Release.Compress
-	}
-
-	// The rest is the compressed tarball data
-	var tr *tar.Reader
-
-	switch compress {
-	case "gzip":
-		gzr, err := gzip.NewReader(f)
-		if err != nil {
-			return fmt.Errorf("failed to create gzip reader: %w", err)
-		}
-		defer gzr.Close()
-		tr = tar.NewReader(gzr)
-
-	case "xz":
-		xzr, err := xz.NewReader(f)
-		if err != nil {
-			return fmt.Errorf("failed to create xz reader: %w", err)
-		}
-		tr = tar.NewReader(xzr)
-
-	default:
-		// Uncompressed tar
-		tr = tar.NewReader(f)
-	}
-
-	// Create target directory
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return fmt.Errorf("failed to create target directory: %w", err)
-	}
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read tar header: %w", err)
-		}
-
-		// Security: prevent path traversal
-		targetPath := path.Join(targetDir, header.Name)
-		if !strings.HasPrefix(targetPath, targetDir+string(os.PathSeparator)) && targetPath != targetDir {
-			return fmt.Errorf("path traversal detected: %s", header.Name)
-		}
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", targetPath, err)
-			}
-		case tar.TypeReg:
-			// Ensure parent directory exists
-			if err := os.MkdirAll(path.Dir(targetPath), 0755); err != nil {
-				return fmt.Errorf("failed to create parent directory for %s: %w", targetPath, err)
-			}
-
-			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
-			if err != nil {
-				return fmt.Errorf("failed to create file %s: %w", targetPath, err)
-			}
-
-			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
-				return fmt.Errorf("failed to write file %s: %w", targetPath, err)
-			}
-			outFile.Close()
-
-		case tar.TypeSymlink:
-			// Ensure parent directory exists
-			if err := os.MkdirAll(path.Dir(targetPath), 0755); err != nil {
-				return fmt.Errorf("failed to create parent directory for %s: %w", targetPath, err)
-			}
-
-			if err := os.Symlink(header.Linkname, targetPath); err != nil {
-				return fmt.Errorf("failed to create symlink %s: %w", targetPath, err)
-			}
-		}
-	}
-
-	return nil
 }
 
 // EnsurePackages downloads and prepares all packages for an app.
