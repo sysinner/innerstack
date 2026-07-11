@@ -33,11 +33,15 @@ LYNKAPI_FILTER_V2_ARGS  = pkg/inapi
 # Go build flags
 # GOBUILD_ARGS = -trimpath -ldflags="-s -w"
 GOBUILD_ARGS    = -trimpath
-INAGENT_LDFLAGS = -ldflags="-s -w"
+# Inject $(VERSION) into main.version of every binary at build time.
+VERSION_LDFLAGS = -ldflags="-X main.version=$(VERSION)"
+INAGENT_LDFLAGS = -ldflags="-s -w -X main.version=$(VERSION)"
 
 # inagent-slim docker images
 INAGENT_SLIM_BASE  = sysinner/innerstack-alpine-inagent-slim:3.23
 INAGENT_SLIM_ARCHS = amd64 arm64
+
+VERSION = v2.0.0-alpha.5.2
 
 # Default target
 .PHONY: all
@@ -58,19 +62,19 @@ api: ## Regenerate protobuf/gRPC code (pkg/inapi, pkg/inauth)
 # Go binaries
 .PHONY: cli cli_install server indns ingate
 cli: ## Build the innerstack CLI (bin/innerstack)
-	go build $(GOBUILD_ARGS) -o bin/innerstack cmd/cli/main.go
+	go build $(GOBUILD_ARGS) $(VERSION_LDFLAGS) -o bin/innerstack cmd/cli/main.go
 
 cli_install: cli ## Build and install the CLI into $GOPATH/bin
 	install bin/innerstack ${GOPATH}/bin/innerstack
 
 server: ## Build the server binary (bin/innerstackd)
-	go build $(GOBUILD_ARGS) -o bin/innerstackd cmd/server/main.go
+	go build $(GOBUILD_ARGS) $(VERSION_LDFLAGS) -o bin/innerstackd cmd/server/main.go
 
 indns: ## Build the embedded DNS server (bin/indnsd)
-	go build $(GOBUILD_ARGS) -o bin/indnsd cmd/indns/main.go
+	go build $(GOBUILD_ARGS) $(VERSION_LDFLAGS) -o bin/indnsd cmd/indns/main.go
 
 ingate: ## Build the HTTP gateway (bin/ingated)
-	go build $(GOBUILD_ARGS) -o bin/ingated cmd/ingate/main.go
+	go build $(GOBUILD_ARGS) $(VERSION_LDFLAGS) -o bin/ingated cmd/ingate/main.go
 
 # inagent (Go, cross-compiled for linux)
 .PHONY: inagent inagent-go
@@ -105,6 +109,7 @@ inagent-slim-$(1):
 	docker build --platform linux/$(1) \
 		--build-arg TARGETPLATFORM=linux/$(1) \
 		--build-arg BUILDER=$(INAGENT_SLIM_BASE)-$(1) \
+		--build-arg INAGENT_VERSION=$(VERSION) \
 		-t inagent-slim-builder-$(1) -f cmd/inagent-slim/Dockerfile .
 	docker run --rm --platform linux/$(1) \
 		-v $(CURDIR)/bin:/output inagent-slim-builder-$(1) \
@@ -120,10 +125,10 @@ inagent-slim: inagent-slim-amd64 inagent-slim-arm64 ## Build inagent-slim for al
 # build/<fmt>/<id>/ (the HTTP server storage path). Initial release: deb13, el10.
 .PHONY: deb rpm pkg-all-arch pkg-clean
 deb: ## Build DEB packages (deb13, all arches)
-	./misc/pkg/build.sh --packager deb --gen deb13 --all-arch
+	./misc/pkg/build.sh --packager deb --gen deb13 --all-arch --version $(VERSION)
 
 rpm: ## Build RPM packages (el10, all arches)
-	./misc/pkg/build.sh --packager rpm --gen el10 --all-arch
+	./misc/pkg/build.sh --packager rpm --gen el10 --all-arch --version $(VERSION)
 
 pkg-all-arch: deb rpm ## Build all DEB + RPM packages
 

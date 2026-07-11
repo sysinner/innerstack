@@ -33,17 +33,6 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inlog"
 )
 
-var (
-	User = &user.User{
-		Uid:      "2048",
-		Gid:      "2048",
-		Username: "action",
-		HomeDir:  "/home/action",
-	}
-	DefaultUserID  = 2048
-	DefaultGroupID = 2048
-)
-
 type ConfigCommon struct {
 	filepath string
 
@@ -108,11 +97,21 @@ var (
 	cfgFile = "innerstack.toml"
 
 	Config ConfigCommon
+
+	DefaultUserID  = 2048
+	DefaultGroupID = 2048
+
+	User = &user.User{
+		Uid:      "2048",
+		Gid:      "2048",
+		Username: "action",
+		HomeDir:  "/home/action",
+	}
 )
 
-func Setup(ver string) error {
+func Setup(version string) error {
 
-	Version = ver
+	Version = version
 
 	inlog.Setup()
 

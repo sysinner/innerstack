@@ -31,7 +31,7 @@ func init() {
 }
 
 var (
-	version = "git"
+	version = "v2.0.0-alpha.5.2"
 )
 
 func main() {

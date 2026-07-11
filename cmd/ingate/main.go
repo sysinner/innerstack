@@ -309,7 +309,7 @@ var (
 
 	certManager autocert.Manager
 
-	version = "0.11"
+	version = "v2.0.0-alpha.5.2"
 
 	cfg Config
 

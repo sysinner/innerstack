@@ -50,6 +50,9 @@ import (
 
 const AppName = "innerstack"
 
+// version is overridden at build time via -ldflags "-X main.version=$(VERSION)".
+var version = "v2.0.0-alpha.5.2"
+
 // main is the entry point of the InnerStack CLI application.
 // It initializes the root command and registers all subcommands
 // for zone, host, application, and package management.
@@ -58,9 +61,10 @@ func main() {
 	// rootCmd is the base command for the InnerStack CLI.
 	// When called without any subcommands, it displays a welcome message.
 	var rootCmd = &cobra.Command{
-		Use: AppName,
-		// SilenceUsage: true,
+		Use:     AppName,
+		Version: version,
 	}
+	rootCmd.SetVersionTemplate(fmt.Sprintf("%s %s\n", AppName, version))
 
 	{
 		initConfig := func() {

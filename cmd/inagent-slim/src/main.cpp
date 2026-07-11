@@ -18,7 +18,11 @@
 
 using namespace inagent;
 
-static const char* kVersion = "2.0.0-dev";
+#ifndef INAGENT_VERSION
+#define INAGENT_VERSION "v2.0.0-alpha.5.2"
+#endif
+
+static const char* kVersion = INAGENT_VERSION;
 
 static void print_usage() {
     printf("inagent %s - An Efficient Enterprise PaaS Engine\n\n", kVersion);
