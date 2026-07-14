@@ -494,11 +494,15 @@ func xfsQuotaRefresh() error {
 				proj.Used = i64 * 1024
 			}
 
-			if i64, err := strconv.ParseInt(vs[1], 10, 64); err == nil {
-				proj.Soft = i64 * 1024
-			}
-
-			proj.Hard = proj.Soft
+			// Do not re-ingest Soft/Hard from the kernel here. The hostlet is
+			// the quota authority: Phase 3 sets limits for active containers and
+			// Phase 4 zeroes them for inactive ones, and both persist the value.
+			// Reading the kernel limit back would re-populate the very value
+			// Phase 4 just cleared, defeating its `Soft < 1` skip guard and
+			// logging "cleaned up project" every cycle for any sustained-inactive
+			// but still-present container (e.g. a stopped or quarantined-orphan
+			// instance whose data directory has not been removed yet). Only usage
+			// is synced from the kernel; limits stay authoritative in memory.
 			proj.Mnt = quotaMountpoint
 
 			quotaGots[id] = quotaMountpoint
