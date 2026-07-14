@@ -25,9 +25,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/sysinner/innerstack/v2/internal/inutil"
-	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/internal/inutil/syncx"
 	"github.com/sysinner/innerstack/v2/internal/stateflow"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
 var (
@@ -40,6 +40,14 @@ var (
 	ImageList syncx.Map
 
 	Active HostActiveConfig
+
+	// Desired is the freshest view of which container names the zonelet leader
+	// most recently reported as desired on this host (across all deploy
+	// actions). It is rebuilt wholesale on every successful HostStatusUpdate
+	// and is the authoritative comparison set for orphan-container detection:
+	// unlike ActiveAppList (append-only), it can express "the leader no longer
+	// delivers this instance".
+	Desired desiredSnapshot
 
 	AppWorkflow stateflow.AppStateWorkflow
 
@@ -70,6 +78,20 @@ type HostActiveConfig struct {
 	// container name. Persisted to hostlet_active.json so it survives hostlet
 	// restart and stays consistent with the secret written into app_replica.json.
 	SecretKeys map[string]string `json:"secret_keys,omitempty"`
+
+	// DeletedInstances records app instances this hostlet has torn down for a
+	// soft delete (Deploy.Action == delete), keyed by instance id, value is the
+	// unix time of the teardown. Persisted so the hostlet keeps skipping them
+	// across restarts until the zone TTL physically removes the instance.
+	DeletedInstances map[string]int64 `json:"deleted_instances,omitempty"`
+
+	// OrphanContainers records local containers that exist without a matching
+	// desired app replica in the zonelet's fresh app list, keyed by container
+	// name, value is the unix time the orphan was first observed. Persisted so
+	// the removal grace window survives a hostlet restart. This is the
+	// hostlet-local, leader-absence-driven cleanup state and is deliberately
+	// separate from DeletedInstances (the leader-driven soft-delete flow).
+	OrphanContainers map[string]int64 `json:"orphan_containers,omitempty"`
 
 	index map[string]*inapi.AppInstance
 }
@@ -144,6 +166,103 @@ func (it *HostActiveConfig) DeleteSecretKey(containerName string) {
 	delete(it.SecretKeys, containerName)
 }
 
+// MarkDeleted records that this hostlet has torn down the container(s) for an
+// instance at unix time ts, so the instance is skipped on subsequent syncs.
+// It also prunes entries older than the zone soft-delete TTL window (plus a
+// one-day slack) so the map cannot grow without bound across many deletions.
+func (it *HostActiveConfig) MarkDeleted(instanceId string, ts int64) {
+	if instanceId == "" {
+		return
+	}
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.DeletedInstances == nil {
+		it.DeletedInstances = make(map[string]int64)
+	}
+	it.DeletedInstances[instanceId] = ts
+
+	// Bound growth: after the zone TTL elapses the leader stops delivering the
+	// instance, so entries older than the TTL window are no longer needed.
+	cutoff := ts - (inapi.AppInstanceSoftDeleteTTL / 1000) - 24*3600
+	if cutoff > 0 {
+		for id, t := range it.DeletedInstances {
+			if t < cutoff {
+				delete(it.DeletedInstances, id)
+			}
+		}
+	}
+}
+
+// DeletedAt returns the unix time at which an instance was torn down on this
+// host, and whether such a record exists.
+func (it *HostActiveConfig) DeletedAt(instanceId string) (int64, bool) {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	if it.DeletedInstances == nil {
+		return 0, false
+	}
+	ts, ok := it.DeletedInstances[instanceId]
+	return ts, ok
+}
+
+// MarkOrphan records the first-seen time for a locally-orphaned container. It
+// is a no-op if the container is already tracked, so the first-seen time is
+// preserved across ticks until the orphan is cleared or removed. Safe for
+// concurrent use.
+func (it *HostActiveConfig) MarkOrphan(containerName string, ts int64) {
+	if containerName == "" {
+		return
+	}
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.OrphanContainers == nil {
+		it.OrphanContainers = make(map[string]int64)
+	}
+	if _, ok := it.OrphanContainers[containerName]; ok {
+		return
+	}
+	it.OrphanContainers[containerName] = ts
+}
+
+// OrphanFirstSeen returns the unix time at which a container was first observed
+// as orphaned, and whether such a record exists.
+func (it *HostActiveConfig) OrphanFirstSeen(containerName string) (int64, bool) {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	if it.OrphanContainers == nil {
+		return 0, false
+	}
+	ts, ok := it.OrphanContainers[containerName]
+	return ts, ok
+}
+
+// ClearOrphan removes the orphan tracking record for a container (used when the
+// container returns to the desired set, or after it has been removed).
+func (it *HostActiveConfig) ClearOrphan(containerName string) {
+	it.mu.Lock()
+	defer it.mu.Unlock()
+	if it.OrphanContainers == nil {
+		return
+	}
+	delete(it.OrphanContainers, containerName)
+}
+
+// Orphans returns a snapshot copy of the orphan container map. The copy lets
+// callers iterate and mutate (ClearOrphan/MarkOrphan) without nesting the read
+// lock behind a write lock.
+func (it *HostActiveConfig) Orphans() map[string]int64 {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	if len(it.OrphanContainers) == 0 {
+		return nil
+	}
+	out := make(map[string]int64, len(it.OrphanContainers))
+	for k, v := range it.OrphanContainers {
+		out[k] = v
+	}
+	return out
+}
+
 // MarshalJSON serializes the persisted fields under the read lock. The alias
 // avoids recursing back into MarshalJSON.
 func (it *HostActiveConfig) MarshalJSON() ([]byte, error) {
@@ -174,6 +293,64 @@ func (h *HostActiveConfig) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// desiredSnapshot holds the set of container names the zonelet leader most
+// recently reported as desired on this host, plus the time and success of that
+// report. It is rebuilt wholesale on every successful HostStatusUpdate; on an
+// RPC failure SetFailed marks it unusable so orphan detection is suspended.
+type desiredSnapshot struct {
+	mu       sync.RWMutex
+	names    map[string]struct{}
+	syncedAt int64 // unix seconds of the last successful HostStatusUpdate
+	ok       bool  // whether the last HostStatusUpdate succeeded
+}
+
+// Replace records the container names the leader just reported as desired for
+// this host and marks the snapshot fresh at unix time ts.
+func (d *desiredSnapshot) Replace(names map[string]struct{}, ts int64) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.names = names
+	d.syncedAt = ts
+	d.ok = true
+}
+
+// SetFailed marks the last HostStatusUpdate as failed so orphan detection is
+// suspended until a fresh response arrives.
+func (d *desiredSnapshot) SetFailed() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.ok = false
+}
+
+// Contains reports whether name is in the freshest desired set.
+func (d *desiredSnapshot) Contains(name string) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if len(d.names) == 0 {
+		return false
+	}
+	_, ok := d.names[name]
+	return ok
+}
+
+// Empty reports whether the freshest desired set contains no names. The orphan
+// sweep treats an empty fresh set as "no basis for orphan decisions" and
+// refuses to act, since it is indistinguishable from a transiently-stale empty
+// response.
+func (d *desiredSnapshot) Empty() bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return len(d.names) == 0
+}
+
+// IsFresh reports whether the snapshot is usable for orphan decisions: the last
+// sync must have succeeded and be within staleLimit seconds of now.
+func (d *desiredSnapshot) IsFresh(now, staleLimit int64) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.ok && d.syncedAt > 0 && (now-d.syncedAt) <= staleLimit
 }
 
 // ReplicaStageEntry holds the host-side stage node for a replica and a dirty

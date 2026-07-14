@@ -22,6 +22,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -218,6 +219,7 @@ func containerRefresh() error {
 		slog.Error("hostlet", "err", err.Error())
 		return err
 	}
+	containerOrphanSweep()
 	return nil
 }
 
@@ -361,9 +363,21 @@ func containerControlRefresh() error {
 
 	hoststatus.ActiveAppList.Range(func(key, value any) bool {
 		app, ok := value.(*inapi.AppInstance)
-		if !ok || app.Spec == nil ||
+		if !ok || app.Deploy == nil {
+			return true
+		}
+
+		// Soft delete: tear the container(s) down, archive the data dir, and
+		// record the instance so it is skipped on subsequent syncs. This is a
+		// terminal action handled outside the start/stop/destroy workflow.
+		if app.Deploy.Action == inapi.OpActionDelete {
+			containerDeleteRefresh(app)
+			return true
+		}
+
+		if app.Spec == nil ||
 			app.Spec.Resources == nil ||
-			app.Deploy == nil || len(app.Deploy.Replicas) == 0 {
+			len(app.Deploy.Replicas) == 0 {
 			return true
 		}
 
@@ -798,17 +812,27 @@ func operateContainerStopping(rep *inapi.AppReplicaInstance) (string, error) {
 // operateContainerDestroying handles the destroy action for a replica.
 // Returns the next state on success or failure.
 func operateContainerDestroying(rep *inapi.AppReplicaInstance) (string, error) {
-	containerName := rep.ContainerName()
+	if err := destroyContainerByName(rep.ContainerName()); err != nil {
+		return inapi.OpStateFailed, err
+	}
+	return inapi.OpStateDestroyed, nil
+}
 
+// destroyContainerByName stops and force-removes the named container, drops it
+// from the local cache, and clears its XFS quota project. It is the shared
+// teardown primitive used by both the destroy/soft-delete workflow (via
+// operateContainerDestroying) and the orphan sweep. Idempotent: a container
+// absent from the local cache is a no-op.
+func destroyContainerByName(containerName string) error {
 	ctrInfo, exists := hoststatus.ContainerList.Load(containerName)
 	if !exists {
-		return inapi.OpStateDestroyed, nil
+		return nil
 	}
 
 	info, ok := ctrInfo.(*hostapi.ContainerInfo)
 	if !ok {
 		hoststatus.ContainerList.Delete(containerName)
-		return inapi.OpStateDestroyed, nil
+		return nil
 	}
 
 	// Stop container first if running
@@ -827,7 +851,7 @@ func operateContainerDestroying(rep *inapi.AppReplicaInstance) (string, error) {
 	if err := ctrDriver.ContainerRemove(ctx, containerName); err != nil {
 		cancel()
 		slog.Warn("container remove failed", "container", containerName, "error", err)
-		return inapi.OpStateFailed, fmt.Errorf("container remove failed: %w", err)
+		return fmt.Errorf("container remove failed: %w", err)
 	}
 	cancel()
 
@@ -837,7 +861,249 @@ func operateContainerDestroying(rep *inapi.AppReplicaInstance) (string, error) {
 	quotaCleanupContainer(containerName)
 
 	slog.Info("container destroyed", "container", containerName)
-	return inapi.OpStateDestroyed, nil
+	return nil
+}
+
+// containerDeleteRefresh tears down all local replicas of a soft-deleted
+// instance (Deploy.Action == delete): stops and removes each container,
+// archives its data directory, then records the instance as deleted so it is
+// skipped on subsequent syncs. If any container removal fails the instance is
+// left unrecorded so it is retried on the next tick.
+func containerDeleteRefresh(app *inapi.AppInstance) {
+	if _, done := hoststatus.Active.DeletedAt(app.InstanceId()); done {
+		return // already torn down on this host
+	}
+
+	failed := false
+	for _, rep := range app.Deploy.Replicas {
+		if rep == nil || rep.HostId == "" ||
+			rep.HostId != config.Config.Hostlet.HostId {
+			continue
+		}
+
+		repInstance := &inapi.AppReplicaInstance{
+			App:            app,
+			Replica:        rep,
+			ZoneBaseDomain: zoneNetworkMap.VpcNetworkDomain,
+		}
+
+		if _, err := operateContainerDestroying(repInstance); err != nil {
+			slog.Warn("soft-delete container destroy failed",
+				"app", app.InstanceName(),
+				"replica", rep.Id,
+				"error", err)
+			failed = true
+			continue
+		}
+
+		archiveContainerDir(repInstance)
+	}
+
+	if !failed {
+		hoststatus.Active.MarkDeleted(app.InstanceId(), time.Now().Unix())
+		saveHostActiveConfig()
+		slog.Info("soft-delete instance torn down", "app", app.InstanceName())
+	}
+}
+
+// archiveContainerDir moves a replica's data directory under the "deleted"
+// subtree so a torn-down instance's data is retained rather than clobbered.
+func archiveContainerDir(rep *inapi.AppReplicaInstance) {
+	if rep == nil {
+		return
+	}
+	archiveContainerDirByName(rep.ContainerName())
+}
+
+// archiveContainerDirByName moves a container's data directory under the
+// "deleted" subtree with a datetime suffix
+// (AppPath/<container> -> AppPath/deleted/<container>_<datetime>) so a
+// torn-down instance's data is retained and repeated teardowns across
+// re-deploy/delete cycles never collide. Used by both the leader-driven
+// soft-delete flow (containerDeleteRefresh) and the hostlet orphan sweep.
+// Best-effort: a missing source (already archived) is a no-op; a rename failure
+// is logged but does not block the teardown since the container has already
+// been removed.
+func archiveContainerDirByName(containerName string) {
+	appBasePath := config.Config.Hostlet.AppPath
+	if appBasePath == "" || containerName == "" {
+		return
+	}
+
+	src := filepath.Join(appBasePath, containerName)
+	if _, err := os.Stat(src); err != nil {
+		return // nothing to archive (already gone)
+	}
+
+	dst := filepath.Join(appBasePath, "deleted",
+		fmt.Sprintf("%s_%s", containerName, time.Now().Format("20060102-150405")))
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		slog.Warn("archive mkdir failed",
+			"dir", filepath.Dir(dst), "error", err)
+		return
+	}
+	// The datetime suffix normally makes the destination unique; RemoveAll keeps
+	// the rename idempotent if the same second is ever reused.
+	_ = os.RemoveAll(dst)
+	if err := os.Rename(src, dst); err != nil {
+		slog.Warn("archive rename failed",
+			"src", src, "dst", dst, "error", err)
+		return
+	}
+	slog.Info("archived container dir", "src", src, "dst", dst)
+}
+
+// orphanQuarantine stops a freshly-detected orphan container so it no longer
+// consumes resources, flipping its restart policy to "no" first so the stop is
+// not undone by a Docker daemon restart during the grace window. Both steps are
+// best-effort: the container is recorded as an orphan regardless, and a failure
+// here is retried on the next tick (the entry stays stopped-or-tracked).
+func orphanQuarantine(containerName string) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+	defer cancel()
+	if err := ctrDriver.ContainerUpdateRestartPolicy(ctx, containerName, inapi.OpRestartPolicyNo); err != nil {
+		slog.Warn("orphan restart-policy flip failed",
+			"container", containerName, "error", err)
+	}
+	if err := ctrDriver.ContainerStop(ctx, containerName); err != nil {
+		slog.Warn("orphan container stop failed",
+			"container", containerName, "error", err)
+	}
+}
+
+// orphanRestoreRestartPolicy restores an orphaned container's restart policy to
+// "always" when it returns to the desired set, so normal auto-restart behavior
+// resumes after the reconcile loop restarts it. Best-effort; a container that
+// vanished (removed externally) is a no-op via the driver's "no such container"
+// handling.
+func orphanRestoreRestartPolicy(containerName string) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+	defer cancel()
+	if err := ctrDriver.ContainerUpdateRestartPolicy(ctx, containerName, inapi.OpRestartPolicyAlways); err != nil {
+		slog.Warn("orphan restart-policy restore failed",
+			"container", containerName, "error", err)
+	}
+}
+
+// orphanStop idempotently stops a tracked orphan that is somehow running again
+// (e.g. started manually), keeping it quarantined during the grace window.
+func orphanStop(containerName string) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+	defer cancel()
+	if err := ctrDriver.ContainerStop(ctx, containerName); err != nil {
+		slog.Warn("orphan container re-stop failed",
+			"container", containerName, "error", err)
+	}
+}
+
+// containerOrphanSweep reconciles the reverse direction the main loop does not:
+// it finds local containers that no longer appear in the zonelet's fresh desired
+// app list and quarantines them. This is the hostlet-local, leader-absence-driven
+// cleanup flow and is deliberately separate from the leader-driven soft-delete
+// flow (containerDeleteRefresh), which runs while the instance is still
+// delivered with Action==delete.
+//
+// Safety is layered (do not accidentally stop or remove a legitimate container):
+//
+//  1. Freshness gate: the last HostStatusUpdate must have succeeded recently
+//     (OrphanSyncStaleLimit). A failed or stale zonelet response suspends all
+//     orphan action.
+//  2. Empty-Desired brake: an empty fresh desired set is indistinguishable from
+//     a transiently-stale empty response and gives no basis to declare any
+//     container an orphan, so the sweep refuses to act.
+//  3. Only i8k_{name}_{rep} names are considered.
+//  4. On detection the orphan is quarantined (restart policy -> "no", then
+//     stopped). This is reversible: if the leader resumes delivering the
+//     instance, the reconcile loop restarts it and the sweep restores the
+//     policy; no data is lost.
+//  5. The container is removed and its data archived only after
+//     OrphanContainerGracePeriod of continuous absence.
+//
+// Orphan detection keys off the fresh Desired snapshot rather than ActiveAppList
+// (which is append-only and would never report an absence). The sweep runs after
+// containerControlRefresh each tick, so anything the reconcile loop manages is
+// in Desired and is skipped here.
+func containerOrphanSweep() {
+	if ctrDriver == nil {
+		return
+	}
+
+	now := time.Now().Unix()
+
+	// Suspend on a failed or stale zonelet response.
+	if !hoststatus.Desired.IsFresh(now, inapi.OrphanSyncStaleLimit) {
+		return
+	}
+
+	// Panic-brake: refuse to make orphan decisions from an empty desired set.
+	if hoststatus.Desired.Empty() {
+		if hoststatus.ContainerList.Len() > 0 {
+			slog.Warn("orphan sweep suspended: desired app list empty but local containers exist",
+				"local_containers", hoststatus.ContainerList.Len())
+		}
+		return
+	}
+
+	dirty := false
+
+	// Recovery pass: orphans that returned to the desired set restore their
+	// restart policy and clear the tracking record. The reconcile loop (run
+	// earlier this tick) restarts the container.
+	for name := range hoststatus.Active.Orphans() {
+		if hoststatus.Desired.Contains(name) {
+			orphanRestoreRestartPolicy(name)
+			hoststatus.Active.ClearOrphan(name)
+			dirty = true
+			slog.Info("orphan container returned to desired set", "container", name)
+		}
+	}
+
+	// Detect/reap pass over the local containers.
+	hoststatus.ContainerList.Range(func(key, value any) bool {
+		name, ok := key.(string)
+		if !ok || !hostapi.ContainerNameValid.MatchString(name) {
+			return true
+		}
+		if hoststatus.Desired.Contains(name) {
+			return true // managed by the reconcile loop
+		}
+
+		firstSeen, existed := hoststatus.Active.OrphanFirstSeen(name)
+
+		if !existed {
+			// First detection: record first-seen and quarantine.
+			hoststatus.Active.MarkOrphan(name, now)
+			firstSeen = now
+			dirty = true
+			orphanQuarantine(name)
+			slog.Warn("orphan container detected: quarantined (stopped)",
+				"container", name,
+				"grace_seconds", inapi.OrphanContainerGracePeriod)
+		} else if info, ok := value.(*hostapi.ContainerInfo); ok &&
+			info.State == inapi.OpStateRunning {
+			// Already tracked but running again: keep it quarantined.
+			orphanStop(name)
+		}
+
+		// Grace elapsed: remove the container and archive its data directory.
+		if now-firstSeen >= inapi.OrphanContainerGracePeriod {
+			if err := destroyContainerByName(name); err != nil {
+				slog.Warn("orphan container remove failed",
+					"container", name, "error", err)
+			} else {
+				archiveContainerDirByName(name)
+				hoststatus.Active.ClearOrphan(name)
+				dirty = true
+				slog.Warn("orphan container removed and archived",
+					"container", name)
+			}
+		}
+		return true
+	})
+
+	if dirty {
+		saveHostActiveConfig()
+	}
 }
 
 // containerAppInstanceSync checks if the on-disk app_replica.json differs from
@@ -1051,7 +1317,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 		Image:         image,
 		RestartPolicy: "always",
 		Labels: map[string]string{
-			"app_name":     rep.App.InstanceName(),
+			"app_name":   rep.App.InstanceName(),
 			"app_rep_id": fmt.Sprintf("%d", rep.Replica.Id),
 		},
 		Env: []string{

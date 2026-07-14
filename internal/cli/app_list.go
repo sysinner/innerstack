@@ -87,7 +87,7 @@ func NewAppListCommand() *cobra.Command {
 			tableBase.Header([]any{
 				"Name",
 				"Image", "Version",
-				"Status", "Action", "Replicas",
+				"Action", "Status", "Replicas",
 				"CPU", "Memory", "Volume",
 				"Host Id", "Age",
 			}...)
@@ -117,8 +117,8 @@ func NewAppListCommand() *cobra.Command {
 					v.InstanceName(),
 					strOrDash(v.Spec.Image),
 					strOrDash(v.Spec.Version),
-					appListStatus(v.Deploy),
 					strOrDash(v.Deploy.Action),
+					appListStatus(v.Deploy),
 					appListReplicas(v.Deploy),
 					cpuOrDash(v.Deploy.CpuLimit),
 					bytesOrDash(v.Deploy.MemoryLimit),
@@ -163,11 +163,22 @@ instance.
 // appListStatus returns the observed lifecycle state of an instance, taken
 // from the root deploy stage when available, falling back to the user-set
 // action when no stage has recorded a state yet, and finally "-".
+//
+// A soft-deleted instance (Action == delete) is reported as "deleted"
+// regardless of the (frozen, stale) deploy stage state: the hostlet tears the
+// container down on delete and the zone does not advance the stage tree for
+// deleted instances, so the prior stage state would otherwise mislead.
 func appListStatus(deploy *inapi.AppDeploy) string {
-	if deploy != nil && deploy.Stages != nil && deploy.Stages.State != "" {
+	if deploy == nil {
+		return "-"
+	}
+	if deploy.Action == inapi.OpActionDelete {
+		return "deleted"
+	}
+	if deploy.Stages != nil && deploy.Stages.State != "" {
 		return deploy.Stages.State
 	}
-	if deploy != nil && deploy.Action != "" {
+	if deploy.Action != "" {
 		return deploy.Action
 	}
 	return "-"

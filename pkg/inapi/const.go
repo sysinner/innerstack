@@ -102,6 +102,48 @@ const (
 	// state: the zonelet bumps Deploy.Revision and normalizes the action to
 	// start, and the hostlet rebuilds the container on revision change.
 	OpActionRestart = "restart" // user action: restart
+	// OpActionDelete soft-deletes an app instance: the zonelet marks the
+	// instance Deploy.Action=delete and applies AppInstanceSoftDeleteTTL, and
+	// the hostlet tears the container down and archives its data dir. The
+	// instance stays readable but read-only until the TTL physically removes
+	// it. It is intentionally not a state-machine workflow action; the
+	// hostlet handles it in a dedicated branch of containerControlRefresh.
+	OpActionDelete = "delete" // user action: soft delete
+)
+
+const (
+	// AppInstanceSoftDeleteTTL is the kvgo key TTL, in milliseconds, applied
+	// to an app instance when it is soft-deleted (Deploy.Action == delete).
+	// After it elapses the instance key is physically removed from the store.
+	AppInstanceSoftDeleteTTL int64 = 7 * 24 * 3600 * 1000 // 7 days
+)
+
+// Restart-policy names passed to the container driver. The hostlet flips a
+// quarantined orphan container's policy to OpRestartPolicyNo so a stopped
+// orphan is not resurrected by a Docker daemon restart; the normal lifecycle
+// (and orphan recovery) use OpRestartPolicyAlways.
+const (
+	OpRestartPolicyAlways = "always"
+	OpRestartPolicyNo     = "no"
+)
+
+const (
+	// OrphanContainerGracePeriod is the time, in seconds, a locally-present
+	// container may remain continuously absent from the zonelet's desired app
+	// list before the hostlet removes it and archives its data directory. The
+	// container is stopped (quarantined) on first detection and only removed
+	// after this period elapses without the leader resuming delivery. The long
+	// window is the ultimate backstop against a transiently-stale zonelet
+	// response: data is never deleted until a sustained absence is confirmed.
+	OrphanContainerGracePeriod int64 = 1 * 24 * 3600 // 1 days
+
+	// OrphanSyncStaleLimit bounds, in seconds, how stale the hostlet's last
+	// successful HostStatusUpdate may be before orphan detection is suspended.
+	// If the zonelet has not answered successfully within this window, the
+	// desired app list is treated as unknown and no container is quarantined or
+	// removed. This satisfies the distributed-safety requirement that a failed
+	// or stale zonelet response must not trigger local hostlet reaping.
+	OrphanSyncStaleLimit int64 = 60 // seconds
 )
 
 // AppReplicaState represents the actual runtime state of a replica

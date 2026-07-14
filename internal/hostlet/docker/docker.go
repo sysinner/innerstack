@@ -714,6 +714,34 @@ func (it *dockerDriver) ContainerRemove(ctx context.Context, nameOrId string) er
 	return nil
 }
 
+// ContainerUpdateRestartPolicy updates a container's restart policy in place.
+// It is used to quarantine orphan containers (policy "no", so a Docker daemon
+// restart does not resurrect a stopped orphan) and to restore normal behavior
+// ("always") when an orphan returns to the desired set. "No such container" is
+// treated as success, matching ContainerStop/ContainerRemove.
+func (it *dockerDriver) ContainerUpdateRestartPolicy(ctx context.Context, nameOrId, policy string) error {
+	defer recoverPanic()
+
+	if err := it.init(); err != nil {
+		return err
+	}
+
+	err := it.client.UpdateContainer(nameOrId, drvClient.UpdateContainerOptions{
+		RestartPolicy: drvClient.RestartPolicy{Name: policy},
+		Context:       ctx,
+	})
+	if err != nil {
+		if isDockerError(err, "No such container") {
+			slog.Debug("container restart-policy update skipped (already gone)",
+				"container", nameOrId)
+			return nil
+		}
+		return fmt.Errorf("[docker.ContainerUpdateRestartPolicy] update %s failed: %w", nameOrId, err)
+	}
+
+	return nil
+}
+
 func (it *dockerDriver) ImagePull(ctx context.Context, image string) error {
 	defer recoverPanic()
 

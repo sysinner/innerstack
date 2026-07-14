@@ -207,6 +207,14 @@ func (s *zoneServer) AppInstanceDeploy(
 		// Update existing instance
 		instance = existingByName
 
+		// A soft-deleted instance is read-only until the TTL physically removes
+		// it; reject any modification.
+		if instance.Deploy != nil && instance.Deploy.Action == inapi.OpActionDelete {
+			return nil, fmt.Errorf(
+				"instance %q is deleted (read-only), it will be removed after TTL",
+				req.Name)
+		}
+
 		// Build KV key from the instance name (logical key)
 		var (
 			key         = inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.InstanceName())
@@ -533,17 +541,50 @@ func (s *zoneServer) AppInstanceDelete(
 		return nil, fmt.Errorf("name: %w", err)
 	}
 
+	// Soft delete: rather than removing the key, mark Deploy.Action=delete and
+	// apply a TTL. The hostlet tears the container down and archives its data,
+	// while the instance stays readable (but read-only) until the store
+	// physically removes the key after the TTL. This keeps the pull-based
+	// hostlet model in sync: the instance is still delivered with action=delete
+	// so the host actually reaps the container (a hard delete made the key
+	// vanish and left the hostlet pinned to the stale action=start).
+	instance, kvMeta, err := loadInstanceByName(req.Name)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, errors.New("instance not found")
+	}
+
+	// Already soft-deleted: the instance is read-only until the TTL removes it.
+	if instance.Deploy != nil && instance.Deploy.Action == inapi.OpActionDelete {
+		return nil, fmt.Errorf(
+			"instance %q is already marked deleted (read-only), it will be removed after TTL",
+			req.Name)
+	}
+
+	if instance.Deploy == nil {
+		instance.Deploy = &inapi.AppDeploy{}
+	}
+	instance.Deploy.Action = inapi.OpActionDelete
+
 	key := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, req.Name)
 
-	if rs := data.Zonelet.NewDeleter(key).Exec(); !rs.OK() {
-		if rs.NotFound() {
-			return nil, errors.New("instance not found")
-		}
+	rs := data.Zonelet.NewWriter(key, instance).
+		SetPrevVersion(kvMeta.Version).
+		SetTTL(inapi.AppInstanceSoftDeleteTTL).
+		Exec()
+	if !rs.OK() {
 		return nil, rs.Error()
 	}
 
-	slog.Warn("zonelet app-instance-delete",
+	// Update the in-memory set immediately so the next status poll delivers
+	// action=delete instead of the stale prior action.
+	gAppInstanceSet.Store(instance, rs.Item().Meta)
+
+	slog.Warn("zonelet app-instance-delete (soft)",
 		"instance_name", req.Name,
+		"ttl_ms", inapi.AppInstanceSoftDeleteTTL,
 	)
 
 	status.Zonelet_ForceRefresh.Store(true)

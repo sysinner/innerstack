@@ -166,6 +166,10 @@ type Driver interface {
 	ContainerStart(ctx context.Context, nameOrId string) error
 	ContainerStop(ctx context.Context, nameOrId string) error
 	ContainerRemove(ctx context.Context, nameOrId string) error
+	// ContainerUpdateRestartPolicy changes a container's restart policy in
+	// place (e.g. "no" to quarantine an orphan so a Docker daemon restart does
+	// not resurrect it, "always" to restore normal lifecycle behavior).
+	ContainerUpdateRestartPolicy(ctx context.Context, nameOrId, policy string) error
 
 	ImageList(ctx context.Context) ([]*ImageInfo, error)
 	ImagePull(ctx context.Context, image string) error

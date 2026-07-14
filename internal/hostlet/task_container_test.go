@@ -161,6 +161,54 @@ func TestHostActiveConfigAppliedRevisionsRoundTrip(t *testing.T) {
 	}
 }
 
+// TestHostActiveConfigOrphanContainersRoundTrip verifies that the orphan
+// container map survives JSON marshal/unmarshal and that its set-if-absent and
+// clear semantics hold, so the removal grace window persists across a hostlet
+// restart (TryRun loads the file into hoststatus.Active).
+func TestHostActiveConfigOrphanContainersRoundTrip(t *testing.T) {
+	src := hoststatus.HostActiveConfig{}
+	src.MarkOrphan("i8k_myapp_1", 1700000000)
+	src.MarkOrphan("i8k_other_2", 1700000099)
+	// Set-if-absent: a later MarkOrphan must not move the first-seen time.
+	src.MarkOrphan("i8k_myapp_1", 9999999999)
+
+	data, err := json.Marshal(&src)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var dst hoststatus.HostActiveConfig
+	if err := json.Unmarshal(data, &dst); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	for name, want := range map[string]int64{
+		"i8k_myapp_1": 1700000000,
+		"i8k_other_2": 1700000099,
+	} {
+		got, ok := dst.OrphanFirstSeen(name)
+		if !ok {
+			t.Errorf("orphan %q missing after round-trip", name)
+		} else if got != want {
+			t.Errorf("orphan %q first-seen = %d, want %d", name, got, want)
+		}
+	}
+
+	// Snapshot copy reflects both entries.
+	if snaps := dst.Orphans(); len(snaps) != 2 {
+		t.Errorf("Orphans() len = %d, want 2", len(snaps))
+	}
+
+	// Clear removes exactly one entry.
+	dst.ClearOrphan("i8k_myapp_1")
+	if _, ok := dst.OrphanFirstSeen("i8k_myapp_1"); ok {
+		t.Errorf("orphan i8k_myapp_1 still present after ClearOrphan")
+	}
+	if snaps := dst.Orphans(); len(snaps) != 1 {
+		t.Errorf("Orphans() len after clear = %d, want 1", len(snaps))
+	}
+}
+
 // TestProvisionInnerStackUpdatesInagent verifies that provisionInnerStack
 // writes the .innerstack files and, crucially, refreshes the inagent binary
 // when called again against an already-initialized .innerstack mount (e.g. a

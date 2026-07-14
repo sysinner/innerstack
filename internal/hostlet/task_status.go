@@ -205,6 +205,7 @@ func statusRefresh() error {
 	})
 	if err != nil {
 		slog.Warn("status update failed", "err", err)
+		hoststatus.Desired.SetFailed()
 		return err
 	}
 
@@ -217,9 +218,27 @@ func statusRefresh() error {
 		return true
 	})
 
+	// Build the fresh desired container-name set for orphan detection. Unlike
+	// ActiveAppList (append-only), this set is rebuilt wholesale each tick and
+	// can express that the leader no longer delivers an instance. Include every
+	// replica assigned to this host regardless of deploy action (a soft-deleted
+	// instance is still delivered with action=delete, so its containers stay in
+	// Desired and are excluded from orphan detection while the soft-delete flow
+	// owns them).
+	desired := make(map[string]struct{}, len(resp.AppInstances)*2)
 	for _, app := range resp.AppInstances {
 		hoststatus.ActiveAppList.Store(app.InstanceName(), app)
+		if app == nil || app.Deploy == nil {
+			continue
+		}
+		for _, rep := range app.Deploy.Replicas {
+			if rep == nil || rep.HostId != config.Config.Hostlet.HostId {
+				continue
+			}
+			desired[inapi.ContainerName(app.InstanceName(), rep.Id)] = struct{}{}
+		}
 	}
+	hoststatus.Desired.Replace(desired, time.Now().Unix())
 
 	cfgFlush := false
 

@@ -174,6 +174,13 @@ func mergeHostReplicaStages(reports []*inapi.HostReplicaStageReport) {
 			continue
 		}
 
+		// Skip soft-deleted instances: a Flush here writes without SetTTL and
+		// would clear the soft-delete TTL. The hostlet does not report stages
+		// for deleted instances either, so this is defensive.
+		if app.Value.Deploy.Action == inapi.OpActionDelete {
+			continue
+		}
+
 		repNode := app.Value.Deploy.StagesRoot().ReplicaStage(rpt.ReplicaId)
 
 		before, errBefore := proto.Marshal(repNode)

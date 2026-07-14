@@ -153,6 +153,15 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	gAppInstanceSet.Iter(func(app *appInstanceEntry) bool {
+		// Skip soft-deleted instances: they must not be scheduled, resource-
+		// counted, or Flushed here. A Flush writes without SetTTL and would
+		// clear the soft-delete TTL, making the key permanent. Soft-deleted
+		// instances are still delivered to their hosts via HostStatusUpdate,
+		// which iterates the set directly (not instanceMap).
+		if app.Value.Deploy.Action == inapi.OpActionDelete {
+			return true
+		}
+
 		if activeInstance == nil {
 			if len(app.Value.Deploy.Replicas) < int(app.Value.Deploy.ReplicaCap) {
 				activeInstance = app
