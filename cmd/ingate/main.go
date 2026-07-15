@@ -108,11 +108,13 @@ func main() {
 	}
 	{
 		httpServer = &http.Server{
-			Addr:           fmt.Sprintf(":%d", cfg.Server.HttpPort),
-			Handler:        httpRootHandler{},
-			ReadTimeout:    time.Duration(cfg.Server.ReadTimeout) * time.Second,
-			WriteTimeout:   time.Duration(cfg.Server.WriteTimeout) * time.Second,
-			MaxHeaderBytes: 1 << 20,
+			Addr:              fmt.Sprintf(":%d", cfg.Server.HttpPort),
+			Handler:           httpRootHandler{},
+			ReadTimeout:       time.Duration(cfg.Server.ReadTimeout) * time.Second,
+			ReadHeaderTimeout: time.Duration(cfg.Server.ReadHeaderTimeout) * time.Second,
+			WriteTimeout:      time.Duration(cfg.Server.WriteTimeout) * time.Second,
+			IdleTimeout:       time.Duration(cfg.Server.IdleTimeout) * time.Second,
+			MaxHeaderBytes:    1 << 20,
 		}
 		signals.Go(func() {
 			slog.Info("http server start " + httpServer.Addr)
@@ -130,9 +132,11 @@ func main() {
 			TLSConfig: &tls.Config{
 				GetCertificate: certManager.GetCertificate,
 			},
-			ReadTimeout:    time.Duration(cfg.Server.ReadTimeout) * time.Second,
-			WriteTimeout:   time.Duration(cfg.Server.WriteTimeout) * time.Second,
-			MaxHeaderBytes: 1 << 20,
+			ReadTimeout:       time.Duration(cfg.Server.ReadTimeout) * time.Second,
+			ReadHeaderTimeout: time.Duration(cfg.Server.ReadHeaderTimeout) * time.Second,
+			WriteTimeout:      time.Duration(cfg.Server.WriteTimeout) * time.Second,
+			IdleTimeout:       time.Duration(cfg.Server.IdleTimeout) * time.Second,
+			MaxHeaderBytes:    1 << 20,
 		}
 		signals.Go(func() {
 			slog.Info("https server start " + httpsServer.Addr)
@@ -194,9 +198,23 @@ type ConfigServer struct {
 	HttpPort  int `toml:"http_port"`
 	HttpsPort int `toml:"https_port"`
 
-	ReadTimeout  int64 `toml:"read_timeout"`
+	// ReadTimeout bounds reading the request (headers + body).
+	ReadTimeout int64 `toml:"read_timeout"`
+	// ReadHeaderTimeout bounds reading the request headers only; the dedicated
+	// slowloris guard. Applied in addition to ReadTimeout.
+	ReadHeaderTimeout int64 `toml:"read_header_timeout"`
+	// WriteTimeout is the fixed upper bound on writing a response. Streaming
+	// and rate-limited responses (localfs downloads, proxied bodies)
+	// legitimately outlast it, so rootHandler clears the per-response write
+	// deadline for those; WriteByteTimeout is the real stall guard.
 	WriteTimeout int64 `toml:"write_timeout"`
-	MaxBodySize  int64 `toml:"max_body_size"`
+	// WriteByteTimeout fires when a write makes no progress for this long --
+	// kills stalled/dead clients without punishing slow-but-progressing
+	// transfers. The primary write-side timeout for a streaming gateway.
+	WriteByteTimeout int64 `toml:"write_byte_timeout"`
+	// IdleTimeout is the keep-alive idle timeout between requests.
+	IdleTimeout int64 `toml:"idle_timeout"`
+	MaxBodySize int64 `toml:"max_body_size"`
 
 	DebugPprofEnable bool `toml:"debug_pprof_enable,omitempty"`
 }
@@ -393,11 +411,32 @@ func initSetup() error {
 		cfg.Server.ReadTimeout = min(cfg.Server.ReadTimeout, 300) // 最大 300 秒
 	}
 
+	if cfg.Server.ReadHeaderTimeout <= 0 {
+		cfg.Server.ReadHeaderTimeout = 10
+	} else {
+		cfg.Server.ReadHeaderTimeout = max(cfg.Server.ReadHeaderTimeout, 3)  // 最小 3 秒
+		cfg.Server.ReadHeaderTimeout = min(cfg.Server.ReadHeaderTimeout, 60) // 最大 60 秒
+	}
+
 	if cfg.Server.WriteTimeout <= 0 {
 		cfg.Server.WriteTimeout = 61
 	} else {
 		cfg.Server.WriteTimeout = max(cfg.Server.WriteTimeout, 3)   // 最小 3 秒
 		cfg.Server.WriteTimeout = min(cfg.Server.WriteTimeout, 300) // 最大 300 秒
+	}
+
+	if cfg.Server.WriteByteTimeout <= 0 {
+		cfg.Server.WriteByteTimeout = 60
+	} else {
+		cfg.Server.WriteByteTimeout = max(cfg.Server.WriteByteTimeout, 5)   // 最小 5 秒
+		cfg.Server.WriteByteTimeout = min(cfg.Server.WriteByteTimeout, 600) // 最大 600 秒
+	}
+
+	if cfg.Server.IdleTimeout <= 0 {
+		cfg.Server.IdleTimeout = 120
+	} else {
+		cfg.Server.IdleTimeout = max(cfg.Server.IdleTimeout, 10)  // 最小 10 秒
+		cfg.Server.IdleTimeout = min(cfg.Server.IdleTimeout, 600) // 最大 600 秒
 	}
 
 	{
@@ -723,8 +762,29 @@ func ipAddress(r *http.Request) string {
 //	X-Forwarded-For   : client ip appended to any existing value
 //	                    ($proxy_add_x_forwarded_for)
 //	X-Forwarded-Proto : request scheme ($scheme)
+//
+// reverseProxyTransport bounds the upstream side of proxied requests. The
+// default http.DefaultTransport has no ResponseHeaderTimeout, so a backend that
+// accepts the connection but never responds would hang the proxy goroutine
+// indefinitely (rootHandler clears the write deadline, so nothing else would
+// interrupt it). ResponseHeaderTimeout caps the wait for upstream response
+// headers; the body read is bounded by the request context (client disconnect).
+var reverseProxyTransport = &http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
+	ResponseHeaderTimeout: 30 * time.Second,
+}
+
 func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.Transport = reverseProxyTransport
 	baseDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		baseDirector(req)
@@ -807,6 +867,12 @@ type throttledResponseWriter struct {
 	http.ResponseWriter
 	limiter *rate.Limiter
 	ctx     context.Context
+	// byteTimeout is re-armed before every chunk write, implementing the
+	// WriteByteTimeout semantic (http.Server has no such field): a write that
+	// makes no progress for this long fails and ends the response, while a
+	// slow-but-progressing transfer keeps extending it.
+	byteTimeout time.Duration
+	rc          *http.ResponseController
 }
 
 func (trw *throttledResponseWriter) Write(p []byte) (n int, err error) {
@@ -823,6 +889,13 @@ func (trw *throttledResponseWriter) Write(p []byte) (n int, err error) {
 		// 阻塞等待令牌发放
 		if err := trw.limiter.WaitN(trw.ctx, n_chunk); err != nil {
 			return n, err
+		}
+
+		// Re-arm the per-chunk write deadline: a stalled/dead client (no write
+		// progress) is dropped after byteTimeout; a progressing transfer keeps
+		// pushing the deadline forward. Applied uniformly to HTTP/1.1 and HTTP/2.
+		if trw.byteTimeout > 0 && trw.rc != nil {
+			_ = trw.rc.SetWriteDeadline(time.Now().Add(trw.byteTimeout))
 		}
 
 		m, err := trw.ResponseWriter.Write(p[i:end])
@@ -929,15 +1002,34 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, cfg.Server.MaxBodySize)
 
+	urlPath := path.Clean(r.URL.Path)
+
+	// ingate streams and rate-limits its responses (localfs downloads, proxied
+	// upstream bodies), which legitimately outlast http.Server's fixed
+	// WriteTimeout -- for HTTP/2 that timer fires onWriteTimeout and resets the
+	// stream with INTERNAL_ERROR mid-transfer. Clear the per-response write
+	// deadline here so neither the buffering phase (proxy reading the upstream)
+	// nor the throttled flush gets cut off. Stall/dead-client protection comes
+	// from the per-chunk deadline re-armed inside throttledResponseWriter
+	// (WriteByteTimeout semantic) and from the request context (client disconnect).
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+
+	// localfs is served straight from disk by localfsServe, streaming the file
+	// under the rate limit with accurate Content-Length and Range support.
+	if localfsServe(w, r, urlPath) {
+		return
+	}
+
 	w = &throttledResponseWriter{
 		ResponseWriter: w,
 		limiter:        ipLimiter(ipAddress(r)),
 		ctx:            r.Context(),
+		byteTimeout:    time.Duration(cfg.Server.WriteByteTimeout) * time.Second,
+		rc:             http.NewResponseController(w),
 	}
 
 	var (
-		tn      = time.Now()
-		urlPath = path.Clean(r.URL.Path)
+		tn = time.Now()
 
 		hitRoute *DomainEntryRoute
 		hw       = &respWriter{
@@ -994,35 +1086,6 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 			w2.Header().Set("Location", route.Urls[0].String())
 			w2.WriteHeader(http.StatusFound)
 			return route
-
-		case "localfs":
-			if len(route.Urls) > 0 {
-
-				relPath := strings.TrimPrefix(urlPath, route.Path)
-
-				finalPath := filepath.Join(route.Urls[0].Path, relPath)
-
-				rel, err := filepath.Rel(route.Urls[0].Path, finalPath)
-				if err != nil || strings.HasPrefix(rel, "..") {
-					handleWriteHtml(w2, 403, builtin_403_HTML)
-				} else if st, err := os.Stat(finalPath); err != nil {
-					handleWriteHtml(w2, 404, builtin_404_HTML)
-				} else if st.IsDir() {
-					handleWriteHtml(w2, 403, builtin_403_HTML)
-				} else {
-					// Use ServeContent instead of ServeFile: ServeFile issues a
-					// 301 redirect to "./" whenever r.URL.Path ends in
-					// "/index.html".
-					f, oerr := os.Open(finalPath)
-					if oerr != nil {
-						handleWriteHtml(w2, 404, builtin_404_HTML)
-					} else {
-						http.ServeContent(w2, r, st.Name(), st.ModTime(), f)
-						f.Close()
-					}
-				}
-				return route
-			}
 		}
 
 		handleWriteHtml(w2, 404, builtin_404_HTML)
@@ -1034,10 +1097,11 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Del("X-Proxy")
 	w.Header().Set("X-Proxy", "InnerStack/"+version)
 
-	if hitRoute == nil {
-		return
-	}
-
+	// handler() routes every response, including error pages (403/404 written
+	// via handleWriteHtml), through hw (the respWriter buffer). Those buffered
+	// bytes must be flushed below even when hitRoute is nil: otherwise the
+	// underlying ResponseWriter never receives a WriteHeader/Write and net/http
+	// silently answers 200 with an empty body.
 	if hw.gzipWriter != nil {
 		hw.gzipWriter.Close()
 		w.Header().Del("Content-Encoding")
@@ -1064,6 +1128,98 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if hw.writeBuff != nil && hw.writeBuff.Len() > 0 {
 		w.Write(hw.writeBuff.Bytes())
 	}
+}
+
+// localfsServe streams a static file for a request whose route resolves to a
+// localfs entry, writing the response (file contents, or a 403/404 page) to w.
+// It returns true when the matched route is localfs (handled), false otherwise
+// so rootHandler can fall through to the proxy/redirect path.
+//
+// The file is streamed under the per-IP rate limit via http.ServeContent,
+// which sets an accurate Content-Length, honors Range requests, and is fully
+// HTTP/2 compliant. rootHandler clears the write deadline
+// up front (streaming/throttled transfers legitimately outlast WriteTimeout);
+// the throttle re-arms it per chunk (WriteByteTimeout) to drop stalled clients,
+// and rate.Limiter.WaitN cancels on r.Context() when the client disconnects.
+func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
+
+	tn := time.Now()
+	metricComplex.Add("Service", "RootHandler", 1, 0, 0)
+	defer func() {
+		if urlPath != "" {
+			metricComplex.Add("HostService", r.Host+":"+urlPath, 1, 0, time.Since(tn))
+		}
+	}()
+
+	domain := cfg.Domain(r.Host)
+	if domain == nil {
+		return false
+	}
+
+	route := domain.lookup(urlPath)
+	if route == nil || route.Type != "localfs" {
+		return false
+	}
+
+	metricComplex.Add("Service", "RouteType:localfs", 1, 0, time.Since(tn))
+
+	w.Header().Set("X-Proxy", "InnerStack/"+version)
+
+	// route.Urls is populated only when the configured target exists and is a
+	// directory (see configRefresh). An empty set means the path is not
+	// resolvable from this process -- surface a real 404 rather than a 200/empty.
+	if len(route.Urls) == 0 {
+		handleWriteHtml(w, http.StatusNotFound, builtin_404_HTML)
+		return true
+	}
+
+	rootDir := route.Urls[0].Path
+	relPath := strings.TrimPrefix(urlPath, route.Path)
+	finalPath := filepath.Join(rootDir, relPath)
+
+	// Confine access to rootDir; reject any escape attempt with 403.
+	rel, err := filepath.Rel(rootDir, finalPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		handleWriteHtml(w, http.StatusForbidden, builtin_403_HTML)
+		return true
+	}
+
+	st, err := os.Stat(finalPath)
+	if err != nil {
+		handleWriteHtml(w, http.StatusNotFound, builtin_404_HTML)
+		return true
+	}
+	if st.IsDir() {
+		handleWriteHtml(w, http.StatusForbidden, builtin_403_HTML)
+		return true
+	}
+
+	// ServeContent (not ServeFile): ServeFile 301-redirects to "./" when
+	// r.URL.Path ends in "/index.html".
+	f, err := os.Open(finalPath)
+	if err != nil {
+		handleWriteHtml(w, http.StatusNotFound, builtin_404_HTML)
+		return true
+	}
+	defer f.Close()
+
+	// The write deadline is already cleared by rootHandler; the throttle
+	// re-arms it per chunk (WriteByteTimeout) so a stalled client is still dropped.
+	tw := &throttledResponseWriter{
+		ResponseWriter: w,
+		limiter:        ipLimiter(ipAddress(r)),
+		ctx:            r.Context(),
+		byteTimeout:    time.Duration(cfg.Server.WriteByteTimeout) * time.Second,
+		rc:             http.NewResponseController(w),
+	}
+
+	// ServeContent streams the file in chunks (io.CopyN) through tw, so only a
+	// small buffer is in flight at a time rather than the whole file. It sets
+	// Content-Length = sendSize itself, and WaitN blocks (never drops bytes),
+	// so the byte count always matches -- HTTP/2 is happy as long as the
+	// transfer is not interrupted, which the deadline clear above guarantees.
+	http.ServeContent(tw, r, st.Name(), st.ModTime(), f)
+	return true
 }
 
 // modules

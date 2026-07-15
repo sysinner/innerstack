@@ -1,4 +1,4 @@
-FROM debian:13.5-slim
+FROM debian:13.6-slim
 
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources \
     || sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
