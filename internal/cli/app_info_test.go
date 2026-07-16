@@ -146,6 +146,42 @@ func TestRenderAppInstance(t *testing.T) {
 	}
 }
 
+// TestRenderAppInstanceMetrics verifies the Replicas table surfaces the
+// per-replica runtime metrics attached to Status.Replicas: a replica with
+// reported metrics renders CPU/Memory/Uptime cells, while one without shows "-".
+func TestRenderAppInstanceMetrics(t *testing.T) {
+	inst := &inapi.AppInstance{
+		Meta: &inapi.Metadata{Name: "app1"},
+		Deploy: &inapi.AppDeploy{
+			Replicas: []*inapi.AppDeployReplica{
+				{Id: 1, State: "running", HostId: "h1"},
+				{Id: 2, State: "running", HostId: "h2"},
+			},
+		},
+		Status: &inapi.AppStatus{Replicas: []*inapi.AppReplicaStatus{
+			{Id: 1, Metrics: &inapi.NodeMetrics{
+				// 30000ms over the window => 0.5 core => "500m".
+				CpuUser: 30000, CpuSys: 0,
+				MemUsed: 1 << 20, // => "1 MiB"
+				Uptime:  3661,    // => "1h 1m"
+				// 60s-window deltas => /60 gives bytes/sec.
+				NetRecvBytes: 60 * (1 << 20), // => "1 MiB/s"
+				NetSentBytes: 60 * (2 << 20), // => "2 MiB/s"
+			}},
+		}},
+	}
+
+	var buf bytes.Buffer
+	renderAppInstance(&buf, inst)
+	out := buf.String()
+
+	for _, w := range []string{"500m", "1 MiB", "1h 1m", "1 MiB/s", "2 MiB/s"} {
+		if !strings.Contains(out, w) {
+			t.Errorf("missing %q in output:\n%s", w, out)
+		}
+	}
+}
+
 // renderAppInstance must be a no-op on a nil instance rather than panicking.
 func TestRenderAppInstanceNilSafe(t *testing.T) {
 	var buf bytes.Buffer

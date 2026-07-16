@@ -16,11 +16,24 @@ description: |
 vendor: SysInner
 homepage: https://github.com/sysinner/innerstack
 license: Apache-2.0
-depends:
-  - systemd
-  # lxcfs provides the /proc and /sys views used by containers for accurate
-  # resource accounting; innerstack.service also orders after lxcfs.service.
-  - lxcfs
+# Runtime dependencies. nfpm's overrides block REPLACES (not merges) the
+# depends list for the named packager, so each format must list every dep
+# it needs. systemd + lxcfs are common to both; the container engine is
+# distro-specific: Debian/Ubuntu ship it as "docker.io", RHEL/CentOS/Fedora
+# use "docker-ce" from Docker's upstream repository.
+overrides:
+  deb:
+    depends:
+      - systemd
+      # lxcfs provides the /proc and /sys views used by containers for accurate
+      # resource accounting; innerstack.service also orders after lxcfs.service.
+      - lxcfs
+      - docker.io
+  rpm:
+    depends:
+      - systemd
+      - lxcfs
+      - docker-ce
 
 contents:
   - dst: /opt/innerstack

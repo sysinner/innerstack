@@ -490,6 +490,9 @@ func (s *zoneServer) AppInstanceInfo(
 		return nil, err
 	}
 
+	// Attach the freshest in-memory runtime metrics (never persisted).
+	gReplicaMetrics.mergeInto(&instance)
+
 	return &inapi.AppInstanceInfoResponse{
 		Instance: &instance,
 	}, nil
@@ -515,6 +518,8 @@ func (s *zoneServer) AppInstanceList(
 	for _, item := range rs.Items {
 		var instance inapi.AppInstance
 		if err := item.JsonDecode(&instance); err == nil {
+			// Attach the freshest in-memory runtime metrics (never persisted).
+			gReplicaMetrics.mergeInto(&instance)
 			resp.Items = append(resp.Items, &instance)
 		}
 	}

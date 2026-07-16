@@ -797,11 +797,15 @@ func (it *dockerDriver) ContainerStats(
 
 	// CPU
 	result.CpuTotalUsage = int64(stats.CPUStats.CPUUsage.TotalUsage)
+	result.CpuUser = int64(stats.CPUStats.CPUUsage.UsageInUsermode)
+	result.CpuSystem = int64(stats.CPUStats.CPUUsage.UsageInKernelmode)
 
 	// Network I/O
 	for _, v := range stats.Networks {
 		result.NetRxBytes += int64(v.RxBytes)
 		result.NetTxBytes += int64(v.TxBytes)
+		result.NetRxPackets += int64(v.RxPackets)
+		result.NetTxPackets += int64(v.TxPackets)
 	}
 
 	// Block I/O

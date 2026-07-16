@@ -41,7 +41,7 @@ INAGENT_LDFLAGS = -ldflags="-s -w -X main.version=$(VERSION)"
 INAGENT_SLIM_BASE  = sysinner/innerstack-alpine-inagent-slim:3.23
 INAGENT_SLIM_ARCHS = amd64 arm64
 
-VERSION = v2.0.0-alpha.5.2
+VERSION = v2.0.0-alpha.5.3
 
 # Default target
 .PHONY: all

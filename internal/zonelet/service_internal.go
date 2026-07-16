@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -155,6 +156,17 @@ func (s *zoneInternalServer) HostStatusUpdate(
 	if len(req.ReplicaStages) > 0 {
 		mergeHostReplicaStages(req.ReplicaStages)
 	}
+
+	// Refresh the in-memory per-replica metrics cache. Runtime metrics are
+	// never persisted; the AppInstance read path merges this cache into a
+	// transient copy on demand. Sweep stale entries each tick so metrics for
+	// gone/rescheduled replicas do not linger.
+	if len(req.ReplicaMetrics) > 0 {
+		for name, m := range req.ReplicaMetrics {
+			gReplicaMetrics.store(name, m)
+		}
+	}
+	gReplicaMetrics.sweep(time.Now().Unix(), replicaMetricsMaxAge)
 
 	return resp, nil
 }

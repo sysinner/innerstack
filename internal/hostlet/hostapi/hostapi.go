@@ -140,13 +140,19 @@ type ContainerCreateOptions struct {
 }
 
 // ContainerStats holds a snapshot of resource usage statistics for a container.
+// CPU, network and block fields are cumulative counters since the container
+// started; the caller derives rates via a sliding-window delta.
 type ContainerStats struct {
 	Time          int64 `json:"time"`            // unix timestamp (seconds)
 	CpuTotalUsage int64 `json:"cpu_total_usage"` // CPU total usage (nanoseconds)
+	CpuUser       int64 `json:"cpu_user"`        // CPU user-mode usage (nanoseconds)
+	CpuSystem     int64 `json:"cpu_system"`      // CPU kernel-mode usage (nanoseconds)
 	MemoryUsage   int64 `json:"memory_usage"`    // memory usage (bytes)
 	MemoryCache   int64 `json:"memory_cache"`    // memory cache (bytes)
 	NetRxBytes    int64 `json:"net_rx_bytes"`    // network received bytes
 	NetTxBytes    int64 `json:"net_tx_bytes"`    // network transmitted bytes
+	NetRxPackets  int64 `json:"net_rx_packets"`  // network received packets
+	NetTxPackets  int64 `json:"net_tx_packets"`  // network transmitted packets
 	BlkReadBytes  int64 `json:"blk_read_bytes"`  // block device read bytes
 	BlkWriteBytes int64 `json:"blk_write_bytes"` // block device write bytes
 	BlkReadOps    int64 `json:"blk_read_ops"`    // block device read operations
@@ -170,6 +176,10 @@ type Driver interface {
 	// place (e.g. "no" to quarantine an orphan so a Docker daemon restart does
 	// not resurrect it, "always" to restore normal lifecycle behavior).
 	ContainerUpdateRestartPolicy(ctx context.Context, nameOrId, policy string) error
+	// ContainerStats returns a snapshot of resource usage statistics for a
+	// running container. Callers should skip non-running containers; the
+	// returned values are cumulative counters where applicable.
+	ContainerStats(ctx context.Context, nameOrId string) (*ContainerStats, error)
 
 	ImageList(ctx context.Context) ([]*ImageInfo, error)
 	ImagePull(ctx context.Context, image string) error

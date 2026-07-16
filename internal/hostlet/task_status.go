@@ -185,6 +185,32 @@ func statusRefresh() error {
 		return nil
 	}
 
+	req := &inapi.HostStatusUpdateRequest{
+		Host: &inapi.Host{
+			Id:       config.Config.Hostlet.HostId,
+			PeerAddr: fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
+		},
+		Status:         hs,
+		ReplicaStages:  buildReplicaStageReports(),
+		ReplicaMetrics: map[string]*inapi.NodeMetrics{},
+	}
+	hoststatus.ReplicaStatsSet.Range(func(key, value any) bool {
+		name, ok := key.(string)
+		if !ok {
+			return true
+		}
+		entry, ok := value.(*hoststatus.ReplicaStatsEntry)
+		if !ok {
+			return true
+		}
+		// Clone the snapshot so a later in-place mutation by the stats loop
+		// cannot race with gRPC marshaling on this request.
+		if m := entry.Metrics(); m != nil {
+			req.ReplicaMetrics[name] = proto.Clone(m).(*inapi.NodeMetrics)
+		}
+		return true
+	})
+
 	conn, err := client.Connect(zoneLeaderAddr, config.Config.Hostlet.AuthKey(), false)
 	if err != nil {
 		slog.Warn("zone leader connection failed", "err", err)
@@ -195,14 +221,7 @@ func statusRefresh() error {
 	defer cancel()
 
 	zc := inapi.NewZoneInternalServiceClient(conn)
-	resp, err := zc.HostStatusUpdate(ctx, &inapi.HostStatusUpdateRequest{
-		Host: &inapi.Host{
-			Id:       config.Config.Hostlet.HostId,
-			PeerAddr: fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
-		},
-		Status: hs,
-		ReplicaStages: buildReplicaStageReports(),
-	})
+	resp, err := zc.HostStatusUpdate(ctx, req)
 	if err != nil {
 		slog.Warn("status update failed", "err", err)
 		hoststatus.Desired.SetFailed()

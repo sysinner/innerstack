@@ -56,12 +56,65 @@ var (
 	// persisted across ticks; the status loop reports dirty entries upward
 	// via HostStatusUpdate.
 	ReplicaStages syncx.Map
+
+	// ReplicaStatsSet holds the latest per-replica runtime metrics snapshot,
+	// keyed by container name (i8k_<instance>_<repId>). Values are
+	// *ReplicaStatsEntry. Host-local and in-memory only; it is never persisted
+	// and is pruned when a container leaves the running set.
+	ReplicaStatsSet sync.Map
 )
 
 var (
 	HostReady      atomic.Bool
 	ContainerReady atomic.Bool
 )
+
+// ReplicaStatsWindow is the sliding window (seconds) over which cumulative
+// container counters are differenced to derive rate metrics. It matches the
+// window used for host-level metrics in the status loop.
+const ReplicaStatsWindow int64 = 60
+
+// ReplicaStatsEntry holds a per-container sliding counter (used to turn
+// Docker's cumulative counters into windowed rate metrics) plus the latest
+// computed NodeMetrics snapshot. It is the value type of ReplicaStatsSet and
+// lives only in memory.
+type ReplicaStatsEntry struct {
+	mu      sync.Mutex
+	counter *inutil.GroupSlidingCounter
+	metrics *inapi.NodeMetrics
+}
+
+// ReplicaStats loads or creates the per-container stats entry for a container.
+func ReplicaStats(containerName string) *ReplicaStatsEntry {
+	if v, ok := ReplicaStatsSet.Load(containerName); ok {
+		if e, ok := v.(*ReplicaStatsEntry); ok {
+			return e
+		}
+	}
+	e := &ReplicaStatsEntry{counter: inutil.NewGroupSlidingCounter(ReplicaStatsWindow * 2)}
+	actual, _ := ReplicaStatsSet.LoadOrStore(containerName, e)
+	return actual.(*ReplicaStatsEntry)
+}
+
+// Counter returns the per-container sliding counter. Callers record cumulative
+// raw values and read a windowed Delta to derive rates.
+func (e *ReplicaStatsEntry) Counter() *inutil.GroupSlidingCounter {
+	return e.counter
+}
+
+// SetMetrics stores the latest computed metrics snapshot.
+func (e *ReplicaStatsEntry) SetMetrics(m *inapi.NodeMetrics) {
+	e.mu.Lock()
+	e.metrics = m
+	e.mu.Unlock()
+}
+
+// Metrics returns the latest metrics snapshot, or nil if none has been computed.
+func (e *ReplicaStatsEntry) Metrics() *inapi.NodeMetrics {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.metrics
+}
 
 type HostActiveConfig struct {
 	mu sync.RWMutex

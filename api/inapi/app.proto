@@ -20,6 +20,7 @@ option optimize_for = LITE_RUNTIME;
 option go_package = "./;inapi";
 
 import "common.proto";
+import "metrics.proto";
 
 // AppInstance represents a deployed application instance in the cluster.
 // It is the top-level resource that encapsulates the application specification,
@@ -339,26 +340,27 @@ message AppStatus {
   string id = 1;
 
   // replicas is a list of status information for each replica.
-  // repeated AppReplicaStatus replicas = 20;
+  repeated AppReplicaStatus replicas = 20;
 }
 
-// // AppReplicaStatus represents the status of a single application replica.
-// message AppReplicaStatus {
-//   // id is the unique identifier of the replica.
-//   uint32 id = 1;
+// AppReplicaStatus represents the status of a single application replica.
+message AppReplicaStatus {
+  // id is the unique identifier of the replica.
+  uint32 id = 1;
 
-//   // host_id is the ID of the host where the replica runs.
-//   string host_id = 2;
+  // host_id is the ID of the host where the replica runs.
+  string host_id = 2;
 
-//   // state represents the current status of the replica.
-//   // Valid values: starting, running, stopping, stopped, destroying,
-//   destroyed,
-//   // failed.
-//   string state = 3;
+  // state represents the current status of the replica.
+  // Valid values: starting, running, stopping, stopped, destroying,
+  // destroyed, failed.
+  string state = 3;
 
-//   // attrs is a list of additional attributes describing the replica state.
-//   repeated string attrs = 4;
-// }
+  // attrs is a list of additional attributes describing the replica state.
+  repeated string attrs = 4;
+
+  NodeMetrics metrics = 6;
+}
 
 // AppSpecConfigItem represents a single configuration field in the schema.
 message AppSpecConfigItem {
@@ -399,8 +401,9 @@ message AppSpecConfigItem {
 
   // unique, when set, requires this field's value to be distinct within a
   // scope. Recognized scopes:
-  //   "array_group" : distinct across all instances of the enclosing array_group
-  //   "app"         : distinct across the whole app config (flat fields plus
+  //   "array_group" : distinct across all instances of the enclosing
+  //   array_group "app"         : distinct across the whole app config (flat
+  //   fields plus
   //                   every array_group instance), values pooled by field name
   // Empty means no uniqueness constraint. The key_item field is always unique
   // within its array_group regardless of this attribute.

@@ -63,6 +63,27 @@ func Run() {
 		slog.Error("hostlet", "err", err.Error())
 	}
 
+	// containerStatsRefresh runs on its own 10-second cadence so per-replica
+	// runtime metrics (CPU/memory/net/blkio) stay independent of the 3s/5s
+	// status and container reconcile loops. The results land in
+	// hoststatus.ReplicaStatsSet and are reported upward by statusRefresh.
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-signals.Done():
+				slog.Warn("hostlet quit (stats)")
+				return
+
+			case <-ticker.C:
+				if err := containerStatsRefresh(); err != nil {
+					slog.Error("hostlet", "err", err.Error())
+				}
+			}
+		}
+	}()
+
 	tr := time.NewTimer(3e9)
 	defer tr.Stop()
 

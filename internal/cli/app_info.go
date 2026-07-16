@@ -159,13 +159,16 @@ func renderAppInstance(buf *bytes.Buffer, inst *inapi.AppInstance) {
 
 	// --- Replicas ---
 	if len(deploy.Replicas) > 0 {
+		metrics := replicaMetricsMap(inst)
 		buf.WriteString("\n== Replicas ==\n")
 		vt := cliNewTable(buf)
-		vt.Header([]any{"ID", "State", "Host Id", "Host IP", "VPC IP", "Ports"})
+		vt.Header([]any{"ID", "State", "Host Id", "Host IP", "VPC IP", "Ports",
+			"CPU", "Memory", "Net (read/write)", "Uptime"})
 		for _, r := range deploy.Replicas {
 			if r == nil {
 				continue
 			}
+			m := metrics[r.Id]
 			vt.Append([]any{
 				fmt.Sprintf("%d", r.Id),
 				strOrDash(r.State),
@@ -173,6 +176,10 @@ func renderAppInstance(buf *bytes.Buffer, inst *inapi.AppInstance) {
 				strOrDash(r.HostIpv4),
 				strOrDash(r.VpcIpv4),
 				cliPorts(r.ServicePorts),
+				replicaCPU(m),
+				replicaMem(m),
+				replicaNet(m),
+				replicaUptime(m),
 			}...)
 		}
 		vt.Render()
@@ -305,6 +312,61 @@ func cliPorts(ports []*inapi.AppDeployServicePort) string {
 		return "-"
 	}
 	return strings.Join(parts, ", ")
+}
+
+// replicaMetricsMap indexes the per-replica runtime metrics carried on
+// Status.Replicas by replica id, so the deploy-replica view can join in the
+// latest usage. Returns an empty map when no metrics have been reported.
+func replicaMetricsMap(inst *inapi.AppInstance) map[uint32]*inapi.NodeMetrics {
+	out := map[uint32]*inapi.NodeMetrics{}
+	if inst == nil || inst.Status == nil {
+		return out
+	}
+	for _, r := range inst.Status.Replicas {
+		if r == nil || r.Metrics == nil {
+			continue
+		}
+		out[r.Id] = r.Metrics
+	}
+	return out
+}
+
+// replicaCPU renders a replica's CPU usage as cores, derived from the 60s
+// windowed ms counters (cores = (cpu_user + cpu_sys) / 60000). "-" when no
+// usage has been reported.
+func replicaCPU(m *inapi.NodeMetrics) string {
+	if m == nil || (m.CpuUser == 0 && m.CpuSys == 0) {
+		return "-"
+	}
+	cores := float64(m.CpuUser+m.CpuSys) / 60000.0
+	return inutil.PrettyCPUs(int64(cores * 1000))
+}
+
+// replicaMem renders a replica's instantaneous memory usage. "-" when no usage
+// has been reported.
+func replicaMem(m *inapi.NodeMetrics) string {
+	if m == nil || m.MemUsed <= 0 {
+		return "-"
+	}
+	return inutil.PrettyBytes(m.MemUsed, 1024)
+}
+
+// replicaNet renders a replica's receive/transmit throughput, derived from its
+// 60s windowed byte counters (bytes/sec = window delta / 60). "-" when no
+// traffic has been reported.
+func replicaNet(m *inapi.NodeMetrics) string {
+	if m == nil || (m.NetRecvBytes <= 0 && m.NetSentBytes <= 0) {
+		return "-"
+	}
+	return netRate(m.NetRecvBytes/60, m.NetSentBytes/60)
+}
+
+// replicaUptime renders a replica's container uptime. "-" when unknown.
+func replicaUptime(m *inapi.NodeMetrics) string {
+	if m == nil || m.Uptime <= 0 {
+		return "-"
+	}
+	return inutil.FormatUptime(m.Uptime)
 }
 
 // cliStageDuration returns a readable duration between created and finished

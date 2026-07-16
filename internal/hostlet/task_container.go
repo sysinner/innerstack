@@ -1442,3 +1442,126 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	slog.Info("container created", "container", containerName)
 	return nil
 }
+
+// containerStatsRefresh collects per-container runtime usage stats for all
+// running containers and refreshes the in-memory ReplicaStatsSet that the
+// status loop reports upward to the zone leader. It runs in its own goroutine
+// on a 10-second cadence, independent of the status/container loops.
+func containerStatsRefresh() error {
+
+	if ctrDriver == nil ||
+		!hoststatus.ContainerReady.Load() {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	now := time.Now().Unix()
+
+	hostStatus.mu.RLock()
+	hostCpuCores := int64(hostStatus.CpuCores)
+	hostStatus.mu.RUnlock()
+
+	// live tracks the running containers seen this pass so entries for
+	// containers that have stopped or disappeared can be pruned afterwards.
+	live := make(map[string]struct{})
+
+	hoststatus.ContainerList.Range(func(key, value any) bool {
+
+		name, ok := key.(string)
+		if !ok || name == "" {
+			return true
+		}
+
+		info, ok := value.(*hostapi.ContainerInfo)
+		if !ok || info.State != inapi.OpStateRunning {
+			return true
+		}
+
+		live[name] = struct{}{}
+
+		cs, err := ctrDriver.ContainerStats(ctx, name)
+		if err != nil {
+			slog.Debug("container stats refresh failed",
+				"container", name, "err", err)
+			return true
+		}
+
+		entry := hoststatus.ReplicaStats(name)
+		entry.SetMetrics(containerStatsToNodeMetrics(entry, info, cs, hostCpuCores, now))
+
+		return true
+	})
+
+	// Prune entries whose container is no longer running/present, so stale
+	// metrics do not keep being reported upward after a container is gone.
+	hoststatus.ReplicaStatsSet.Range(func(key, value any) bool {
+		name, ok := key.(string)
+		if !ok {
+			return true
+		}
+		if _, isLive := live[name]; !isLive {
+			hoststatus.ReplicaStatsSet.Delete(name)
+		}
+		return true
+	})
+
+	return nil
+}
+
+// containerStatsToNodeMetrics records the cumulative raw counters from a
+// Docker stats snapshot into the per-container sliding window and derives a
+// NodeMetrics snapshot. CPU (user/sys) is expressed as milliseconds consumed
+// over the window; memory is an instantaneous value; network and block I/O are
+// windowed deltas of their cumulative counters. now is the unix second at
+// which the snapshot is taken (drives the zonelet freshness sweep).
+func containerStatsToNodeMetrics(
+	entry *hoststatus.ReplicaStatsEntry,
+	info *hostapi.ContainerInfo,
+	cs *hostapi.ContainerStats,
+	hostCpuCores, now int64,
+) *inapi.NodeMetrics {
+
+	const nsPerMs = int64(1e6)
+
+	win := hoststatus.ReplicaStatsWindow
+
+	m := &inapi.NodeMetrics{
+		Updated:  now,
+		CpuCores: hostCpuCores,
+	}
+
+	if cs != nil {
+		m.CpuUser = entry.Counter().Counter("cpu_user").
+			Record(cs.CpuUser).Delta(win) / nsPerMs
+		m.CpuSys = entry.Counter().Counter("cpu_sys").
+			Record(cs.CpuSystem).Delta(win) / nsPerMs
+
+		m.MemUsed = cs.MemoryUsage
+
+		m.NetRecvBytes = entry.Counter().Counter("net_rx_b").
+			Record(cs.NetRxBytes).Delta(win)
+		m.NetSentBytes = entry.Counter().Counter("net_tx_b").
+			Record(cs.NetTxBytes).Delta(win)
+		m.NetRecvCount = entry.Counter().Counter("net_rx_p").
+			Record(cs.NetRxPackets).Delta(win)
+		m.NetSentCount = entry.Counter().Counter("net_tx_p").
+			Record(cs.NetTxPackets).Delta(win)
+
+		m.DiskReadBytes = entry.Counter().Counter("disk_rb").
+			Record(cs.BlkReadBytes).Delta(win)
+		m.DiskWriteBytes = entry.Counter().Counter("disk_wb").
+			Record(cs.BlkWriteBytes).Delta(win)
+		m.DiskReadCount = entry.Counter().Counter("disk_rc").
+			Record(cs.BlkReadOps).Delta(win)
+		m.DiskWriteCount = entry.Counter().Counter("disk_wc").
+			Record(cs.BlkWriteOps).Delta(win)
+	}
+
+	if info != nil && info.Created > 0 && now > info.Created {
+		m.Uptime = now - info.Created
+	}
+
+	return m
+}

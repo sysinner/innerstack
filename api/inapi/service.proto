@@ -24,6 +24,7 @@ import "zone.proto";
 import "app.proto";
 import "gateway.proto";
 import "package.proto";
+import "metrics.proto";
 
 // ZoneService is the gRPC service for zone-level management.
 // It handles zone initialization, host management, and application deployment.
@@ -179,6 +180,8 @@ message HostStatusUpdateRequest {
   // replica_stages reports per-replica deploy stage progress from the
   // hostlet. The zone leader merges these into AppDeploy.Stages.
   repeated HostReplicaStageReport replica_stages = 4;
+
+  map<string, NodeMetrics> replica_metrics = 5;
 }
 
 // HostStatusUpdateResponse is the response message after updating host status.

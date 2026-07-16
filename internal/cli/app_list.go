@@ -86,10 +86,10 @@ func NewAppListCommand() *cobra.Command {
 
 			tableBase.Header([]any{
 				"Name",
-				"Image", "Version",
+				"Spec",
 				"Action", "Status", "Replicas",
-				"CPU", "Memory", "Volume",
-				"Host Id", "Age",
+				"CPU", "Memory", "Volume", "Net (read/write)",
+				"Uptime",
 			}...)
 
 			for _, v := range resp.Items {
@@ -103,28 +103,20 @@ func NewAppListCommand() *cobra.Command {
 					v.Deploy = &inapi.AppDeploy{}
 				}
 
-				hostId := ""
-				for _, rep := range v.Deploy.Replicas {
-					if rep.HostId != "" {
-						if hostId != "" {
-							hostId += ", "
-						}
-						hostId += rep.HostId
-					}
-				}
+				cpuUsed, memUsed, cpuOk := appAggregateUsage(v)
+				rxBytes, txBytes := appAggregateNet(v)
 
 				values := []any{
 					v.InstanceName(),
-					strOrDash(v.Spec.Image),
-					strOrDash(v.Spec.Version),
+					specNameVersion(v.Spec),
 					strOrDash(v.Deploy.Action),
 					appListStatus(v.Deploy),
-					appListReplicas(v.Deploy),
-					cpuOrDash(v.Deploy.CpuLimit),
-					bytesOrDash(v.Deploy.MemoryLimit),
+					appListReplicas(v),
+					cpuUsageLimit(cpuUsed, v.Deploy.CpuLimit, cpuOk),
+					bytesUsageLimit(memUsed, v.Deploy.MemoryLimit),
 					bytesOrDash(v.Deploy.VolumeLimit),
-					hostId,
-					appListAge(v),
+					netRate(rxBytes/60, txBytes/60),
+					appListUptime(v),
 				}
 
 				tableBase.Append(values...)
@@ -184,49 +176,20 @@ func appListStatus(deploy *inapi.AppDeploy) string {
 	return "-"
 }
 
-// replicaStageRunning reports whether a per-replica stage node has reached the
-// container_running stage, and that no later container_stop/container_destroy
-// stage has superseded it. The zonelet persists only stage progress (never the
-// replica State field), so this child stage is the authoritative zone-side
-// signal that a replica's container is actually running.
-func replicaStageRunning(repNode *inapi.AppDeployStage) bool {
-	if repNode == nil {
-		return false
-	}
-	run := repNode.Find(inapi.AppDeployStageNameContainerRunning)
-	if run == nil || run.State != inapi.AppStageStateSuccess {
-		return false
-	}
-	for _, name := range []string{
-		inapi.AppDeployStageNameContainerStop,
-		inapi.AppDeployStageNameContainerDestroy,
-	} {
-		if s := repNode.Find(name); s != nil &&
-			s.State == inapi.AppStageStateSuccess && s.Finished >= run.Finished {
-			return false
-		}
-	}
-	return true
-}
-
-// appListReplicas returns a "ready/desired" summary. Ready counts the replicas
-// whose container has reached the running stage; desired defaults to ReplicaCap
-// and falls back to the placed replica count when ReplicaCap is unset.
-func appListReplicas(deploy *inapi.AppDeploy) string {
-	if deploy == nil {
+// appListReplicas returns a "ready/desired" summary. Ready is the number of
+// replicas with live runtime metrics reported in Status.Replicas -- the hostlet
+// only collects metrics for running containers, so a replica carrying metrics is
+// a running one. Desired is the deploy ReplicaCap, which the scheduler
+// normalizes to at least 1.
+func appListReplicas(inst *inapi.AppInstance) string {
+	if inst == nil || inst.Deploy == nil {
 		return "-"
 	}
-	desired := deploy.ReplicaCap
-	if desired == 0 {
-		desired = uint32(len(deploy.Replicas))
-	}
+	desired := inst.Deploy.ReplicaCap
 	var ready uint32
-	if deploy.Stages != nil {
-		for _, repNode := range deploy.Stages.Stages {
-			if repNode == nil || repNode.Name != inapi.AppDeployStageNameReplica {
-				continue
-			}
-			if replicaStageRunning(repNode) {
+	if inst.Status != nil {
+		for _, r := range inst.Status.Replicas {
+			if r != nil && r.Metrics != nil {
 				ready++
 			}
 		}
@@ -234,21 +197,126 @@ func appListReplicas(deploy *inapi.AppDeploy) string {
 	return fmt.Sprintf("%d/%d", ready, desired)
 }
 
-// appListAge returns a compact relative age (e.g. "3d 2h") since the instance
-// was created. It prefers Meta.Created and, for instances created before that
-// field was stamped, falls back to the deploy root stage creation time.
-func appListAge(inst *inapi.AppInstance) string {
-	var createdSec int64
-	if inst != nil {
-		if inst.Meta != nil && inst.Meta.Created > 0 {
-			createdSec = inst.Meta.Created
-		} else if inst.Deploy != nil && inst.Deploy.Stages != nil &&
-			inst.Deploy.Stages.Created > 0 {
-			createdSec = inst.Deploy.Stages.Created / 1000
-		}
-	}
-	if createdSec <= 0 {
+// specNameVersion renders an app spec as "name:version", falling back to
+// whichever component is set, or "-" when neither is.
+func specNameVersion(spec *inapi.AppSpec) string {
+	if spec == nil {
 		return "-"
 	}
-	return inutil.FormatUptime(time.Now().Unix() - createdSec)
+	switch {
+	case spec.Name != "" && spec.Version != "":
+		return spec.Name + ":" + spec.Version
+	case spec.Name != "":
+		return spec.Name
+	case spec.Version != "":
+		return spec.Version
+	}
+	return "-"
+}
+
+// appListUptime returns the runtime uptime of the instance's replicas, read
+// from the in-memory metrics the zone leader attaches to Status.Replicas (the
+// container uptime each hostlet reports). For multi-replica instances it
+// reports the youngest (minimum) replica uptime so a recent restart surfaces in
+// the aggregate; "-" when no replica has reported metrics yet.
+func appListUptime(inst *inapi.AppInstance) string {
+	if inst == nil || inst.Status == nil {
+		return "-"
+	}
+	var min int64 = -1
+	for _, r := range inst.Status.Replicas {
+		if r == nil {
+			continue
+		}
+		if m := r.Metrics; m != nil && m.Uptime > 0 {
+			if min < 0 || m.Uptime < min {
+				min = m.Uptime
+			}
+		}
+	}
+	if min < 0 {
+		return "-"
+	}
+	return inutil.FormatUptime(min)
+}
+
+// appAggregateUsage sums the latest per-replica runtime usage for an instance
+// into aggregate CPU (millicores) and memory (bytes), read from the in-memory
+// metrics the zone leader attaches to Status.Replicas. has reports whether any
+// replica contributed metrics, so callers can distinguish a genuine zero usage
+// reading from "no data yet" (freshly deployed, metrics not propagated, etc.).
+func appAggregateUsage(inst *inapi.AppInstance) (cpuMc, memBytes int64, has bool) {
+	if inst == nil || inst.Status == nil {
+		return
+	}
+	for _, r := range inst.Status.Replicas {
+		if r == nil {
+			continue
+		}
+		if m := r.Metrics; m != nil {
+			has = true
+			// cpu_user + cpu_sys are ms of CPU consumed over the 60s window;
+			// millicores = ms / 60.
+			cpuMc += (m.CpuUser + m.CpuSys) / 60
+			memBytes += m.MemUsed
+		}
+	}
+	return
+}
+
+// cpuUsageLimit renders CPU usage against the deploy limit. When realtime usage
+// was reported (usedOk, even if it is 0) it shows "used/limit" (e.g. "0m/1" for
+// an idle container). When no realtime data is available it shows "-", so an
+// idle-but-measured replica is distinguishable from one with no metrics.
+func cpuUsageLimit(usedMc, limitMc int64, usedOk bool) string {
+	if !usedOk {
+		return "-"
+	}
+	if limitMc > 0 {
+		return inutil.PrettyCPUs(usedMc) + "/" + inutil.PrettyCPUs(limitMc)
+	}
+	return inutil.PrettyCPUs(usedMc)
+}
+
+// appAggregateNet sums the latest per-replica network counters (60s-windowed
+// deltas) into aggregate received/sent byte counts.
+func appAggregateNet(inst *inapi.AppInstance) (rxBytes, txBytes int64) {
+	if inst == nil || inst.Status == nil {
+		return
+	}
+	for _, r := range inst.Status.Replicas {
+		if r == nil {
+			continue
+		}
+		if m := r.Metrics; m != nil {
+			rxBytes += m.NetRecvBytes
+			txBytes += m.NetSentBytes
+		}
+	}
+	return
+}
+
+// netRate formats receive/transmit throughputs (bytes/sec, already divided by
+// the metrics window) as "read, write" -- i.e. socket read (recv, rx) then
+// socket write (send, tx); "-" when neither direction has traffic.
+func netRate(rxBytesPerSec, txBytesPerSec int64) string {
+	if rxBytesPerSec <= 0 && txBytesPerSec <= 0 {
+		return "-"
+	}
+	return inutil.PrettyBytes(rxBytesPerSec, 1024) + "/s, " +
+		inutil.PrettyBytes(txBytesPerSec, 1024) + "/s"
+}
+
+// bytesUsageLimit renders byte usage against the deploy limit as "used/limit",
+// falling back to the limit alone when no usage has been reported yet, and "-"
+// when neither is set.
+func bytesUsageLimit(used, limit int64) string {
+	switch {
+	case used > 0 && limit > 0:
+		return inutil.PrettyBytes(used, 1024) + "/" + inutil.PrettyBytes(limit, 1024)
+	case used > 0:
+		return inutil.PrettyBytes(used, 1024)
+	default:
+		return bytesOrDash(limit)
+	}
 }
