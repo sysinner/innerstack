@@ -17,17 +17,16 @@ package zonelet
 import (
 	"errors"
 
-	"github.com/hooto/httpsrv"
+	"github.com/hooto/httpsrv/v2"
 	"github.com/sysinner/innerstack/v2/internal/data"
 	"github.com/sysinner/innerstack/v2/internal/status"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewPublicModule() *httpsrv.Module {
-	mod := httpsrv.NewModule()
-	mod.RegisterAction("/app-spec/list", httpsrvAppSpecList)
-	mod.RegisterAction("/package/list", httpsrvPackageList)
-	return mod
+// RegisterPublicRoutes mounts the public read-only API routes under r.
+func RegisterPublicRoutes(r httpsrv.Router) {
+	r.All("/app-spec/list", httpsrvAppSpecList)
+	r.All("/package/list", httpsrvPackageList)
 }
 
 type AppSpecListRequest struct {
@@ -53,7 +52,7 @@ func httpsrvAppSpecList(ctx httpsrv.Ctx) error {
 
 	defer ctx.JSON(&resp)
 
-	ctx.Request().JsonDecode(&req)
+	ctx.Bind(&req)
 
 	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(1000).Exec()
 	for _, v := range rs.Items {
@@ -92,20 +91,20 @@ func httpsrvPackageList(ctx httpsrv.Ctx) error {
 
 	defer ctx.JSON(&resp)
 
-	ctx.Request().JsonDecode(&req)
+	ctx.Bind(&req)
 	if req.Name == "" {
-		req.Name = ctx.Params().Value("name")
+		req.Name = ctx.Query("name")
 	}
 	if req.Version == "" {
-		req.Version = ctx.Params().Value("version")
+		req.Version = ctx.Query("version")
 	}
 	if req.Os == "" {
-		req.Os = ctx.Params().Value("os")
+		req.Os = ctx.Query("os")
 	}
 	if req.Arch == "" {
-		req.Arch = ctx.Params().Value("arch")
+		req.Arch = ctx.Query("arch")
 	}
-	if !req.LatestOnly && ctx.Params().Value("latest_only") == "true" {
+	if !req.LatestOnly && ctx.Query("latest_only") == "true" {
 		req.LatestOnly = true
 	}
 

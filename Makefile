@@ -8,6 +8,8 @@
 #
 # Run `make help` to see all available targets.
 
+VERSION = v2.0.0-alpha.7
+
 # Toolchain
 PROTOC_CMD         = protoc
 HTOML_TAG_FIX_CMD  = htoml-tag-fix
@@ -40,8 +42,6 @@ INAGENT_LDFLAGS = -ldflags="-s -w -X main.version=$(VERSION)"
 # inagent-slim docker images
 INAGENT_SLIM_BASE  = sysinner/innerstack-alpine-inagent-slim:3.23
 INAGENT_SLIM_ARCHS = amd64 arm64
-
-VERSION = v2.0.0-alpha.5.3
 
 # Default target
 .PHONY: all

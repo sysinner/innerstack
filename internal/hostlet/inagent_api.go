@@ -19,7 +19,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hooto/httpsrv"
+	"github.com/hooto/httpsrv/v2"
 
 	"github.com/sysinner/innerstack/v2/internal/config"
 	"github.com/sysinner/innerstack/v2/internal/hostlet/hoststatus"
@@ -34,13 +34,11 @@ const InagentStatusPath = "/in/api/v2/hostlet/inagent/status"
 // inagentStatusAction is the action name (relative to the hostlet module).
 const inagentStatusAction = "/inagent/status"
 
-// NewHostletModule builds the hostlet HTTP module, mounted under
-// "/in/api/v2/hostlet" by the server. It currently exposes the inagent
-// stage-progress reporting endpoint.
-func NewHostletModule() *httpsrv.Module {
-	mod := httpsrv.NewModule()
-	mod.RegisterAction(inagentStatusAction, httpsrvInagentStatus)
-	return mod
+// RegisterHostletRoutes mounts the hostlet HTTP routes under r. The hostlet
+// module is mounted by the server under "/in/api/v2/hostlet". It currently
+// exposes the inagent stage-progress reporting endpoint.
+func RegisterHostletRoutes(r httpsrv.Router) {
+	r.All(inagentStatusAction, httpsrvInagentStatus)
 }
 
 // inagentEndpointURL builds the hostlet status API URL the inagent should
@@ -59,15 +57,15 @@ func inagentEndpointURL() string {
 // httpsrvInagentStatus is the Ctx adapter for the inagent status endpoint.
 func httpsrvInagentStatus(ctx httpsrv.Ctx) error {
 	if ctx.Request().Method != http.MethodPost {
-		ctx.Status(http.StatusMethodNotAllowed)
-		return ctx.JSON(map[string]string{"error": "method not allowed"})
+		return ctx.Status(http.StatusMethodNotAllowed).
+			JSON(map[string]string{"error": "method not allowed"})
 	}
 
 	var report inapi.InagentStatusReport
-	if err := ctx.Request().JsonDecode(&report); err != nil {
+	if err := ctx.Bind(&report); err != nil {
 		slog.Warn("inagent status: bad request", "err", err)
-		ctx.Status(http.StatusBadRequest)
-		return ctx.JSON(map[string]string{"error": "bad request"})
+		return ctx.Status(http.StatusBadRequest).
+			JSON(map[string]string{"error": "bad request"})
 	}
 
 	code, msg := mergeInagentStatus(&report, ctx.Header("X-Secret-Key"))
@@ -80,11 +78,11 @@ func httpsrvInagentStatus(ctx httpsrv.Ctx) error {
 			"instance", report.InstanceName, "replica", report.ReplicaId,
 			"code", code, "msg", msg)
 	}
-	ctx.Status(code)
 	if code == http.StatusOK {
-		return ctx.JSON(map[string]string{"ok": "true"})
+		return ctx.Status(code).
+			JSON(map[string]string{"ok": "true"})
 	}
-	return ctx.JSON(map[string]string{"error": msg})
+	return ctx.Status(code).JSON(map[string]string{"error": msg})
 }
 
 // mergeInagentStatus verifies the per-replica secret and merges the reported

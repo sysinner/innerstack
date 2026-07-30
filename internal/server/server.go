@@ -15,11 +15,13 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
+	"time"
 
-	"github.com/hooto/httpsrv"
+	"github.com/hooto/httpsrv/v2"
 	"google.golang.org/grpc"
 
 	"github.com/sysinner/innerstack/v2/internal/auth"
@@ -34,7 +36,7 @@ var (
 	server         *grpc.Server
 
 	httpListener net.Listener
-	httpServer   *httpsrv.Service
+	httpServer   httpsrv.App
 
 	err error
 )
@@ -60,20 +62,28 @@ func Setup() error {
 		return err
 	}
 
-	httpServer = httpsrv.NewService()
+	httpServer = httpsrv.New()
 
 	return nil
 }
 
 func Run() {
-	go httpServer.Start(httpListener)
+	go func() {
+		if err := httpServer.Run(httpListener); err != nil {
+			slog.Error("http server run", "err", err)
+		}
+	}()
 	server.Serve(lis)
 	slog.Info("server quit")
 }
 
 func Close() {
 	server.GracefulStop()
-	httpServer.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(ctx); err != nil {
+		slog.Warn("http server shutdown", "err", err)
+	}
 }
 
 func RegisterServer(fn func(s *RpcServer)) error {
@@ -81,6 +91,8 @@ func RegisterServer(fn func(s *RpcServer)) error {
 	return nil
 }
 
-func HandleHttpModule(basepath string, mod *httpsrv.Module) {
-	httpServer.HandleModule(basepath, mod)
+// HttpRouter returns the root HTTP router so other packages can mount their
+// routes (typically via Group) on the shared HTTP server.
+func HttpRouter() httpsrv.Router {
+	return httpServer
 }

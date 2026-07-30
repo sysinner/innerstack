@@ -62,12 +62,12 @@ func main() {
 	}
 
 	if config.Config.Server.PublicApiEnable {
-		server.HandleHttpModule("/in/api/v2/public", zonelet.NewPublicModule())
+		zonelet.RegisterPublicRoutes(server.HttpRouter().Group("/in/api/v2/public"))
 	}
 
 	// Hostlet local API (inagent stage-progress reporting), served on the
 	// shared HTTP server (ServerConfig.HttpPort).
-	server.HandleHttpModule("/in/api/v2/hostlet", hostlet.NewHostletModule())
+	hostlet.RegisterHostletRoutes(server.HttpRouter().Group("/in/api/v2/hostlet"))
 
 	signals.Go(server.Run, server.Close)
 
