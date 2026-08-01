@@ -299,7 +299,7 @@ type targetPromptConfig struct {
 
 var targetPrompts = map[string]targetPromptConfig{
 	inapi.GatewayIngressType_Instance: {
-		hint:    "Name:Port",
+		hint:    "App Instance Name:Port",
 		example: "my-app:8080",
 	},
 	inapi.GatewayIngressType_Upstream: {
@@ -453,7 +453,7 @@ func validateTarget(routeType, target string) error {
 	case inapi.GatewayIngressType_Instance:
 		parts := strings.Split(target, ":")
 		if len(parts) != 2 {
-			return fmt.Errorf("must be in format Name:Port")
+			return fmt.Errorf("must be in format App Instance Name:Port")
 		}
 		if err := inapi.DNSLabelValid(parts[0]); err != nil {
 			return fmt.Errorf("invalid AppInstance Name '%s': %w", parts[0], err)

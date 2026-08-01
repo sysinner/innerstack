@@ -151,23 +151,25 @@ message PackageSpec {
 // Specifies how to build the package from source.
 message PackageSpecBuild {
   // include specifies files/directories to include in the package.
-  // Supports glob patterns. If empty, all files are included by default.
-  // Examples: ["src/**", "lib/**", "config/*"]
+  // Patterns use Go filepath.Match semantics: *, ?, [...] within a single
+  // path component (no recursive **). To include a directory tree, list the
+  // directory itself. If empty, all files are included by default.
+  // Examples: ["src", "lib", "config/*.toml"]
   repeated string include = 1;
 
   // exclude specifies files/directories to exclude from the package.
-  // Supports glob patterns. Applied after include patterns.
-  // Examples: ["*.test", "node_modules/**", ".git/**"]
-  repeated string exclude = 2;
+  // NOTE: temporarily disabled (field commented out); not yet implemented in
+  // v2-next. Restore the line below to re-enable.
+  // repeated string exclude = 2;
 
-  // file is the path to a build file (optional).
-  // Alternative to inline script. Examples: "Makefile", "build.sh"
-  string file = 3;
-
-  // script is the build script to execute (optional).
-  // Supports template variables: {{.ipk_dir}}, {{.ipk_build_dir}},
-  // {{.ipk_name}}, {{.ipk_version}}, {{.ipk_release}}, {{.ipk_os}},
-  // {{.ipk_arch}}, {{.ipk_prefix}}
+  // script is the build script to execute (optional). Run via "sh" with the
+  // package source directory as the working directory. Two substitution
+  // mechanisms are available, in addition to any vars from the env field:
+  //   ${ipk_*} literal: ${ipk_dir}, ${ipk_build_dir}, ${ipk_name},
+  //     ${ipk_version}, ${ipk_release_version}, ${ipk_release_os},
+  //     ${ipk_release_arch}, ${ipk_prefix}   (${ipk_prefix} = /opt/<name>)
+  //   $IPK_* shell env: IPK_DIR, IPK_BUILD_DIR, IPK_NAME, IPK_VERSION,
+  //     IPK_RELEASE_VERSION, IPK_RELEASE_OS, IPK_RELEASE_ARCH, IPK_PREFIX
   string script = 4;
 
   // env specifies environment variables for the build script.

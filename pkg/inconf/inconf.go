@@ -417,6 +417,9 @@ func VarParams(app *inapi.AppReplicaInstance) map[string]string {
 	}
 
 	// packages
+	// Replace '-' with '_' so each key (e.g. ipk.<name>.path) stays compatible
+	// with POSIX shell variable names: letters, digits and underscores only,
+	// not starting with a digit (same rationale as keyenc).
 	for _, p := range app.App.Spec.Packages {
 		sets[fmt.Sprintf("ipk.%s.path", strings.Replace(p.Name, "-", "_", -1))] =
 			fmt.Sprintf("/usr/innerstack/%s", p.Name)
@@ -436,6 +439,14 @@ func prefixMatch(s1, s2 string) bool {
 	return false
 }
 
+// keyenc normalizes a config item name into a template parameter key. The
+// '-' -> '_' replacement keeps the key compatible with POSIX shell variable
+// naming: in Bash and standard POSIX shells a variable name may contain only
+// letters, digits and underscores ([A-Za-z_][A-Za-z0-9_]*) and must not start
+// with a digit, so a name such as "max-retries" is mapped to "max_retries"
+// (a literal '-' inside ${...} would otherwise be parsed as the default-value
+// form "${var-default}"). The '/' -> '.' replacement turns a slash-separated
+// path into the dotted key hierarchy used by VarParams.
 func keyenc(k string) string {
 	return strings.Replace(strings.Replace(k, "/", ".", -1), "-", "_", -1)
 }
