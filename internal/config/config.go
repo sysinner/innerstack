@@ -113,6 +113,8 @@ func Setup(version string) error {
 
 	Version = version
 
+	slog.Info("version " + version)
+
 	inlog.Setup()
 
 	if v, err := filepath.Abs(filepath.Dir(os.Args[0])); err == nil {

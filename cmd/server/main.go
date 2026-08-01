@@ -15,7 +15,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/sysinner/innerstack/v2/internal/auth"
 	"github.com/sysinner/innerstack/v2/internal/config"
@@ -29,10 +32,15 @@ import (
 )
 
 var (
-	version = "v2.0.0-alpha.5.2"
+	version = "v2.0.0-alpha.7"
 )
 
 func main() {
+
+	if len(os.Args) >= 2 && strings.Contains(os.Args[1], "version") {
+		fmt.Println(version)
+		return
+	}
 
 	inlog.Setup()
 

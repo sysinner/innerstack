@@ -389,7 +389,11 @@ func (s *zoneServer) PackageDelete(
 
 // validatePackageDependencies checks that all packages referenced in the app
 // spec exist in the package store and have been fully uploaded (state=complete).
-// Version matching uses the same fuzzy prefix logic as versionMatch.
+//
+// A spec version may be shortened (see AppSpecPackage.version and versionMatch):
+// "1.0" only requires that some complete 1.0.x package exists. Selecting the
+// newest 1.0.N to actually run is done later, at download time, by hostlet
+// PackageDownload (PackageList with LatestOnly = true).
 func (s *zoneServer) validatePackageDependencies(packages []*inapi.AppSpecPackage) error {
 	if len(packages) == 0 {
 		return nil
@@ -397,8 +401,14 @@ func (s *zoneServer) validatePackageDependencies(packages []*inapi.AppSpecPackag
 
 	// Load all completed packages from the store, indexed by name for O(1) lookup.
 	// Multiple versions of the same package name are collected in the slice.
+	//
+	// SetLimit is mandatory: kvgo's RangeRequest defaults Limit to 10
+	// (pkg/kvapi/read.go), so an unbounded scan silently truncates and a package
+	// sorting past the 10th key would be missed here while PackageList (which
+	// sets Limit=1000) still returns it. Match PackageList's limit to stay
+	// consistent with what the user sees via pkg-list.
 	offset := inapi.NsPackageInfo("")
-	rs := data.Package.NewRanger(offset, append(offset, 0xff)).Exec()
+	rs := data.Package.NewRanger(offset, append(offset, 0xff)).SetLimit(1000).Exec()
 
 	available := make(map[string][]string, len(rs.Items))
 
@@ -451,9 +461,20 @@ func (s *zoneServer) validatePackageDependencies(packages []*inapi.AppSpecPackag
 	return nil
 }
 
-// versionMatch checks if a version matches the filter with fuzzy matching support.
-// If filter has 2 parts (e.g., "2.0"), it matches any 2.0.x version.
-// If filter has 3 parts (e.g., "2.0.0"), it matches exactly.
+// versionMatch reports whether a (possibly shortened) version filter matches a
+// concrete package version. It is the basis of the AppSpec.Packages[] version
+// design (see AppSpecPackage.version): a spec declares only the version prefix
+// it is compatible with, and the platform resolves the newest matching release.
+//
+//	filter "1.0.0" (3 parts) -> exact release only.
+//	filter "1.0"   (2 parts) -> any release on the 1.0.x line (1.0.0 ~ 1.0.N).
+//	filter "1"     (1 part)  -> any release on the 1.x line.
+//	filter ""               -> no constraint (matches any version).
+//
+// This is a prefix compare on the dot-separated components, intentionally a
+// string compare rather than numeric. It only decides membership on the line;
+// the newest concrete release is selected downstream by filterLatestPackages
+// (semver) when hostlet PackageDownload queries with LatestOnly = true.
 func versionMatch(filter, version string) bool {
 	if filter == "" {
 		return true
@@ -465,13 +486,13 @@ func versionMatch(filter, version string) bool {
 	filterParts := strings.Split(filter, ".")
 	versionParts := strings.Split(version, ".")
 
-	// Exact match if filter has 3 or more parts
+	// Full SemVer (3+ parts): exact release match.
 	if len(filterParts) >= 3 {
 		return filter == version
 	}
 
-	// Fuzzy match for 1 or 2 part filters (e.g., "2" or "2.0")
-	// Match the prefix parts exactly
+	// Shortened form (1 or 2 parts, e.g. "1" or "1.0"): match every component
+	// the filter specifies, i.e. the whole major or major.minor line.
 	for i := 0; i < len(filterParts); i++ {
 		if i >= len(versionParts) {
 			return false

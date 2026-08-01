@@ -68,7 +68,7 @@ func (s *zoneServer) AppSpecList(
 
 	// List all specs via prefix range scan.
 	offset := inapi.NsAppSpec("")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(1000).Exec() // kvgo default Limit is 10
 	for _, item := range rs.Items {
 		var spec inapi.AppSpec
 		if err := item.JsonDecode(&spec); err == nil {

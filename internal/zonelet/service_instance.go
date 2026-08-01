@@ -514,7 +514,7 @@ func (s *zoneServer) AppInstanceList(
 
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
 
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxInstances).Exec() // kvgo default Limit is 10
 	for _, item := range rs.Items {
 		var instance inapi.AppInstance
 		if err := item.JsonDecode(&instance); err == nil {
@@ -806,7 +806,7 @@ func validateInstanceNameUnique(name string) error {
 
 	// Defensive scan to guard against legacy data keyed by id.
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxInstances).Exec() // kvgo default Limit is 10
 
 	for _, item := range rs.Items {
 		var inst inapi.AppInstance
@@ -830,7 +830,7 @@ func validateAppDependencies(depends []*inapi.AppSpecDepend) error {
 
 	// Load all deployed app instances, indexed by spec.name for O(1) lookup.
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxInstances).Exec() // kvgo default Limit is 10
 
 	available := make(map[string]struct{}, len(rs.Items))
 

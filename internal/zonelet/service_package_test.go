@@ -165,3 +165,48 @@ func TestFilterLatestPackages(t *testing.T) {
 		})
 	}
 }
+
+// TestVersionMatch locks the AppSpec.Packages[] shortened-version contract:
+// a spec may pin only the prefix it is compatible with, and versionMatch
+// decides membership on that line. Picking the newest release is a separate
+// concern (filterLatestPackages), not tested here.
+func TestVersionMatch(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  string
+		version string
+		want    bool
+	}{
+		// Two-part "major.minor": the whole 1.0.x line.
+		{"minor_line_match_patch0", "1.0", "1.0.0", true},
+		{"minor_line_match_patchN", "1.0", "1.0.5", true},
+		{"minor_line_match_double_digit_patch", "1.0", "1.0.10", true},
+		{"minor_line_reject_higher_minor", "1.0", "1.1.0", false},
+		{"minor_line_reject_higher_major", "1.0", "2.0.0", false},
+		{"minor_line_reject_lower_major", "1.0", "0.10.6", false},
+		{"minor_line_reject_lower_minor", "1.0", "0.11.0", false},
+
+		// One-part "major": the whole 1.x line.
+		{"major_line_match", "1", "1.9.9", true},
+		{"major_line_reject_other_major", "1", "2.0.0", false},
+
+		// Three-part: exact release only.
+		{"exact_match", "1.0.0", "1.0.0", true},
+		{"exact_reject_patch", "1.0.0", "1.0.1", false},
+
+		// Empty filter: no constraint.
+		{"empty_filter_matches_any", "", "1.2.3", true},
+
+		// Two-part filter against a two-part version.
+		{"minor_line_match_minor_version", "1.0", "1.0", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := versionMatch(tt.filter, tt.version); got != tt.want {
+				t.Errorf("versionMatch(%q, %q) = %v, want %v",
+					tt.filter, tt.version, got, tt.want)
+			}
+		})
+	}
+}

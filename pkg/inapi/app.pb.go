@@ -405,7 +405,23 @@ type AppSpecPackage struct {
 
 	// name is the name of the package.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
-	// version specifies the required version of the package.
+	// version specifies the required package version, in shortened SemVer form.
+	//
+	// This is the AppSpec auto-version design: the spec declares only the
+	// version prefix it is compatible with, and the platform resolves the
+	// newest matching package at deploy/download time.
+	//
+	//	"1.0.0" (3 parts) pins an exact release.
+	//	"1.0"   (2 parts) declares compatibility with the whole 1.0.x line
+	//	                  (1.0.0 ~ 1.0.N); the newest complete package on
+	//	                  that line is selected automatically.
+	//	"1"     (1 part)  declares compatibility with the whole 1.x line.
+	//	""                means no constraint (matches any version).
+	//
+	// Matching is implemented by zonelet.versionMatch (prefix compare on the
+	// dot-separated components); the newest concrete release is picked by
+	// filterLatestPackages (semver) when hostlet PackageDownload queries with
+	// LatestOnly = true.
 	Version string `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
 }
 

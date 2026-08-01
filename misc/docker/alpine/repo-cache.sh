@@ -47,6 +47,10 @@ VERSIONS_ARR=()
 REPOS_ARR=()
 ARCHES_ARR=()
 
+# Cached result of the rsync version probe (see rsync_supports_progress2).
+# --info=progress2 only exists in rsync 3.1+; the macOS-bundled 2.6.9 lacks it.
+RSYNC_PROGRESS2_OK=""
+
 log_info()  { echo "[INFO] $*"; }
 log_warn()  { echo "[WARN] $*" >&2; }
 log_error() { echo "[ERROR] $*" >&2; }
@@ -78,6 +82,22 @@ EOF
 }
 
 require() { command -v "$1" >/dev/null 2>&1 || die "$1 not found in PATH ($2)"; }
+
+# --info=progress2 is an rsync 3.1+ feature; older rsync (e.g. macOS 2.6.9)
+# errors out on it. Probe the major version once and cache the result.
+rsync_supports_progress2() {
+    if [[ -z "$RSYNC_PROGRESS2_OK" ]]; then
+        local major
+        major=$(rsync --version 2>/dev/null \
+                 | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | cut -d. -f1)
+        if [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 3 )); then
+            RSYNC_PROGRESS2_OK=1
+        else
+            RSYNC_PROGRESS2_OK=0
+        fi
+    fi
+    [[ "$RSYNC_PROGRESS2_OK" == "1" ]]
+}
 
 # Map the running kernel arch to an Alpine apk arch.
 detect_arch() {
@@ -130,7 +150,13 @@ sync_leaf() {
     mkdir -p "$dest"
 
     local rs=(rsync -aHz --partial --stats --contimeout=30 --timeout=300 --no-motd)
-    [[ "$PROGRESS" == "1" ]] && rs+=(--info=progress2)
+    if [[ "$PROGRESS" == "1" ]]; then
+        if rsync_supports_progress2; then
+            rs+=(--info=progress2)
+        else
+            rs+=(--progress)
+        fi
+    fi
     [[ "$RSYNC_DELETE" == "1" ]] && rs+=(--delete)
     if [[ -n "$RSYNC_EXTRA" ]]; then
         # shellcheck disable=SC2086  # intentional word-split of user flags

@@ -109,6 +109,10 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 	zc := inapi.NewZoneServiceClient(conn)
 	zic := inapi.NewZoneInternalServiceClient(conn)
 
+	// Resolve the concrete package to download. Version is the (possibly
+	// shortened) spec version: "1.0" matches any 1.0.x (see zonelet.versionMatch),
+	// and LatestOnly collapses the matches to the newest 1.0.N via semver. So a
+	// spec that only pins "1.0" always runs the latest patch on that line.
 	listResp, err := zc.PackageList(ctx, &inapi.PackageListRequest{
 		Name:       pkgRef.Name,
 		Version:    pkgRef.Version,

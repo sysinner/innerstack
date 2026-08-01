@@ -339,7 +339,7 @@ func (s *zoneServer) HostList(
 
 	offset := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
 
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).Exec()
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxHosts).Exec() // kvgo default Limit is 10
 	for _, item := range rs.Items {
 		var host inapi.Host
 		if err := item.JsonDecode(&host); err == nil {
