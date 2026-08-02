@@ -52,8 +52,15 @@ if [ ! -f "$AGENT_BIN" ]; then
 fi
 
 chmod +x "$AGENT_BIN"
-chown -R "$TARGET_USER":"$TARGET_USER" "$HOME_DIR"
-chown -R "$TARGET_USER":"$TARGET_USER" "$OPT_DIR"
+
+# Best-effort ownership fixup. $HOME_DIR and $OPT_DIR are bind-mounted from
+# the host and may contain entries the container cannot re-own (macOS
+# VirtioFS, userns-remap, NFS root-squash).
+# On a normal Linux host this chown fully succeeds; where it
+# cannot, a single unchownable entry must not abort container startup, so
+# failures are tolerated and silenced.
+chown -R "$TARGET_USER":"$TARGET_USER" "$HOME_DIR" 2>/dev/null || true
+chown -R "$TARGET_USER":"$TARGET_USER" "$OPT_DIR" 2>/dev/null || true
 
 # 4. Final Execution with Signal Propagation
 echo "Starting inagent daemon..."

@@ -479,8 +479,8 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 				}
 				es.DoneUpdated = 0
 				es.FailUpdated = max(time.Now().Unix(), es.ExecWindow)
-				slog.Error(fmt.Sprintf("task [%s] failed, duration %v, err %s, script %s",
-					task.Name, time.Since(execStarted), es.FailMessage, script))
+				slog.Error(fmt.Sprintf("task [%s] failed, duration %v, err %s, output %s, script %s",
+					task.Name, time.Since(execStarted), es.FailMessage, es.Output, script))
 			}
 
 			es.Cmd = nil

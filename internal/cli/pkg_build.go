@@ -43,12 +43,12 @@ func NewPkgBuildCommand() *cobra.Command {
 
 	var runE = func(cmd *cobra.Command, args []string) error {
 		// Validate OS: linux, freebsd, or all (for cross-platform packages)
-		if os != "" && os != "linux" && os != "freebsd" && os != "all" {
+		if os != "" && os != pkgbuild.OSLinux && os != pkgbuild.OSFreeBSD && os != pkgbuild.OSAll {
 			return fmt.Errorf("invalid --os: must be 'linux', 'freebsd' or 'all'")
 		}
 
 		// Validate architecture: amd64, arm64, or src (source package)
-		if arch != "" && arch != "amd64" && arch != "arm64" && arch != "src" {
+		if arch != "" && arch != pkgbuild.ArchAMD64 && arch != pkgbuild.ArchARM64 && arch != pkgbuild.ArchSrc {
 			return fmt.Errorf("invalid --arch: must be 'amd64', 'arm64' or 'src'")
 		}
 

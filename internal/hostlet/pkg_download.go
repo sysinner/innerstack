@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/sysinner/innerstack/v2/internal/client"
@@ -83,7 +84,7 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 
 	// Determine target OS and architecture
 	targetOS := runtime.GOOS
-	targetArch := runtime.GOOS
+	targetArch := runtime.GOARCH
 
 	// Get architecture from docker driver info if available
 	if info, ok := hoststatus.StatusSet.Load("docker"); ok {
@@ -109,29 +110,17 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 	zc := inapi.NewZoneServiceClient(conn)
 	zic := inapi.NewZoneInternalServiceClient(conn)
 
-	// Resolve the concrete package to download. Version is the (possibly
+	// Resolve the concrete package to download. The most specific (native
+	// os/arch) release is preferred; the resolver falls back to a "src" (source,
+	// any arch) and "all" (any os) release as needed. Version is the (possibly
 	// shortened) spec version: "1.0" matches any 1.0.x (see zonelet.versionMatch),
-	// and LatestOnly collapses the matches to the newest 1.0.N via semver. So a
-	// spec that only pins "1.0" always runs the latest patch on that line.
-	listResp, err := zc.PackageList(ctx, &inapi.PackageListRequest{
-		Name:       pkgRef.Name,
-		Version:    pkgRef.Version,
-		Os:         targetOS,
-		Arch:       targetArch,
-		LatestOnly: true,
+	// and LatestOnly collapses the matches to the newest 1.0.N via semver.
+	lister := packageLister(func(ctx context.Context, req *inapi.PackageListRequest) (*inapi.PackageListResponse, error) {
+		return zc.PackageList(ctx, req)
 	})
+	pkg, err := resolvePackage(ctx, lister, pkgRef.Name, pkgRef.Version, targetOS, targetArch)
 	if err != nil {
-		return "", fmt.Errorf("[PackageDownload] failed to query package list: %w", err)
-	}
-
-	if len(listResp.Items) == 0 {
-		return "", fmt.Errorf("[PackageDownload] package %s (version: %s, os: %s, arch: %s) not found",
-			pkgRef.Name, pkgRef.Version, targetOS, targetArch)
-	}
-
-	pkg := listResp.Items[0]
-	if pkg.File == nil || pkg.File.State != inapi.PackageFileStateComplete {
-		return "", fmt.Errorf("[PackageDownload] package %s is not ready for download", pkgRef.Name)
+		return "", fmt.Errorf("[PackageDownload] %w", err)
 	}
 
 	// Generate package ID
@@ -233,6 +222,75 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 		"install_path", installPath)
 
 	return installPath, nil
+}
+
+// packageLister mirrors inapi.ZoneServiceClient.PackageList (without the gRPC
+// CallOption variadic) so the package-resolution logic can be unit-tested
+// without a live gRPC connection.
+type packageLister func(ctx context.Context, req *inapi.PackageListRequest) (*inapi.PackageListResponse, error)
+
+// resolvePackage selects the package to install for (name, version, os, arch).
+//
+// It tries (os, arch) candidates in descending specificity and returns the
+// first complete release found:
+//
+//	(native os, native arch) -> (native os, src) -> (all, native arch) -> (all, src)
+//
+// "src" is a source release that builds on any concrete arch (amd64, arm64);
+// "all" is a release that is not OS-specific (sources, scripts, interpreted
+// payloads) and thus runs on any OS. So a host always gets its native binary
+// when one exists, degrading to a source and/or OS-agnostic release only when
+// necessary. Each query uses LatestOnly, so the zonelet returns at most one
+// item per (name, os, arch) -- the newest release on the requested (possibly
+// shortened) version line, picked via semver.
+//
+// An RPC error aborts immediately: a transient failure should be retried by the
+// caller's reconcile loop, not masked by a fallback. An incomplete upload
+// (File.State != complete) likewise returns an error rather than silently
+// falling through to a less specific release.
+func resolvePackage(ctx context.Context, list packageLister,
+	name, version, os, arch string,
+) (*inapi.Package, error) {
+	// Candidate values per axis in preference order. An empty native value
+	// (no driver info yet) is skipped, falling straight to the wildcard.
+	osValues := []string{os, pkgbuild.OSAll}
+	archValues := []string{arch, pkgbuild.ArchSrc}
+
+	var tried []string
+	for _, o := range osValues {
+		if o == "" {
+			continue
+		}
+		for _, a := range archValues {
+			if a == "" {
+				continue
+			}
+			tried = append(tried, o+"/"+a)
+
+			resp, err := list(ctx, &inapi.PackageListRequest{
+				Name:       name,
+				Version:    version,
+				Os:         o,
+				Arch:       a,
+				LatestOnly: true,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to query package list (os %s, arch %s): %w", o, a, err)
+			}
+			if len(resp.Items) == 0 {
+				continue // no release for this (os, arch); try the next candidate
+			}
+
+			pkg := resp.Items[0]
+			if pkg.File == nil || pkg.File.State != inapi.PackageFileStateComplete {
+				return nil, fmt.Errorf("package %s (os %s, arch %s) is not ready for download", name, o, a)
+			}
+			return pkg, nil
+		}
+	}
+
+	return nil, fmt.Errorf("package %s (version: %s, os: %s, arch: %s) not found, tried %s",
+		name, version, os, arch, strings.Join(tried, ", "))
 }
 
 // calcTotalChunks calculates total chunks from file size and chunk size

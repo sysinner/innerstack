@@ -3,9 +3,9 @@ build/
 etc/
 var/
 test/
-pod/
 example/
 /cmd/inagent-slim/build
+apps/
 
 history-v1/
 

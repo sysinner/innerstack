@@ -27,19 +27,43 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
+// Operating system constants for a package release.
+//
+// OSAll marks a package that is not OS-specific (e.g. sources, scripts, or
+// interpreted payloads): it is compatible with any host OS. See hostlet
+// resolvePackage, which falls back to an "all" release when no native-OS
+// release exists.
+const (
+	OSLinux   = "linux"
+	OSFreeBSD = "freebsd"
+	OSDarwin  = "darwin"
+	OSAll     = "all"
+)
+
 // ValidOS defines the supported operating systems
 var ValidOS = map[string]bool{
-	"linux":   true,
-	"freebsd": true,
-	"darwin":  true,
-	"all":     true,
+	OSLinux:   true,
+	OSFreeBSD: true,
+	OSDarwin:  true,
+	OSAll:     true,
 }
+
+// CPU architecture constants for a package release.
+//
+// ArchSrc marks a source package: it carries sources that build on any concrete
+// host arch, so it is compatible with both amd64 and arm64 (see hostlet
+// resolvePackage, which falls back to a src release when no native binary exists).
+const (
+	ArchAMD64 = "amd64"
+	ArchARM64 = "arm64"
+	ArchSrc   = "src"
+)
 
 // ValidArch defines the supported CPU architectures
 var ValidArch = map[string]bool{
-	"amd64": true,
-	"arm64": true,
-	"src":   true,
+	ArchAMD64: true,
+	ArchARM64: true,
+	ArchSrc:   true,
 }
 
 const (

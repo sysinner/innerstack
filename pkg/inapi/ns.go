@@ -29,7 +29,7 @@ const (
 	// PackageFileChunkSizeDefault is the default chunk size (1MB)
 	PackageFileChunkSizeDefault = int64(1 << 20)
 	// PackageMaxSize is the maximum package size (200MB)
-	PackageMaxSize = int64(200 << 20)
+	PackageMaxSize = int64(1000 << 20)
 )
 
 // func NsGlobalGatewayServiceDomain(name string) []byte {

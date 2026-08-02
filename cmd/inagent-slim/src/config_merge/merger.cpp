@@ -5,8 +5,12 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <map>
 #include <nlohmann/json.hpp>
+#include <set>
+#include <string>
 #include <toml.hpp>
+#include <vector>
 
 #include "util/fs.h"
 #include "util/string_util.h"
@@ -184,16 +188,141 @@ namespace inagent {
             return util::write_file(target_file, output, 0644) ? 0 : -1;
         }
 
+        // --- INI merge (configparser-style, dependency-free) ---
+        // Merged at the section/key level so the base config produced by
+        // `config-render` is preserved: the override wins on key conflicts and
+        // new keys/sections are appended. Mirrors the Go inagent's go-ini based
+        // merge. Comments and blank lines in the base are preserved; override
+        // comment/blank lines contribute no keys (so a comment-only override is
+        // a no-op and leaves the base intact).
+
+        struct IniSection {
+            std::string name;   // bracketed name, "" = preamble
+            std::string header; // raw "[name]" line, "" for the preamble
+            std::vector<std::string> lines;
+        };
+
+        static bool is_ini_section_header(const std::string& raw) {
+            std::string t = util::trim(raw);
+            return t.size() >= 2 && t.front() == '[';
+        }
+
+        static std::string parse_ini_section_name(const std::string& raw) {
+            std::string t = util::trim(raw);
+            if (t.size() < 2 || t.front() != '[') return "";
+            std::string::size_type end = t.find(']');
+            return util::trim(end == std::string::npos ? t.substr(1)
+                                                       : t.substr(1, end - 1));
+        }
+
+        // Fills key/value when raw is a "key = value" entry (first '=' splits;
+        // both sides trimmed). Section headers, comments and blank lines return
+        // false.
+        static bool parse_ini_kv(const std::string& raw, std::string& key,
+                                 std::string& value) {
+            std::string t = util::trim(raw);
+            if (t.empty()) return false;
+            char c = t.front();
+            if (c == ';' || c == '#' || c == '[') return false;
+            std::string::size_type pos = t.find('=');
+            if (pos == std::string::npos) return false;
+            key = util::trim(t.substr(0, pos));
+            value = util::trim(t.substr(pos + 1));
+            return !key.empty();
+        }
+
+        static std::vector<IniSection> parse_ini(const std::string& content) {
+            std::vector<IniSection> secs;
+            secs.push_back({"", "", {}}); // preamble: lines before first [section]
+            for (const auto& raw : util::split(content, '\n')) {
+                if (is_ini_section_header(raw)) {
+                    secs.push_back({parse_ini_section_name(raw), raw, {}});
+                } else {
+                    secs.back().lines.push_back(raw);
+                }
+            }
+            return secs;
+        }
+
+        static int merge_ini(const std::string& target_file,
+                             const std::string& field_value) {
+            std::vector<IniSection> secs;
+            if (util::file_exists(target_file)) {
+                secs = parse_ini(util::read_file(target_file));
+            }
+            if (secs.empty()) {
+                // Base missing/unreadable (config-render not run): start empty
+                // so the override becomes the whole file.
+                secs.push_back({"", "", {}});
+            }
+
+            // Parse the override into section -> (key -> value), tracking the
+            // first-seen order of sections that actually contribute keys.
+            std::map<std::string, std::map<std::string, std::string>> ov;
+            std::vector<std::string> ov_order;
+            std::string cur; // current override section, "" until a header
+            for (const auto& raw : util::split(field_value, '\n')) {
+                if (is_ini_section_header(raw)) {
+                    cur = parse_ini_section_name(raw);
+                    continue;
+                }
+                std::string k, v;
+                if (!parse_ini_kv(raw, k, v)) continue; // comment/blank/non-kv
+                if (ov.find(cur) == ov.end()) ov_order.push_back(cur);
+                ov[cur][k] = v;
+            }
+
+            // Apply overrides in place: override value wins, base order and
+            // comment lines are kept.
+            std::map<std::string, std::set<std::string>> used;
+            for (auto& sec : secs) {
+                auto sit = ov.find(sec.name);
+                if (sit == ov.end()) continue;
+                for (auto& line : sec.lines) {
+                    std::string k, v;
+                    if (!parse_ini_kv(line, k, v)) continue;
+                    auto kit = sit->second.find(k);
+                    if (kit == sit->second.end()) continue;
+                    line = k + " = " + kit->second;
+                    used[sec.name].insert(k);
+                }
+            }
+
+            // Append override keys absent from the base, into their section.
+            for (const auto& sname : ov_order) {
+                IniSection* sec = nullptr;
+                for (auto& s : secs) {
+                    if (s.name == sname) {
+                        sec = &s;
+                        break;
+                    }
+                }
+                if (sec == nullptr) {
+                    IniSection ns;
+                    ns.name = sname;
+                    ns.header = sname.empty() ? "" : ("[" + sname + "]");
+                    secs.push_back(std::move(ns));
+                    sec = &secs.back();
+                }
+                for (const auto& kv : ov[sname]) {
+                    if (used[sname].count(kv.first)) continue;
+                    sec->lines.push_back(kv.first + " = " + kv.second);
+                }
+            }
+
+            std::string out;
+            for (const auto& sec : secs) {
+                if (!sec.header.empty()) out += sec.header + "\n";
+                for (const auto& line : sec.lines) out += line + "\n";
+            }
+            return util::write_file(target_file, out, 0644) ? 0 : -1;
+        }
+
         int config_merge(const std::string& target_file,
                          const std::string& field_value, ConfigType type) {
             switch (type) {
                 case ConfigType::INI:
-                    // viper does not natively support INI; Go writes the
-                    // rendered value directly (creating/overwriting the target
-                    // file).
-                    return util::write_file(target_file, field_value, 0644)
-                               ? 0
-                               : -1;
+                    return merge_ini(target_file, field_value);
                 case ConfigType::JSON:
                     return merge_json(target_file, field_value);
                 case ConfigType::TOML:

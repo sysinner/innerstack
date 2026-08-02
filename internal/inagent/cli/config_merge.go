@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/ini.v1"
 
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/inconf"
@@ -93,12 +94,13 @@ func NewConfigMergeCommand() *cobra.Command {
 
 		switch fieldType {
 		case inapi.SpecFieldTypeTextINI:
-			// viper does not natively support INI format.
-			// Write the rendered config value directly to the target file.
-			if err := os.WriteFile(argConfig, []byte(field.Value), 0644); err != nil {
-				return fmt.Errorf("write config file failed: %w", err)
+			// viper does not natively support INI format; merge the field's
+			// rendered INI into the base config (produced by `config-render`)
+			// at the section/key level instead of overwriting it.
+			if err := mergeINI(argConfig, field.Value); err != nil {
+				return err
 			}
-			slog.Info("config file written", "path", argConfig)
+			slog.Info("config file merged (ini)", "path", argConfig)
 
 		case inapi.SpecFieldTypeTextJSON,
 			inapi.SpecFieldTypeTextTOML,
@@ -160,4 +162,47 @@ example:
 	cmd.RunE = configMergeCommand
 
 	return cmd
+}
+
+// mergeINI merges the override INI text into the file at path at the
+// section/key level, with override winning on key conflicts. The base file is
+// typically produced by `config-render`; this layers the user config field on
+// top instead of clobbering the whole file. If the base is missing or
+// unreadable the override becomes the entire file.
+func mergeINI(path, override string) error {
+	target, err := ini.Load(path)
+	if err != nil {
+		// Base missing or unreadable (config-render not run): start from an
+		// empty config so the override becomes the whole file.
+		target = ini.Empty()
+	}
+
+	ov, err := ini.Load([]byte(override))
+	if err != nil {
+		return fmt.Errorf("parse ini override failed: %w", err)
+	}
+
+	for _, osec := range ov.Sections() {
+		tsec, serr := target.GetSection(osec.Name())
+		if serr != nil {
+			tsec, serr = target.NewSection(osec.Name())
+			if serr != nil {
+				return fmt.Errorf("new ini section %q failed: %w", osec.Name(), serr)
+			}
+		}
+		for _, okey := range osec.Keys() {
+			// Section.Key creates the key on access, so this is set-or-update;
+			// an existing key keeps its position and takes the override value.
+			tsec.Key(okey.Name()).SetValue(okey.Value())
+		}
+	}
+
+	var buf bytes.Buffer
+	if _, err := target.WriteTo(&buf); err != nil {
+		return fmt.Errorf("encode ini failed: %w", err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("write config file failed: %w", err)
+	}
+	return nil
 }
