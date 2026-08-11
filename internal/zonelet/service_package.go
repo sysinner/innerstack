@@ -515,8 +515,6 @@ func filterLatestPackages(packages []*inapi.Package) []*inapi.Package {
 		arch string
 	}
 
-	slog.Info("filterLatestPackages", "num", len(packages))
-
 	latestMap := make(map[groupKey]*inapi.Package)
 
 	for _, pkg := range packages {

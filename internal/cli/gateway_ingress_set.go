@@ -36,7 +36,7 @@ import (
 func NewGatewayIngressSetCommand() *cobra.Command {
 
 	var (
-		domain      string
+		name        string
 		description string
 		action      string
 		letsencrypt bool
@@ -45,13 +45,9 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 
 	run := func(cmd *cobra.Command, args []string) error {
 
-		if domain == "" {
-			return fmt.Errorf("domain is required")
-		}
-
 		item := &inapi.GatewayIngress{
 			Meta:        &inapi.Metadata{},
-			Domain:      domain,
+			Domain:      name,
 			Description: description,
 			Action:      action,
 			Options: &inapi.GatewayIngress_Options{
@@ -144,20 +140,22 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gw-ingress-set",
 		Short: "Create or update a gateway ingress rule",
-		Long:  `Create or update a gateway ingress rule using individual flags (--domain, etc.).`,
+		Long:  `Create or update a gateway ingress rule using individual flags (--name, etc.).`,
 		RunE:  run,
 		Example: `  # Set ingress with flags
-  innerstack gw-ingress-set --domain example.com
+  innerstack gw-ingress-set --name example.com
 
   # Set ingress with interactive routes editing
-  innerstack gw-ingress-set --domain example.com --routes`,
+  innerstack gw-ingress-set --name example.com --routes`,
 	}
 
-	cmd.Flags().StringVarP(&domain, "domain", "d", "", "Domain name for the ingress (required)")
+	cmd.Flags().StringVarP(&name, "name", "n", "", "Gateway ingress name (required)")
 	cmd.Flags().StringVarP(&description, "description", "", "", "Description of the ingress")
 	cmd.Flags().StringVarP(&action, "action", "", inapi.GatewayIngressActionEnable, "Action for the ingress (enable|disable)")
 	cmd.Flags().BoolVarP(&letsencrypt, "letsencrypt", "", false, "Enable Let's Encrypt TLS certificate")
 	cmd.Flags().BoolVarP(&routes, "routes", "r", false, "Interactively edit routes")
+
+	cmd.MarkFlagRequired("name")
 
 	return cmd
 }

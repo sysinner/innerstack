@@ -41,7 +41,6 @@ func NewPkgListCommand() *cobra.Command {
 		filterVer  string
 		filterOs   string
 		filterArch string
-		latestOnly bool
 	)
 
 	runE := func(cmd *cobra.Command, args []string) error {
@@ -70,7 +69,8 @@ func NewPkgListCommand() *cobra.Command {
 			Version:    filterVer,
 			Os:         filterOs,
 			Arch:       filterArch,
-			LatestOnly: latestOnly,
+			// --all opts out of latest-only dedup and includes incomplete uploads.
+			LatestOnly: !showAll,
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -94,10 +94,6 @@ func NewPkgListCommand() *cobra.Command {
 
 			// Define table columns
 			headers := []any{"Name", "Version", "OS", "Arch", "Size", "Built"}
-			if showAll {
-				// Show upload progress column when --all flag is set
-				headers = append(headers, "Progress")
-			}
 			tableBase.Header(headers...)
 
 			// Populate table rows
@@ -122,19 +118,6 @@ func NewPkgListCommand() *cobra.Command {
 					builtStr,
 				}
 
-				// Calculate and append upload progress if --all flag is set
-				if showAll {
-					if pkg.File.State == inapi.PackageFileStateComplete {
-						row = append(row, "100%")
-					} else if pkg.File.ChunkSize > 0 && pkg.File.Size > 0 {
-						totalChunks := (pkg.File.Size + pkg.File.ChunkSize - 1) / pkg.File.ChunkSize
-						progress := (len(pkg.File.UploadedChunks) * 100) / int(totalChunks)
-						row = append(row, fmt.Sprintf("%d%%", progress))
-					} else {
-						row = append(row, "0%")
-					}
-				}
-
 				tableBase.Append(row...)
 			}
 
@@ -155,29 +138,33 @@ func NewPkgListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pkg-list",
 		Short: "List packages on zonelet server",
-		Long: `List all packages stored on the zonelet server.
+		Long: `List packages stored on the zonelet server.
 
-Displays package name, version, OS, architecture, size, build time, and update time.
-By default, only shows fully uploaded packages. Use --all to include incomplete uploads.
+By default, shows only the latest version for each (name, os, arch) combination;
+packages built for different os/arch are listed as separate entries. Only fully
+uploaded packages are included. Use --all to list every version, including
+incomplete uploads.
 
 Filter options:
   --name    Filter by exact package name
   --version Filter by version with fuzzy matching (e.g., "2.0" matches 2.0.x)
   --os      Filter by operating system (e.g., "linux", "darwin")
-  --arch    Filter by architecture (e.g., "amd64", "arm64")
-  --latest  Show only the latest version for each (name, os, arch) combination`,
+  --arch    Filter by architecture (e.g., "amd64", "arm64")`,
 		RunE: runE,
-		Example: `  # List complete packages from local server (default)
+		Example: `  # List the latest version of each package (default)
   cli pkg-list
 
-  # List all packages including incomplete uploads
+  # List every version, including incomplete uploads
   cli pkg-list --all
 
   # List packages from remote server
   cli pkg-list --addr 192.168.1.100:9533
 
-  # Filter by package name
+  # Latest version of a specific package
   cli pkg-list --name myapp
+
+  # All versions of a specific package
+  cli pkg-list --name myapp --all
 
   # Filter by version (fuzzy match: 2.0 matches 2.0.0, 2.0.1, etc.)
   cli pkg-list --version 2.0
@@ -191,23 +178,16 @@ Filter options:
   # Combine multiple filters
   cli pkg-list --name myapp --version 2.0 --os linux --arch amd64
 
-  # Show only the latest version for each (name, os, arch) combination
-  cli pkg-list --name myapp --latest
-
-  # Show latest version for a specific os/arch combination
-  cli pkg-list --name myapp --os linux --arch amd64 --latest
-
   # Show raw JSON output
   cli pkg-list --json`,
 	}
 
 	cmd.Flags().BoolVarP(&showJson, "json", "j", false, "Output in JSON format")
-	cmd.Flags().BoolVarP(&showAll, "all", "", false, "Show all packages including incomplete uploads")
+	cmd.Flags().BoolVarP(&showAll, "all", "", false, "List every version, including incomplete uploads")
 	cmd.Flags().StringVar(&filterName, "name", "", "Filter by package name (exact match)")
 	cmd.Flags().StringVar(&filterVer, "version", "", "Filter by version (fuzzy match, e.g., \"2.0\" matches 2.0.x)")
 	cmd.Flags().StringVar(&filterOs, "os", "", "Filter by operating system (e.g., linux, darwin)")
 	cmd.Flags().StringVar(&filterArch, "arch", "", "Filter by architecture (e.g., amd64, arm64)")
-	cmd.Flags().BoolVarP(&latestOnly, "latest", "l", false, "Show only the latest version for each (name, os, arch) combination (requires --name)")
 
 	return cmd
 }

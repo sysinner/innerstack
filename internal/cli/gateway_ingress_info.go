@@ -32,16 +32,11 @@ import (
 func NewGatewayIngressInfoCommand() *cobra.Command {
 
 	var (
+		name     string
 		showJson bool
 	)
 
 	run := func(cmd *cobra.Command, args []string) error {
-
-		if len(args) == 0 {
-			return fmt.Errorf("ingress name is required")
-		}
-
-		ingressName := args[0]
 
 		zone, err := Config.Zone("")
 		if err != nil {
@@ -62,7 +57,7 @@ func NewGatewayIngressInfoCommand() *cobra.Command {
 		zc := inapi.NewZoneServiceClient(conn)
 
 		req := &inapi.GatewayIngressInfoRequest{
-			Name: ingressName,
+			Name: name,
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -119,7 +114,7 @@ func NewGatewayIngressInfoCommand() *cobra.Command {
 
 			tableBase.Render()
 		} else {
-			tbuf.WriteString(fmt.Sprintf("Get gateway ingress '%s' successfully\n", ingressName))
+			tbuf.WriteString(fmt.Sprintf("Get gateway ingress '%s' successfully\n", name))
 
 			js, _ := json.MarshalIndent(resp, "", "  ")
 			tbuf.Write(js)
@@ -131,12 +126,15 @@ func NewGatewayIngressInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "gw-ingress-info [name]",
+		Use:   "gw-ingress-info",
 		Short: "Show gateway ingress details",
 		RunE:  run,
 	}
 
+	cmd.Flags().StringVarP(&name, "name", "n", "", "Gateway ingress name (required)")
 	cmd.Flags().BoolVarP(&showJson, "show-json", "j", false, "show raw response with json")
+
+	cmd.MarkFlagRequired("name")
 
 	return cmd
 }
