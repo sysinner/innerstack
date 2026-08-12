@@ -339,6 +339,7 @@ func containerStatusRefresh() error {
 			hoststatus.ContainerList.Store(ctr.Name, ctr)
 		} else if pctr, ok := prev.(*hostapi.ContainerInfo); ok {
 			pctr.Started = ctr.Started
+			pctr.Created = ctr.Created
 			pctr.State = ctr.State
 			pctr.Image = ctr.Image
 			pctr.IP = ctr.IP
@@ -1428,6 +1429,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 
 	hoststatus.ContainerList.Store(containerName, &hostapi.ContainerInfo{
 		Name: containerName, Image: image, State: inapi.OpStateStarting,
+		Created: time.Now().Unix(),
 	})
 	// Record the applied Deploy.Revision so that containerSpecReset detects
 	// the next revision increment and triggers a recreate, rather than
