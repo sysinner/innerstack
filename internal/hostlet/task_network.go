@@ -31,7 +31,7 @@ import (
 var (
 	hostNetworkBridgeCurrent  = ""
 	hostNetworkPeerIP         net.IP
-	zoneNetworkMap            inapi.ZoneNetworkMap
+	zoneNetworkMap            = &inapi.ZoneNetworkMap{}
 	hostDNSUpdateSetup        uint64
 	zoneNetworkMapUpdateSetup uint64
 )

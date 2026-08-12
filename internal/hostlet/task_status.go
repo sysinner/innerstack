@@ -278,7 +278,9 @@ func statusRefresh() error {
 			config.Config.Hostlet.VpcNetworkDomain = resp.ZoneNetworkMap.VpcNetworkDomain
 			cfgFlush = true
 		}
-		zoneNetworkMap = *resp.ZoneNetworkMap
+		// Safe to retain the response pointer directly (read-only, single
+		// goroutine); a value copy would trip go vet copylocks.
+		zoneNetworkMap = resp.ZoneNetworkMap
 	}
 
 	if cfgFlush {

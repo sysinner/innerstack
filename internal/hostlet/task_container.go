@@ -1418,7 +1418,7 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 	re.SetRunning(inapi.AppDeployStageNameContainerCreate, "")
-	_, err = ctrDriver.ContainerCreate(ctx, opts)
+	created, err := ctrDriver.ContainerCreate(ctx, opts)
 	cancel()
 	if err != nil {
 		slog.Warn("container create failed", "container", containerName, "error", err)
@@ -1427,10 +1427,10 @@ func containerCreate(rep *inapi.AppReplicaInstance) error {
 	}
 	re.SetSuccess(inapi.AppDeployStageNameContainerCreate, "")
 
-	hoststatus.ContainerList.Store(containerName, &hostapi.ContainerInfo{
-		Name: containerName, Image: image, State: inapi.OpStateStarting,
-		Created: time.Now().Unix(),
-	})
+	// Cache the authoritative record the driver just built (real Created
+	// timestamp, container ID, labels) instead of a placeholder that the
+	// next list refresh would overwrite anyway.
+	hoststatus.ContainerList.Store(containerName, created)
 	// Record the applied Deploy.Revision so that containerSpecReset detects
 	// the next revision increment and triggers a recreate, rather than
 	// re-destroying this freshly created container on the following tick.
