@@ -23,6 +23,14 @@ const (
 	userAppAuthTtlMax int64 = 86400 * 30 // seconds
 
 	appAuthExp int64 = 60
+
+	// tokenReplayRetention is how long a consumed token nonce is remembered
+	// before single-use enforcement forgets it. A token stays acceptable for
+	// at most 2*appAuthExp seconds after the server first sees it (the iat
+	// freshness check tolerates +/-appAuthExp), plus margin for clock skew;
+	// the retention window covers that whole period so replays never slip
+	// through while the token could still verify.
+	tokenReplayRetention int64 = 2*appAuthExp + 30
 )
 
 const (

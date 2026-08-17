@@ -17,9 +17,10 @@ package inauth
 import "sync"
 
 type AccessKeyManager struct {
-	mu    sync.RWMutex
-	items map[string]*AccessKey
-	roles map[string]*accessKeyManagerRole
+	mu     sync.RWMutex
+	items  map[string]*AccessKey
+	roles  map[string]*accessKeyManagerRole
+	replay *replayCache
 }
 
 type accessKeyManagerRole struct {
@@ -28,8 +29,9 @@ type accessKeyManagerRole struct {
 
 func NewAccessKeyManager() *AccessKeyManager {
 	return &AccessKeyManager{
-		items: map[string]*AccessKey{},
-		roles: map[string]*accessKeyManagerRole{},
+		items:  map[string]*AccessKey{},
+		roles:  map[string]*accessKeyManagerRole{},
+		replay: newReplayCache(),
 	}
 }
 

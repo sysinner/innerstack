@@ -2,6 +2,7 @@ bin/
 build/
 etc/
 var/
+_doc/
 test/
 example/
 /cmd/inagent-slim/build

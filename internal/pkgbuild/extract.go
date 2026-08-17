@@ -39,8 +39,12 @@ import (
 //   - Data Block: compressed tarball (xz/gzip/none)
 //
 // The compression format is taken from the header's Release.Compress. Directory
-// modes, regular files and symlinks are preserved. Entries that escape targetDir
-// (path traversal) are rejected.
+// modes, regular files and symlinks are preserved. All entries are created
+// through an os.Root rooted at targetDir, which enforces at the syscall level
+// that no path resolution can escape it, including through symlinks created by
+// earlier entries or planted beforehand. On top of that, entry names must be
+// relative and stay within targetDir, and symlink linknames must resolve
+// within it (absolute linknames are rejected).
 func Extract(ipkPath, targetDir string) error {
 	f, err := os.Open(ipkPath)
 	if err != nil {
@@ -110,7 +114,20 @@ func Extract(ipkPath, targetDir string) error {
 	if err := os.MkdirAll(absTarget, 0755); err != nil {
 		return fmt.Errorf("[pkgbuild.Extract] failed to create target directory: %w", err)
 	}
+
+	// Every entry is created through an os.Root: path resolution beneath the
+	// root can never escape it, even when following a symlink created by an
+	// earlier entry or planted in the target directory beforehand.
+	root, err := os.OpenRoot(absTarget)
+	if err != nil {
+		return fmt.Errorf("[pkgbuild.Extract] failed to open target root %s: %w", absTarget, err)
+	}
+	defer root.Close()
+
 	sep := string(os.PathSeparator)
+	withinTarget := func(p string) bool {
+		return p == absTarget || strings.HasPrefix(p, absTarget+sep)
+	}
 
 	for {
 		header, err := tr.Next()
@@ -121,38 +138,56 @@ func Extract(ipkPath, targetDir string) error {
 			return fmt.Errorf("[pkgbuild.Extract] failed to read tar header: %w", err)
 		}
 
-		// Security: prevent path traversal outside the target directory.
-		targetPath := filepath.Join(absTarget, header.Name)
-		if !strings.HasPrefix(targetPath, absTarget+sep) && targetPath != absTarget {
+		// Security: entry names must resolve within the target directory.
+		name := filepath.Clean(header.Name)
+		if filepath.IsAbs(name) || strings.HasPrefix(name, "..") {
 			return fmt.Errorf("[pkgbuild.Extract] path traversal detected: %s", header.Name)
 		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
-				return fmt.Errorf("[pkgbuild.Extract] failed to create directory %s: %w", targetPath, err)
+			if err := root.MkdirAll(name, os.FileMode(header.Mode)); err != nil {
+				return fmt.Errorf("[pkgbuild.Extract] failed to create directory %s: %w", name, err)
 			}
 
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-				return fmt.Errorf("[pkgbuild.Extract] failed to create parent directory for %s: %w", targetPath, err)
+			if err := root.MkdirAll(filepath.Dir(name), 0755); err != nil {
+				return fmt.Errorf("[pkgbuild.Extract] failed to create parent directory for %s: %w", name, err)
 			}
-			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
+			outFile, err := root.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
-				return fmt.Errorf("[pkgbuild.Extract] failed to create file %s: %w", targetPath, err)
+				return fmt.Errorf("[pkgbuild.Extract] failed to create file %s: %w", name, err)
 			}
 			if _, err := io.Copy(outFile, tr); err != nil {
 				outFile.Close()
-				return fmt.Errorf("[pkgbuild.Extract] failed to write file %s: %w", targetPath, err)
+				return fmt.Errorf("[pkgbuild.Extract] failed to write file %s: %w", name, err)
 			}
 			outFile.Close()
 
 		case tar.TypeSymlink:
-			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-				return fmt.Errorf("[pkgbuild.Extract] failed to create parent directory for %s: %w", targetPath, err)
+			// A linkname is resolved relative to the entry's parent directory;
+			// an absolute linkname always points at the host filesystem.
+			if filepath.IsAbs(header.Linkname) {
+				return fmt.Errorf("[pkgbuild.Extract] symlink with absolute linkname rejected: %s -> %s",
+					header.Name, header.Linkname)
 			}
-			if err := os.Symlink(header.Linkname, targetPath); err != nil {
-				return fmt.Errorf("[pkgbuild.Extract] failed to create symlink %s: %w", targetPath, err)
+			// Root blocks writing through a symlink that leaves the target
+			// directory, but the created link itself must not point outside
+			// either.
+			resolved := filepath.Clean(filepath.Join(absTarget, filepath.Dir(name), header.Linkname))
+			if !withinTarget(resolved) {
+				return fmt.Errorf("[pkgbuild.Extract] symlink path traversal detected: %s -> %s",
+					header.Name, header.Linkname)
+			}
+			// Replace a symlink left over by a previous extraction of the
+			// same package so re-extraction stays idempotent.
+			if fi, err := root.Lstat(name); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+				if err := root.Remove(name); err != nil {
+					return fmt.Errorf("[pkgbuild.Extract] failed to replace symlink %s: %w", name, err)
+				}
+			}
+			if err := root.Symlink(header.Linkname, name); err != nil {
+				return fmt.Errorf("[pkgbuild.Extract] failed to create symlink %s: %w", name, err)
 			}
 		}
 	}

@@ -73,12 +73,13 @@ func (it *appCredential) AuthToken() string {
 	it.Claims = AuthClaims{
 		Iat: tn,
 		Exp: tn + appAuthExp,
+		// Nonce makes every minted token unique: the server records it on
+		// first use and denies replays.
+		Nonce: uuid.NewString(),
 	}
 
 	if it.ak.Type == "App" {
 		it.Claims.Jti = it.jti
-	} else {
-		it.Claims.State = uuid.NewString()
 	}
 
 	it.signingString = bytesEncode(jsonEncode(it.Header)) + "." +

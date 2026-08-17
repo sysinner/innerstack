@@ -117,6 +117,15 @@ func writeIpk(t *testing.T, path, compress string, tarBytes []byte) {
 }
 
 func TestExtract(t *testing.T) {
+	// outside hosts paths that escaping entries must never touch.
+	outside := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(outside, "dir"), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "file.txt"), []byte("ORIG"), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
 	cases := []struct {
 		name     string
 		compress string
@@ -200,6 +209,47 @@ func TestExtract(t *testing.T) {
 			},
 			wantErr: "path traversal",
 		},
+		{
+			name:     "symlink linkname escape rejected",
+			compress: "gzip",
+			entries: []tarEntry{
+				{name: "x", typeflag: tar.TypeSymlink, mode: 0777, link: "../evil"},
+				{name: "x/pwn", typeflag: tar.TypeReg, mode: 0644, content: "evil"},
+			},
+			wantErr: "symlink path traversal",
+		},
+		{
+			name:     "symlink to absolute dir then file under it",
+			compress: "gzip",
+			entries: []tarEntry{
+				{name: "x", typeflag: tar.TypeSymlink, mode: 0777, link: filepath.Join(outside, "dir")},
+				{name: "x/pwn", typeflag: tar.TypeReg, mode: 0644, content: "PWNED"},
+			},
+			wantErr: "absolute linkname",
+			check: func(t *testing.T, dir string) {
+				if _, err := os.Stat(filepath.Join(outside, "dir", "pwn")); !os.IsNotExist(err) {
+					t.Errorf("file written outside target dir: %v", err)
+				}
+			},
+		},
+		{
+			name:     "symlink to absolute file then file at link path",
+			compress: "gzip",
+			entries: []tarEntry{
+				{name: "f", typeflag: tar.TypeSymlink, mode: 0777, link: filepath.Join(outside, "file.txt")},
+				{name: "f", typeflag: tar.TypeReg, mode: 0644, content: "PWNED"},
+			},
+			wantErr: "absolute linkname",
+			check: func(t *testing.T, dir string) {
+				got, err := os.ReadFile(filepath.Join(outside, "file.txt"))
+				if err != nil {
+					t.Fatalf("read outside file: %v", err)
+				}
+				if string(got) != "ORIG" {
+					t.Errorf("file outside target dir overwritten: %q", got)
+				}
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -211,15 +261,10 @@ func TestExtract(t *testing.T) {
 			err := Extract(ipkPath, dir)
 
 			if c.wantErr != "" {
-				if err == nil {
-					t.Fatalf("Extract() expected error containing %q, got nil", c.wantErr)
+				if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+					t.Fatalf("Extract() error = %v, want substring %q", err, c.wantErr)
 				}
-				if !strings.Contains(err.Error(), c.wantErr) {
-					t.Fatalf("Extract() error = %q, want substring %q", err.Error(), c.wantErr)
-				}
-				return
-			}
-			if err != nil {
+			} else if err != nil {
 				t.Fatalf("Extract() unexpected error: %v", err)
 			}
 			if c.check != nil {
@@ -237,5 +282,53 @@ func TestExtractBadMagic(t *testing.T) {
 	err := Extract(ipkPath, filepath.Join(t.TempDir(), "out"))
 	if err == nil || !strings.Contains(err.Error(), "bad magic number") {
 		t.Fatalf("Extract() error = %v, want substring %q", err, "bad magic number")
+	}
+}
+
+// TestExtractRootContainment verifies that Extract refuses to write through a
+// symlink leaving the target directory even when the symlink pre-exists (e.g.
+// planted in the target dir before extraction): os.Root path resolution
+// confines every write to the target directory.
+func TestExtractRootContainment(t *testing.T) {
+	outside := t.TempDir()
+
+	dir := filepath.Join(t.TempDir(), "out")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "x")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	ipkPath := filepath.Join(t.TempDir(), "test.ipk")
+	writeIpk(t, ipkPath, "gzip", buildTar(t, []tarEntry{
+		{name: "x/pwn", typeflag: tar.TypeReg, mode: 0644, content: "PWNED"},
+	}))
+
+	if err := Extract(ipkPath, dir); err == nil {
+		t.Fatal("Extract() expected containment error, got nil")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "pwn")); !os.IsNotExist(err) {
+		t.Errorf("file written outside target dir: %v", err)
+	}
+}
+
+// TestExtractIdempotent verifies that extracting the same package twice into
+// the same directory succeeds, including symlink replacement.
+func TestExtractIdempotent(t *testing.T) {
+	ipkPath := filepath.Join(t.TempDir(), "test.ipk")
+	writeIpk(t, ipkPath, "gzip", buildTar(t, []tarEntry{
+		{name: "bin/app", typeflag: tar.TypeReg, mode: 0755, content: "v1"},
+		{name: "bin/app2", typeflag: tar.TypeSymlink, mode: 0777, link: "app"},
+	}))
+
+	dir := filepath.Join(t.TempDir(), "out")
+	for i := range 2 {
+		if err := Extract(ipkPath, dir); err != nil {
+			t.Fatalf("Extract() pass %d: %v", i+1, err)
+		}
+	}
+	if dest, err := os.Readlink(filepath.Join(dir, "bin/app2")); err != nil || dest != "app" {
+		t.Errorf("bin/app2 link dest = %q, %v; want %q", dest, err, "app")
 	}
 }

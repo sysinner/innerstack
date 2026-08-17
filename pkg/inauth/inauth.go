@@ -42,6 +42,11 @@ type AuthClaims struct {
 	// app id
 	// Aud string `json:"aud,omitempty" toml:"aud,omitempty"`
 
+	// Nonce is a per-token single-use value: the server records it on first
+	// verification and rejects any replay. Empty in legacy tokens, which are
+	// exempt from single-use enforcement.
+	Nonce string `json:"nonce,omitempty" toml:"nonce,omitempty"`
+
 	State string `json:"state,omitempty" toml:"state,omitempty"`
 }
 

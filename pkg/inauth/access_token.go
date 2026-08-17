@@ -16,6 +16,7 @@ package inauth
 
 import (
 	"context"
+	"crypto/hmac"
 	"errors"
 	"fmt"
 	"net/http"
@@ -157,8 +158,7 @@ func (it *AccessToken) Verify(keyMgr *AccessKeyManager) (*AccessKey, error) {
 		return nil, errors.New("access-token expired")
 	}
 
-	if ak.Type == "App" &&
-		absInt64(time.Now().Unix()-it.Claims.Iat) > 60 {
+	if absInt64(time.Now().Unix()-it.Claims.Iat) > appAuthExp {
 		return nil, errors.New("auth-denied : iat expired")
 	}
 
@@ -167,8 +167,17 @@ func (it *AccessToken) Verify(keyMgr *AccessKeyManager) (*AccessKey, error) {
 		return nil, err
 	}
 
-	if bytesEncode(b) != it.signString {
+	want, err := bytesDecode(it.signString)
+	if err != nil || !hmac.Equal(b, want) {
 		return nil, errors.New("verify denied")
+	}
+
+	// Single-use enforcement: tokens minted with a per-call nonce
+	// (Claims.Nonce) are accepted only once, so a sniffed token cannot be
+	// replayed within its lifetime. Legacy tokens without a nonce skip this.
+	if it.Claims.Nonce != "" &&
+		!keyMgr.replay.consume(it.Header.Kid, it.Claims.Nonce) {
+		return nil, errors.New("access-token replayed")
 	}
 
 	return ak, nil
