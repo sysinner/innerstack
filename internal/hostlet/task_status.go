@@ -68,7 +68,9 @@ func (it *hostStatusMut) lock(fn func()) {
 
 // statusRefresh collects host metrics and reports to zone leader.
 func statusRefresh() error {
-	const rtWindowSize int64 = 60
+	// Reported counters are window deltas; the zonelet scheduler converts
+	// the cpu-ms delta to millicores with this same constant.
+	const rtWindowSize = inutil.Window1Min
 	tn := time.Now().Unix()
 
 	if hostStatus.Updated == 0 {

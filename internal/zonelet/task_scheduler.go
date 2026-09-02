@@ -23,6 +23,7 @@ import (
 
 	"github.com/sysinner/innerstack/v2/internal/config"
 	"github.com/sysinner/innerstack/v2/internal/data"
+	"github.com/sysinner/innerstack/v2/internal/inutil"
 	"github.com/sysinner/innerstack/v2/internal/status"
 	"github.com/sysinner/innerstack/v2/internal/zonelet/network"
 	"github.com/sysinner/innerstack/v2/internal/zonelet/scheduler"
@@ -421,7 +422,7 @@ func schedulerRefresh(forceRefresh bool) error {
 			OpAction: []string{inapi.HostSetupStart},
 
 			CpuTotal: int64(host.Status.CpuCores) * 1000,
-			CpuUsed:  host.Status.CpuSys + host.Status.CpuUser,
+			CpuUsed:  hostCpuUsedMc(host.Status),
 
 			MemTotal: host.Status.MemTotal,
 			MemUsed:  host.Status.MemUsed,
@@ -631,6 +632,13 @@ func schedulerRefresh(forceRefresh bool) error {
 	}
 
 	return nil
+}
+
+// hostCpuUsedMc converts a host's reported CPU counters into millicores:
+// CpuSys/CpuUser are cpu-ms over the hostlet's reporting window
+// (inutil.Window1Min), while CpuTotal and Deploy.CpuLimit are millicores.
+func hostCpuUsedMc(st *inapi.HostStatus) int64 {
+	return (st.CpuSys + st.CpuUser) / inutil.Window1Min
 }
 
 // schedulerReconcileDeployRevision advances the deploy stage root to the

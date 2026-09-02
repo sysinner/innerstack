@@ -72,7 +72,7 @@ var (
 // ReplicaStatsWindow is the sliding window (seconds) over which cumulative
 // container counters are differenced to derive rate metrics. It matches the
 // window used for host-level metrics in the status loop.
-const ReplicaStatsWindow int64 = 60
+const ReplicaStatsWindow = inutil.Window1Min
 
 // ReplicaStatsEntry holds a per-container sliding counter (used to turn
 // Docker's cumulative counters into windowed rate metrics) plus the latest
