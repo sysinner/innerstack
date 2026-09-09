@@ -1043,9 +1043,14 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		metricComplex.Add("Service", "RootHandler", 1, 0, lat)
 		if hitRoute != nil {
 			metricComplex.Add("Service", "RouteType:"+hitRoute.Type, 1, 0, lat)
-		}
-		if urlPath != "" {
-			metricComplex.Add("HostService", r.Host+":"+urlPath, 1, 0, lat)
+			// The metric registry never evicts a series, so the label must be
+			// bounded by config, not by client input. hitRoute != nil implies
+			// cfg.Domain(r.Host) matched (r.Host is a configured domain), and
+			// hitRoute.Path comes from the ingress config: cardinality is
+			// #domains x #routes. Using the raw URL path here would grow one
+			// series per distinct request path forever (scanner / ID-bearing
+			// paths) and eventually exhaust memory.
+			metricComplex.Add("HostService", r.Host+":"+hitRoute.Path, 1, 0, lat)
 		}
 		metricGauge.Add("Service", "RawSize", float64(hw.writeSize))
 		if hw.writeBuff != nil {
@@ -1143,14 +1148,6 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 // and rate.Limiter.WaitN cancels on r.Context() when the client disconnects.
 func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 
-	tn := time.Now()
-	metricComplex.Add("Service", "RootHandler", 1, 0, 0)
-	defer func() {
-		if urlPath != "" {
-			metricComplex.Add("HostService", r.Host+":"+urlPath, 1, 0, time.Since(tn))
-		}
-	}()
-
 	domain := cfg.Domain(r.Host)
 	if domain == nil {
 		return false
@@ -1161,7 +1158,18 @@ func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 		return false
 	}
 
-	metricComplex.Add("Service", "RouteType:localfs", 1, 0, time.Since(tn))
+	// Metrics are recorded only once this function actually handles the
+	// request: rootHandler's own defer covers the non-localfs paths, and an
+	// unconditional defer here would double-count every proxied request.
+	// The HostService label uses the configured route path (bounded by the
+	// ingress config), never the raw request path -- the metric registry
+	// never evicts a series, so per-URL labels would grow without bound.
+	tn := time.Now()
+	metricComplex.Add("Service", "RootHandler", 1, 0, 0)
+	metricComplex.Add("Service", "RouteType:localfs", 1, 0, 0)
+	defer func() {
+		metricComplex.Add("HostService", r.Host+":"+route.Path, 1, 0, time.Since(tn))
+	}()
 
 	w.Header().Set("X-Proxy", "InnerStack/"+version)
 

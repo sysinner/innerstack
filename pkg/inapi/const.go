@@ -42,11 +42,11 @@ const (
 
 const (
 	// CPU resource limits in millicores
-	CPUMin = 10
-	CPUMax = 64000
+	CPUMin = 10     // ~ 0.01 cores
+	CPUMax = 128000 // ~ 128 cores
 
 	// Memory resource limits in bytes
-	MemoryMin = 64 * 1024 * 1024         // 64 MiB
+	MemoryMin = 16 * 1024 * 1024         // 16 MiB
 	MemoryMax = 512 * 1024 * 1024 * 1024 // 512 GiB
 
 	// Volume size limits in bytes
@@ -172,14 +172,6 @@ const (
 	OpEventFail    = "fail"    // transition result: fail
 )
 
-// Operation log status levels
-const (
-	OpLogOK    = "ok"    // operation completed successfully
-	OpLogInfo  = "info"  // informational message
-	OpLogWarn  = "warn"  // warning message
-	OpLogError = "error" // error message
-)
-
 // AppDeployStage state constants. These are the values of
 // AppDeployStage.state.
 const (
@@ -278,24 +270,6 @@ var AppDeployStageRelayedNames = func() map[string]struct{} {
 // an AppDeployStageNameReplica node.
 const AppDeployStageReplicaAttrRepId = "rep_id"
 
-// Zone replica migration operation log namespaces
-// Used for tracking migration progress across zone replicas
-const (
-	NsOpLogZoneRepMigrateAlloc       = "zm/rep-migrate/alloc"   // allocate resources for migration
-	NsOpLogZoneRepMigratePrevStop    = "zm/rep-migrate/stop"    // stop previous replica
-	NsOpLogZoneRepMigratePrevDestory = "zm/rep-migrate/destroy" // destroy previous replica
-	NsOpLogZoneRepMigrateNextData    = "zm/rep-migrate/data"    // migrate data to new replica
-	NsOpLogZoneRepMigrateDone        = "zm/rep-migrate/done"    // migration completed
-)
-
-// Zone master app scheduling operation log namespaces
-// Used for tracking app instance scheduling operations
-const (
-	OpLogNsZoneMasterAppScheduleCharge  = "zm/ps/charge"  // charge resources for scheduling
-	OpLogNsZoneMasterAppScheduleAlloc   = "zm/ps/alloc"   // allocate app to host
-	OpLogNsZoneMasterAppScheduleResFree = "zm/ps/resfree" // free allocated resources
-)
-
 // PackageFileState constants for package file upload tracking
 const (
 	PackageFileStateUnspec    = ""          // unspecified state
@@ -352,82 +326,3 @@ const (
 	GatewayIngressActionEnable  = "enable"  // ingress action: enable (default)
 	GatewayIngressActionDisable = "disable" // ingress action: disable
 )
-
-// var (
-// 	OpLogNsZoneMasterAppScheduleRep = func(repId uint32) string {
-// 		if repId > 65535 {
-// 			repId = 65535
-// 		}
-// 		return fmt.Sprintf("zm/ps/rep/%d", repId)
-// 	}
-// )
-
-// type OpLogList []*OpLogSets
-
-// func (ls *OpLogList) Get(sets_name string) *OpLogSets {
-// 	oplogListMu.RLock()
-// 	defer oplogListMu.RUnlock()
-// 	return OpLogSetsSliceGet(*ls, sets_name)
-// }
-
-// func (ls *OpLogList) LogSet(sets_name string, version uint32, name, status, msg string) {
-
-// 	oplogListMu.Lock()
-// 	defer oplogListMu.Unlock()
-
-// 	sets := OpLogSetsSliceGet(*ls, sets_name)
-// 	if sets == nil {
-// 		sets = &OpLogSets{
-// 			Name:    sets_name,
-// 			Version: version,
-// 		}
-// 		*ls, _ = OpLogSetsSliceSync(*ls, sets)
-// 	}
-
-// 	if version < sets.Version {
-// 		return
-// 	}
-
-// 	sets.LogSet(version, name, status, msg)
-// }
-
-// func NewOpLogSets(sets_name string, version uint32) *OpLogSets {
-
-// 	return &OpLogSets{
-// 		Name:    sets_name,
-// 		Version: version,
-// 	}
-// }
-
-// func (rs *OpLogSets) LogSet(version uint32, name, status, message string) {
-
-// 	oplogSetsMu.Lock()
-// 	defer oplogSetsMu.Unlock()
-
-// 	if version > 0 && version > rs.Version {
-// 		rs.Version = version
-// 		rs.Items = []*OpLogEntry{}
-// 	}
-
-// 	tn := uint64(time.Now().UnixNano() / 1e6)
-
-// 	rs.Items, _ = OpLogEntrySliceSync(rs.Items, &OpLogEntry{
-// 		Name:    name,
-// 		Status:  status,
-// 		Message: message,
-// 		Updated: tn,
-// 	})
-// }
-
-// func (rs *OpLogSets) LogSetEntry(entry *OpLogEntry) {
-// 	rs.Items, _ = OpLogEntrySliceSync(rs.Items, entry)
-// }
-
-// func NewOpLogEntry(name, status, message string) *OpLogEntry {
-// 	return &OpLogEntry{
-// 		Name:    name,
-// 		Status:  status,
-// 		Message: message,
-// 		Updated: uint64(time.Now().UnixNano() / 1e6),
-// 	}
-// }
