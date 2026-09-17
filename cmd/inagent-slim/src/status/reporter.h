@@ -38,7 +38,9 @@ namespace inagent {
 
         // flush POSTs the current stage tree to the hostlet status API when
         // there are unsent changes or the heartbeat interval has elapsed. On
-        // success it clears the dirty flag. A missing endpoint is a no-op.
+        // success it clears the dirty flag; on failure it backs off
+        // exponentially (up to 60s) before the next attempt. A missing
+        // endpoint is a no-op.
         void flush(const model::HostletStatusEndpoint& endpoint,
                    const std::string& instance_name, uint32_t rep_id);
 

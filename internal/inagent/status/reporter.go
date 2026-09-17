@@ -30,6 +30,11 @@ import (
 const (
 	heartbeatInterval = 30 * time.Second
 	httpTimeout       = 3 * time.Second
+
+	// Bounds for the wait between consecutive failed posts: exponential
+	// from retryBackoffBase (1s, 2s, 4s ...), capped at retryBackoffMax.
+	retryBackoffBase = 1 * time.Second
+	retryBackoffMax  = 60 * time.Second
 )
 
 var (
@@ -37,8 +42,20 @@ var (
 	stages    []*inapi.AppDeployStage
 	dirty     bool
 	lastFlush time.Time
-	revision  uint64 // AppDeploy.Revision stages are stamped with
+	fails     int       // consecutive failed posts
+	retryAt   time.Time // earliest next post attempt after failures
+	revision  uint64    // AppDeploy.Revision stages are stamped with
 )
+
+// retryBackoff returns the wait before the next attempt after n consecutive
+// failures. The shift is bounded so it cannot overflow; anything past the cap
+// clamps to retryBackoffMax.
+func retryBackoff(n int) time.Duration {
+	if n <= 0 {
+		return 0
+	}
+	return min(retryBackoffBase<<min(n-1, 6), retryBackoffMax)
+}
 
 // child returns the inagent stage node by name, creating it if absent.
 func child(name string) *inapi.AppDeployStage {
@@ -117,7 +134,8 @@ func SetTaskRun(state, msg string) {
 
 // Flush POSTs the current stage tree to the hostlet status API when there are
 // unsent changes or the heartbeat interval has elapsed. On success it clears
-// the dirty flag. A missing endpoint (old hostlet / not yet provisioned) is a
+// the dirty flag; on failure it backs off exponentially (up to 60s) before the
+// next attempt. A missing endpoint (old hostlet / not yet provisioned) is a
 // no-op.
 func Flush(endpoint *inapi.HostletStatusEndpoint, instanceName string, repId uint32) {
 	if endpoint == nil || endpoint.Url == "" {
@@ -126,6 +144,12 @@ func Flush(endpoint *inapi.HostletStatusEndpoint, instanceName string, repId uin
 
 	mu.Lock()
 	if !dirty && time.Since(lastFlush) < heartbeatInterval {
+		mu.Unlock()
+		return
+	}
+	// A string of failures backs off so a down hostlet is not hammered on
+	// every daemon tick.
+	if time.Now().Before(retryAt) {
 		mu.Unlock()
 		return
 	}
@@ -154,6 +178,7 @@ func Flush(endpoint *inapi.HostletStatusEndpoint, instanceName string, repId uin
 	resp, err := client.Do(req)
 	if err != nil {
 		slog.Warn("inagent status post failed", "url", endpoint.Url, "err", err)
+		postFailed()
 		return
 	}
 	defer resp.Body.Close()
@@ -162,11 +187,23 @@ func Flush(endpoint *inapi.HostletStatusEndpoint, instanceName string, repId uin
 		mu.Lock()
 		dirty = false
 		lastFlush = time.Now()
+		fails = 0
+		retryAt = time.Time{}
 		mu.Unlock()
 		slog.Debug("inagent status posted", "url", endpoint.Url, "stages", len(snap))
 	} else {
 		slog.Warn("inagent status post rejected", "url", endpoint.Url, "status", resp.StatusCode)
+		postFailed()
 	}
+}
+
+// postFailed records a failed post and schedules the next attempt with
+// exponential backoff.
+func postFailed() {
+	mu.Lock()
+	defer mu.Unlock()
+	fails++
+	retryAt = time.Now().Add(retryBackoff(fails))
 }
 
 // cloneStages returns a deep copy of the stage list so the POST body is a

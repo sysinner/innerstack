@@ -44,11 +44,7 @@ func TestReporterSetAndFlush(t *testing.T) {
 	defer srv.Close()
 
 	// Reset reporter state.
-	mu.Lock()
-	stages = nil
-	dirty = false
-	lastFlush = zeroTime()
-	mu.Unlock()
+	resetState()
 
 	SetBoot()
 	SetSpecLoad(inapi.AppStageStateSuccess, "")
@@ -88,10 +84,7 @@ func TestReporterSetAndFlush(t *testing.T) {
 }
 
 func TestReporterNoEndpoint(t *testing.T) {
-	mu.Lock()
-	stages = nil
-	dirty = false
-	mu.Unlock()
+	resetState()
 	SetBoot()
 	// No endpoint / empty URL -> no panic, no send.
 	Flush(nil, "myapp", 0)
@@ -104,11 +97,7 @@ func TestReporterAuthFailureKeepsDirty(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	mu.Lock()
-	stages = nil
-	dirty = false
-	lastFlush = zeroTime()
-	mu.Unlock()
+	resetState()
 
 	SetSpecLoad(inapi.AppStageStateFailed, "bad")
 	Flush(&inapi.HostletStatusEndpoint{Url: srv.URL, SecretKey: "k"}, "myapp", 0)
@@ -121,16 +110,8 @@ func TestReporterAuthFailureKeepsDirty(t *testing.T) {
 	}
 }
 
-// zeroTime returns a zero time so the first Flush always treats the heartbeat
-// as elapsed.
-func zeroTime() time.Time { return time.Time{} }
-
 func TestReporterSetRevisionResets(t *testing.T) {
-	mu.Lock()
-	stages = nil
-	dirty = false
-	revision = 0
-	mu.Unlock()
+	resetState()
 
 	SetRevision(1)
 	SetSpecLoad(inapi.AppStageStateSuccess, "")
@@ -155,4 +136,119 @@ func TestReporterSetRevisionResets(t *testing.T) {
 	if len(stages) != 1 {
 		t.Fatalf("stages=%d want 1 (same revision)", len(stages))
 	}
+}
+
+func TestRetryBackoff(t *testing.T) {
+	tests := []struct {
+		fails int
+		want  time.Duration
+	}{
+		{-1, 0},
+		{0, 0},
+		{1, 1 * time.Second},
+		{2, 2 * time.Second},
+		{3, 4 * time.Second},
+		{4, 8 * time.Second},
+		{5, 16 * time.Second},
+		{6, 32 * time.Second},
+		{7, 60 * time.Second}, // 64s clamped to the cap
+		{20, 60 * time.Second},
+	}
+	for _, tt := range tests {
+		if got := retryBackoff(tt.fails); got != tt.want {
+			t.Errorf("retryBackoff(%d) = %v, want %v", tt.fails, got, tt.want)
+		}
+	}
+}
+
+func TestReporterFailureBackoff(t *testing.T) {
+	var (
+		hits    int32
+		statusC int32 = http.StatusInternalServerError
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		if atomic.LoadInt32(&statusC) == http.StatusOK {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("OK"))
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	ep := &inapi.HostletStatusEndpoint{Url: srv.URL, SecretKey: "k"}
+	resetState()
+	SetBoot()
+
+	// First failure schedules a 1s backoff window.
+	Flush(ep, "myapp", 0)
+	if atomic.LoadInt32(&hits) != 1 {
+		t.Fatalf("hits=%d want 1", hits)
+	}
+
+	// Still dirty, but inside the backoff window: the retry is suppressed.
+	Flush(ep, "myapp", 0)
+	if atomic.LoadInt32(&hits) != 1 {
+		t.Fatalf("hits=%d want 1 (backoff suppresses immediate retry)", hits)
+	}
+
+	// Expiring the window lets the next failure double the wait.
+	expireBackoff()
+	Flush(ep, "myapp", 0)
+	if atomic.LoadInt32(&hits) != 2 {
+		t.Fatalf("hits=%d want 2 after window expiry", hits)
+	}
+	mu.Lock()
+	curFails, wait := fails, time.Until(retryAt)
+	mu.Unlock()
+	if curFails != 2 || wait <= 0 || wait > 2*time.Second {
+		t.Fatalf("fails=%d wait=%v, want fails=2 wait in (0, 2s]", curFails, wait)
+	}
+
+	// A long failure streak clamps the wait at the 60s cap.
+	mu.Lock()
+	fails = 9
+	retryAt = time.Now().Add(-time.Second)
+	mu.Unlock()
+	Flush(ep, "myapp", 0)
+	mu.Lock()
+	wait = time.Until(retryAt)
+	mu.Unlock()
+	if wait <= 59*time.Second || wait > 61*time.Second {
+		t.Fatalf("wait=%v, want ~60s cap", wait)
+	}
+
+	// Success clears the backoff so the next dirty flush is immediate.
+	atomic.StoreInt32(&statusC, http.StatusOK)
+	expireBackoff()
+	Flush(ep, "myapp", 0)
+	if atomic.LoadInt32(&hits) != 4 {
+		t.Fatalf("hits=%d want 4", hits)
+	}
+	SetTaskRun(inapi.AppStageStateSuccess, "done")
+	Flush(ep, "myapp", 0)
+	if atomic.LoadInt32(&hits) != 5 {
+		t.Fatalf("hits=%d want 5 (no wait after success reset)", hits)
+	}
+}
+
+// resetState clears reporter state between tests.
+func resetState() {
+	mu.Lock()
+	defer mu.Unlock()
+	stages = nil
+	dirty = false
+	lastFlush = time.Time{}
+	fails = 0
+	retryAt = time.Time{}
+	revision = 0
+}
+
+// expireBackoff moves the retry deadline into the past so the next Flush
+// attempts a post immediately.
+func expireBackoff() {
+	mu.Lock()
+	defer mu.Unlock()
+	retryAt = time.Now().Add(-time.Second)
 }

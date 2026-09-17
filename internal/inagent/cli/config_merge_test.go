@@ -125,7 +125,12 @@ foo = bar
 			for _, c := range tc.wantMissing {
 				sec, _ := got.GetSection(c.section)
 				if sec != nil && sec.Key(c.key).Value() != "" {
-					t.Errorf("[%s] %s unexpectedly present = %q", c.section, c.key, sec.Key(c.key).Value())
+					t.Errorf(
+						"[%s] %s unexpectedly present = %q",
+						c.section,
+						c.key,
+						sec.Key(c.key).Value(),
+					)
 				}
 			}
 		})

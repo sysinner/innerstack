@@ -42,7 +42,7 @@ type executorStatus struct {
 
 	// Output stores the last captured stdout/stderr output from command execution
 	Output    string `json:"output,omitempty" toml:"output,omitempty"`
-	OutputBuf []byte `json:"-" toml:"-"`
+	OutputBuf []byte `json:"-"                toml:"-"`
 }
 
 // cronParse supports auto-detection of 5 or 6 field Cron expressions

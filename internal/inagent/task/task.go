@@ -222,7 +222,11 @@ func OnStartupAggregate(app *inapi.AppReplicaInstance) (string, string) {
 		return inapi.AppStageStateFailed, fmt.Sprintf("%d/%d tasks failed (first: %s)",
 			failed, len(names), failedName)
 	case running > 0 || pending > 0:
-		return inapi.AppStageStateRunning, fmt.Sprintf("%d/%d tasks running", len(names)-pending, len(names))
+		return inapi.AppStageStateRunning, fmt.Sprintf(
+			"%d/%d tasks running",
+			len(names)-pending,
+			len(names),
+		)
 	default:
 		return inapi.AppStageStateSuccess, fmt.Sprintf("%d/%d tasks done", len(names), len(names))
 	}
@@ -422,7 +426,13 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 		uid = 0
 		gid = 0
 	} else if task.RunUser != "" && task.RunUser != "action" {
-		slog.Warn(fmt.Sprintf("task [%s] user invalid (%s), using default 'action'", task.Name, task.RunUser))
+		slog.Warn(
+			fmt.Sprintf(
+				"task [%s] user invalid (%s), using default 'action'",
+				task.Name,
+				task.RunUser,
+			),
+		)
 	}
 	es.Cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{
@@ -479,8 +489,10 @@ func taskCmd(task *inapi.AppSpecTask, es *executorStatus, script string) error {
 				}
 				es.DoneUpdated = 0
 				es.FailUpdated = max(time.Now().Unix(), es.ExecWindow)
-				slog.Error(fmt.Sprintf("task [%s] failed, duration %v, err %s, output %s, script %s",
-					task.Name, time.Since(execStarted), es.FailMessage, es.Output, script))
+				slog.Error(
+					fmt.Sprintf("task [%s] failed, duration %v, err %s, output %s, script %s",
+						task.Name, time.Since(execStarted), es.FailMessage, es.Output, script),
+				)
 			}
 
 			es.Cmd = nil

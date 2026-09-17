@@ -87,7 +87,10 @@ func NewConfigMergeCommand() *cobra.Command {
 			case ".properties":
 				fieldType = inapi.SpecFieldTypeTextJavaProp
 			default:
-				return fmt.Errorf("cannot infer config type from file extension %q and field type is empty", ext)
+				return fmt.Errorf(
+					"cannot infer config type from file extension %q and field type is empty",
+					ext,
+				)
 			}
 			slog.Info("inferred config type from file extension", "type", fieldType)
 		}

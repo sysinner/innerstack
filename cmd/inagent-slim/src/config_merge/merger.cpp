@@ -233,7 +233,8 @@ namespace inagent {
 
         static std::vector<IniSection> parse_ini(const std::string& content) {
             std::vector<IniSection> secs;
-            secs.push_back({"", "", {}}); // preamble: lines before first [section]
+            secs.push_back({"", "", {}}); // preamble: lines before first
+                                          // [section]
             for (const auto& raw : util::split(content, '\n')) {
                 if (is_ini_section_header(raw)) {
                     secs.push_back({parse_ini_section_name(raw), raw, {}});

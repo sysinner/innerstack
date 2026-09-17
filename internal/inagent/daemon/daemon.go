@@ -65,7 +65,11 @@ func NewAgentDaemonCommand() *cobra.Command {
 func (it *agentDaemonCommand) run(cmd *cobra.Command, args []string) error {
 
 	{
-		fp, err := os.OpenFile("/home/action/inagent.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		fp, err := os.OpenFile(
+			"/home/action/inagent.log",
+			os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+			0666,
+		)
 		if err != nil {
 			panic(err)
 		}

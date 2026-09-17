@@ -36,6 +36,11 @@ namespace inagent {
         static const int64_t kHeartbeatMs = 30000;
         static const int kHttpTimeoutSec = 3;
 
+        // Bounds for the wait between consecutive failed posts: exponential
+        // from kRetryBaseMs (1s, 2s, 4s ...), capped at kRetryMaxMs.
+        static const int64_t kRetryBaseMs = 1000;
+        static const int64_t kRetryMaxMs = 60000;
+
         struct Stage {
             std::string name;
             std::string owner = kOwner;
@@ -51,6 +56,19 @@ namespace inagent {
         static bool g_dirty = false;
         static uint64_t g_revision = 0;
         static int64_t g_last_flush_ms = 0;
+        static int g_fails = 0;
+        static int64_t g_retry_at_ms = 0;
+
+        // Wait before the next attempt after n consecutive failures. The
+        // shift is bounded so it cannot overflow; anything past the cap
+        // clamps to kRetryMaxMs.
+        static int64_t retry_backoff_ms(int n) {
+            if (n <= 0) return 0;
+            int64_t shift = (n - 1 < 6) ? (n - 1) : 6;
+            int64_t d = kRetryBaseMs << shift;
+            if (d > kRetryMaxMs) d = kRetryMaxMs;
+            return d;
+        }
 
         static Stage* find_stage(const std::string& name) {
             for (auto& s : g_stages) {
@@ -251,6 +269,9 @@ namespace inagent {
 
             int64_t now = util::now_unix_ms();
             if (!g_dirty && (now - g_last_flush_ms) < kHeartbeatMs) return;
+            // A string of failures backs off so a down hostlet is not
+            // hammered on every daemon tick.
+            if (g_retry_at_ms > 0 && now < g_retry_at_ms) return;
 
             nlohmann::json j_stages = nlohmann::json::array();
             for (const auto& s : g_stages) {
@@ -279,14 +300,19 @@ namespace inagent {
             if (code == 200) {
                 g_dirty = false;
                 g_last_flush_ms = util::now_unix_ms();
+                g_fails = 0;
+                g_retry_at_ms = 0;
                 log::info("inagent status posted", "stages",
                           std::to_string(stage_count));
-            } else if (code > 0) {
-                log::warn("inagent status post rejected", "status",
-                          std::to_string(code));
+            } else {
+                if (code > 0) {
+                    log::warn("inagent status post rejected", "status",
+                              std::to_string(code));
+                }
+                // code < 0: connection failure already logged in http_post.
+                g_fails++;
+                g_retry_at_ms = util::now_unix_ms() + retry_backoff_ms(g_fails);
             }
-            // code < 0: connection failure already logged in http_post; retry
-            // next tick.
         }
 
     } // namespace status
