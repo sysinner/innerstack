@@ -140,7 +140,11 @@ func main() {
 		}
 		signals.Go(func() {
 			slog.Info("https server start " + httpsServer.Addr)
-			if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			if err := httpsServer.ListenAndServeTLS(
+				"",
+				"",
+			); err != nil &&
+				err != http.ErrServerClosed {
 				slog.Error("https server quit : " + err.Error())
 			}
 			tlsDomainCache = nil
@@ -214,14 +218,23 @@ type ConfigServer struct {
 	WriteByteTimeout int64 `toml:"write_byte_timeout"`
 	// IdleTimeout is the keep-alive idle timeout between requests.
 	IdleTimeout int64 `toml:"idle_timeout"`
+	// MaxBodySize bounds the request body (http.MaxBytesReader).
 	MaxBodySize int64 `toml:"max_body_size"`
+	// MaxRespSize is a hard cap on a single proxied response body: exceeding
+	// it aborts the response (connection closed) instead of streaming it
+	// indefinitely. Streaming keeps memory bounded regardless; this cap bounds
+	// the transfer itself (e.g. a dripping upstream pinning a goroutine).
+	// Scope: proxied routes only (localfs serves operator-owned static
+	// content and is uncapped); event streams are exempt because a healthy
+	// stream legitimately accumulates bytes over its lifetime.
+	MaxRespSize int64 `toml:"max_resp_size"`
 
 	DebugPprofEnable bool `toml:"debug_pprof_enable,omitempty"`
 }
 
 type ConfigZone struct {
 	Name  string   `toml:"name"`
-	Hosts []string `json:"hosts" toml:"hosts"`
+	Hosts []string `toml:"hosts"      json:"hosts"`
 	AK    string   `toml:"access_key"`
 }
 
@@ -364,6 +377,15 @@ var (
 	)
 )
 
+// confClampInt64 applies the ingate config value policy: a non-positive
+// value means "use the default", otherwise the value is clamped into [lo, hi].
+func confClampInt64(v, def, lo, hi int64) int64 {
+	if v <= 0 {
+		return def
+	}
+	return min(max(v, lo), hi)
+}
+
 func initSetup() error {
 
 	prefixes := []string{prefix}
@@ -395,49 +417,15 @@ func initSetup() error {
 		}
 	}
 
-	if cfg.Server.MaxBodySize <= 0 {
-		cfg.Server.MaxBodySize = 16 << 20 // 默认 16MB
-	} else {
-		// min 8 MB, max 64 MB
-		cfg.Server.MaxBodySize = max(cfg.Server.MaxBodySize, 8<<20)
-		// max 64 MB
-		cfg.Server.MaxBodySize = min(cfg.Server.MaxBodySize, 64<<20)
-	}
-
-	if cfg.Server.ReadTimeout <= 0 {
-		cfg.Server.ReadTimeout = 61
-	} else {
-		cfg.Server.ReadTimeout = max(cfg.Server.ReadTimeout, 3)   // 最小 3 秒
-		cfg.Server.ReadTimeout = min(cfg.Server.ReadTimeout, 300) // 最大 300 秒
-	}
-
-	if cfg.Server.ReadHeaderTimeout <= 0 {
-		cfg.Server.ReadHeaderTimeout = 10
-	} else {
-		cfg.Server.ReadHeaderTimeout = max(cfg.Server.ReadHeaderTimeout, 3)  // 最小 3 秒
-		cfg.Server.ReadHeaderTimeout = min(cfg.Server.ReadHeaderTimeout, 60) // 最大 60 秒
-	}
-
-	if cfg.Server.WriteTimeout <= 0 {
-		cfg.Server.WriteTimeout = 61
-	} else {
-		cfg.Server.WriteTimeout = max(cfg.Server.WriteTimeout, 3)   // 最小 3 秒
-		cfg.Server.WriteTimeout = min(cfg.Server.WriteTimeout, 300) // 最大 300 秒
-	}
-
-	if cfg.Server.WriteByteTimeout <= 0 {
-		cfg.Server.WriteByteTimeout = 60
-	} else {
-		cfg.Server.WriteByteTimeout = max(cfg.Server.WriteByteTimeout, 5)   // 最小 5 秒
-		cfg.Server.WriteByteTimeout = min(cfg.Server.WriteByteTimeout, 600) // 最大 600 秒
-	}
-
-	if cfg.Server.IdleTimeout <= 0 {
-		cfg.Server.IdleTimeout = 120
-	} else {
-		cfg.Server.IdleTimeout = max(cfg.Server.IdleTimeout, 10)  // 最小 10 秒
-		cfg.Server.IdleTimeout = min(cfg.Server.IdleTimeout, 600) // 最大 600 秒
-	}
+	// server.size/time policy: non-positive means "use the default",
+	// otherwise clamp into [lo, hi]
+	cfg.Server.MaxBodySize = confClampInt64(cfg.Server.MaxBodySize, 16<<20, 8<<20, 64<<20)
+	cfg.Server.MaxRespSize = confClampInt64(cfg.Server.MaxRespSize, 1<<30, 16<<20, 8<<30)
+	cfg.Server.ReadTimeout = confClampInt64(cfg.Server.ReadTimeout, 61, 3, 300)
+	cfg.Server.ReadHeaderTimeout = confClampInt64(cfg.Server.ReadHeaderTimeout, 10, 3, 60)
+	cfg.Server.WriteTimeout = confClampInt64(cfg.Server.WriteTimeout, 61, 3, 300)
+	cfg.Server.WriteByteTimeout = confClampInt64(cfg.Server.WriteByteTimeout, 60, 5, 600)
+	cfg.Server.IdleTimeout = confClampInt64(cfg.Server.IdleTimeout, 120, 10, 600)
 
 	{
 		if cfg.Limit.Rate <= 0 {
@@ -521,7 +509,9 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 		if req.Revision == 0 && len(cfg.Domains) > 0 {
 			r := float64(len(rspList.Items)) / float64(len(cfg.Domains))
 			if r < 0.5 {
-				slog.Info(fmt.Sprintf("fetch domains %d/%d, skip", len(rspList.Items), len(cfg.Domains)))
+				slog.Info(
+					fmt.Sprintf("fetch domains %d/%d, skip", len(rspList.Items), len(cfg.Domains)),
+				)
 				return nil
 			}
 		}
@@ -907,6 +897,18 @@ func (trw *throttledResponseWriter) Write(p []byte) (n int, err error) {
 	return n, nil
 }
 
+// Flush forwards to the underlying connection writer; reached through
+// respWriter.Flush when ReverseProxy flushes a streaming response per chunk.
+// It reuses the cached rc (populated by the constructors) instead of
+// allocating a controller per call on the streaming hot path.
+func (trw *throttledResponseWriter) Flush() {
+	rc := trw.rc
+	if rc == nil {
+		rc = http.NewResponseController(trw.ResponseWriter)
+	}
+	_ = rc.Flush()
+}
+
 var skipGzipExts = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
 	".webp": true, ".mp4": true, ".mp3": true, ".zip": true,
@@ -915,6 +917,11 @@ var skipGzipExts = map[string]bool{
 
 var gzipMinSize = 1024
 
+// respWriter streams a proxied response to the client with bounded memory:
+// body bytes accumulate only until gzipMinSize is crossed or the first Flush
+// arrives, then response headers are committed and every further byte is
+// written through (gzip-compressed when applicable) instead of buffered.
+// respMaxSize, when > 0, is a hard cap on the total response body size.
 type respWriter struct {
 	http.ResponseWriter
 
@@ -922,58 +929,195 @@ type respWriter struct {
 
 	statusCode int
 
-	writeSize int
-	writeBuff *bytes.Buffer
+	// writeSize counts raw upstream body bytes; compSize counts bytes handed
+	// to the client (compressed or not).
+	writeSize   int64
+	compSize    int64
+	respMaxSize int64
 
 	gzipAccept bool
 	gzipWriter *gzip.Writer
+
+	headerDone bool
+
+	// rc wraps the underlying (throttled) writer for Flush; built lazily on
+	// first use so the per-chunk flush path does not allocate.
+	rc *http.ResponseController
+
+	// capExempt is resolved once at the first body byte: event streams are
+	// exempt from respMaxSize (a healthy stream accumulates bytes over its
+	// lifetime; dead ones are dropped by WriteByteTimeout instead).
+	capChecked bool
+	capExempt  bool
+
+	// buf holds the not-yet-committed prefix of the body; it never grows
+	// beyond gzipMinSize plus one write chunk (~32KB from ReverseProxy).
+	buf bytes.Buffer
 }
 
+// respCountWriter is the gzip.Writer destination; it keeps compSize in sync
+// for the compressed path, whose bytes bypass respWriter.writeBody.
+type respCountWriter struct {
+	rw *respWriter
+}
+
+func (c *respCountWriter) Write(p []byte) (int, error) {
+	n, err := c.rw.ResponseWriter.Write(p)
+	c.rw.compSize += int64(n)
+	return n, err
+}
+
+// Write streams one upstream body chunk. Below gzipMinSize the chunk stays
+// buffered (so small responses finish with an exact Content-Length); past
+// the threshold the response commits and streams. Exceeding respMaxSize
+// hard-aborts the response.
 func (w *respWriter) Write(b []byte) (int, error) {
 
-	if w.writeBuff == nil {
-		w.writeBuff = &bytes.Buffer{}
+	if !w.capChecked {
+		w.capChecked = true
+		w.capExempt = strings.Contains(
+			w.Header().Get("Content-Type"), "text/event-stream")
+	}
+	if w.respMaxSize > 0 && !w.capExempt &&
+		w.writeSize+int64(len(b)) > w.respMaxSize {
+		slog.Warn("response exceeds size limit, abort",
+			"path", w.requestPath, "size_limit", w.respMaxSize)
+		// ErrAbortHandler is the net/http mechanism to hard-abort a response
+		// mid-transfer: the connection is closed, so the client sees a broken
+		// frame instead of a silently truncated body. Returning an error here
+		// would let net/http finish the chunked framing cleanly and deliver a
+		// truncated response as if it were complete.
+		panic(http.ErrAbortHandler)
+	}
+	w.writeSize += int64(len(b))
+
+	if w.headerDone {
+		return w.writeBody(b)
 	}
 
-	// 如果满足 gzip 条件且尚未初始化，直接包装原始 ResponseWriter
-	if w.gzipWriter == nil && w.gzipAccept &&
-		w.Header().Get("Content-Encoding") == "" {
-
-		ext := filepath.Ext(w.requestPath)
-		isCompressed := skipGzipExts[strings.ToLower(ext)]
-
-		contentType := w.Header().Get("Content-Type")
-		if contentType != "" &&
-			(strings.Contains(contentType, "image/") || strings.Contains(contentType, "video/")) {
-			isCompressed = true
-		}
-
-		if !isCompressed && (len(b) >= gzipMinSize || w.writeBuff.Len() >= gzipMinSize) {
-			if w.writeBuff.Len() > 0 {
-				writeBuff := &bytes.Buffer{}
-				w.gzipWriter = gzip.NewWriter(writeBuff)
-				if n, err := w.gzipWriter.Write(w.writeBuff.Bytes()); err != nil {
-					return n, err
-				}
-				w.writeBuff = writeBuff
-			} else {
-				w.gzipWriter = gzip.NewWriter(w.writeBuff)
-			}
-		}
+	w.buf.Write(b)
+	if w.buf.Len() < gzipMinSize {
+		return len(b), nil
 	}
 
-	if w.gzipWriter != nil {
-		return w.gzipWriter.Write(b)
-	}
-
-	w.writeSize += len(b)
-	return w.writeBuff.Write(b)
+	return len(b), w.commit(w.gzipEligible())
 }
 
 func (w *respWriter) WriteHeader(statusCode int) {
 	if w.statusCode == 0 {
 		w.statusCode = statusCode
 	}
+}
+
+// gzipEligible reports whether the response should be compressed, judged
+// from the finalized response headers. Range/partial responses and
+// server-sent events are excluded: re-framing the former breaks the
+// Content-Range contract, and buffering the latter for the size threshold
+// would delay (or swallow) small interactive events.
+func (w *respWriter) gzipEligible() bool {
+	if !w.gzipAccept {
+		return false
+	}
+	h := w.Header()
+	if h.Get("Content-Encoding") != "" || h.Get("Content-Range") != "" {
+		return false
+	}
+	contentType := h.Get("Content-Type")
+	if strings.Contains(contentType, "text/event-stream") ||
+		strings.Contains(contentType, "image/") ||
+		strings.Contains(contentType, "video/") {
+		return false
+	}
+	if skipGzipExts[strings.ToLower(filepath.Ext(w.requestPath))] {
+		return false
+	}
+	return true
+}
+
+// commit finalizes headers and switches to streaming: the buffered prefix is
+// written through, optionally wrapping the client writer in a gzip stream
+// (Content-Length is dropped in that case; framing becomes chunked).
+func (w *respWriter) commit(gzipOn bool) error {
+	setProxyBadge(w.Header())
+
+	if gzipOn {
+		w.Header().Del("Content-Length")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.gzipWriter = gzip.NewWriter(&respCountWriter{rw: w})
+	}
+	w.headerDone = true
+
+	if w.statusCode > 0 {
+		w.ResponseWriter.WriteHeader(w.statusCode)
+	} else {
+		w.ResponseWriter.WriteHeader(http.StatusOK)
+	}
+
+	if w.buf.Len() == 0 {
+		return nil
+	}
+	_, err := w.writeBody(w.buf.Bytes())
+	w.buf.Reset()
+	return err
+}
+
+// writeBody forwards body bytes to the client, through the gzip stream when
+// active.
+func (w *respWriter) writeBody(b []byte) (int, error) {
+	if w.gzipWriter != nil {
+		return w.gzipWriter.Write(b)
+	}
+	n, err := w.ResponseWriter.Write(b)
+	w.compSize += int64(n)
+	return n, err
+}
+
+// Flush pushes already-written bytes to the client; ReverseProxy calls it
+// per chunk for streaming responses, and immediately (before the first body
+// byte) for responses of unknown length. The first Flush commits the response
+// under the normal gzipEligible rules: event streams and range responses
+// stay pass-through, everything else starts streaming gzip right away so
+// unknown-length responses keep the compression the buffered implementation
+// applied. gzip.Writer.Flush emits a sync flush, preserving delivery latency.
+func (w *respWriter) Flush() {
+	if !w.headerDone {
+		_ = w.commit(w.gzipEligible())
+	}
+	if w.gzipWriter != nil {
+		_ = w.gzipWriter.Flush()
+	}
+	if w.rc == nil {
+		w.rc = http.NewResponseController(w.ResponseWriter)
+	}
+	_ = w.rc.Flush()
+}
+
+// finish completes the response: it closes an active gzip stream (flushing
+// its footer) and, for a response that never committed, commits the buffered
+// bytes with an exact Content-Length. Status codes are forwarded verbatim;
+// redirect coercion is not done here -- the GatewayIngressType_Redirect
+// branch sets its own 302, and a proxied Location response (e.g. 201
+// Created) must not be rewritten.
+func (w *respWriter) finish() {
+	if w.gzipWriter != nil {
+		_ = w.gzipWriter.Close()
+		w.gzipWriter = nil
+	}
+	if w.headerDone {
+		return
+	}
+	// exact Content-Length for the buffered (never-streamed) response
+	if w.buf.Len() > 0 {
+		w.Header().Set("Content-Length", strconv.Itoa(w.buf.Len()))
+	}
+	_ = w.commit(false)
+}
+
+// setProxyBadge stamps the gateway identity over any upstream-supplied
+// X-Proxy value; called at header-commit time, after ReverseProxy has copied
+// the upstream headers, and by localfsServe.
+func setProxyBadge(h http.Header) {
+	h.Set("X-Proxy", "InnerStack/"+version)
 }
 
 type httpRootHandler struct{}
@@ -1008,10 +1152,11 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	// upstream bodies), which legitimately outlast http.Server's fixed
 	// WriteTimeout -- for HTTP/2 that timer fires onWriteTimeout and resets the
 	// stream with INTERNAL_ERROR mid-transfer. Clear the per-response write
-	// deadline here so neither the buffering phase (proxy reading the upstream)
-	// nor the throttled flush gets cut off. Stall/dead-client protection comes
-	// from the per-chunk deadline re-armed inside throttledResponseWriter
-	// (WriteByteTimeout semantic) and from the request context (client disconnect).
+	// deadline here so neither the streaming transfer (proxy reading the
+	// upstream) nor the throttled writes get cut off. Stall/dead-client
+	// protection comes from the per-chunk deadline re-armed inside
+	// throttledResponseWriter (WriteByteTimeout semantic) and from the request
+	// context (client disconnect).
 	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 
 	// localfs is served straight from disk by localfsServe, streaming the file
@@ -1034,6 +1179,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		hitRoute *DomainEntryRoute
 		hw       = &respWriter{
 			requestPath:    urlPath,
+			respMaxSize:    cfg.Server.MaxRespSize,
 			ResponseWriter: w,
 		}
 	)
@@ -1053,9 +1199,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 			metricComplex.Add("HostService", r.Host+":"+hitRoute.Path, 1, 0, lat)
 		}
 		metricGauge.Add("Service", "RawSize", float64(hw.writeSize))
-		if hw.writeBuff != nil {
-			metricGauge.Add("Service", "CompSize", float64(hw.writeBuff.Len()))
-		}
+		metricGauge.Add("Service", "CompSize", float64(hw.compSize))
 	}()
 
 	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
@@ -1099,40 +1243,12 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 	hitRoute = handler(hw, r)
 
-	w.Header().Del("X-Proxy")
-	w.Header().Set("X-Proxy", "InnerStack/"+version)
-
-	// handler() routes every response, including error pages (403/404 written
-	// via handleWriteHtml), through hw (the respWriter buffer). Those buffered
-	// bytes must be flushed below even when hitRoute is nil: otherwise the
-	// underlying ResponseWriter never receives a WriteHeader/Write and net/http
-	// silently answers 200 with an empty body.
-	if hw.gzipWriter != nil {
-		hw.gzipWriter.Close()
-		w.Header().Del("Content-Encoding")
-		w.Header().Set("Content-Encoding", "gzip")
-	}
-
-	if hw.writeBuff != nil && hw.writeBuff.Len() > 0 {
-		w.Header().Del("Content-Length")
-		w.Header().Set("Content-Length", strconv.Itoa(hw.writeBuff.Len()))
-	}
-
-	if uri := w.Header().Get("Location"); uri != "" &&
-		w.Header().Get("Content-Type") == "" {
-		if hw.statusCode >= 300 && hw.statusCode < 310 {
-			w.WriteHeader(hw.statusCode)
-		} else {
-			w.WriteHeader(http.StatusFound)
-		}
-		return
-	} else if hw.statusCode > 0 {
-		w.WriteHeader(hw.statusCode)
-	}
-
-	if hw.writeBuff != nil && hw.writeBuff.Len() > 0 {
-		w.Write(hw.writeBuff.Bytes())
-	}
+	// Finalize the response: close the gzip stream of a streamed body, or
+	// flush a still-buffered small response with an exact Content-Length (or
+	// its redirect status). finish() runs even when hitRoute is nil, so
+	// buffered error pages (403/404) are delivered instead of net/http
+	// silently answering 200 with an empty body.
+	hw.finish()
 }
 
 // localfsServe streams a static file for a request whose route resolves to a
@@ -1171,7 +1287,7 @@ func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 		metricComplex.Add("HostService", r.Host+":"+route.Path, 1, 0, time.Since(tn))
 	}()
 
-	w.Header().Set("X-Proxy", "InnerStack/"+version)
+	setProxyBadge(w.Header())
 
 	// route.Urls is populated only when the configured target exists and is a
 	// directory (see configRefresh). An empty set means the path is not
