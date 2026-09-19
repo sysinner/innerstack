@@ -122,7 +122,7 @@ func main() {
 				slog.Info("http server quit : " + err.Error())
 			}
 		}, func() {
-			httpServer.Shutdown(context.Background())
+			serverShutdown(httpServer, "http")
 		})
 	}
 	if cfg.Server.HttpsPort > 0 {
@@ -149,7 +149,7 @@ func main() {
 			}
 			tlsDomainCache = nil
 		}, func() {
-			httpsServer.Shutdown(context.Background())
+			serverShutdown(httpsServer, "https")
 		})
 	}
 
@@ -177,6 +177,21 @@ func main() {
 	signals.Go(ipLimiterCleaner, nil)
 
 	signals.Wait()
+}
+
+// serverShutdown drains a server with a bounded wait. Shutdown(context.Background())
+// would block forever on an active connection: streaming responses clear the
+// per-response write deadline and are drained through the rate limiter, so a
+// large throttled transfer can hold one for hours. Past the deadline the
+// caller (signals.Wait) proceeds and the process exits, dropping whatever is
+// left -- graceful first, forceful second.
+func serverShutdown(srv *http.Server, name string) {
+	ctx, cancel := context.WithTimeout(context.Background(),
+		time.Duration(cfg.Server.ShutdownTimeout)*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Warn(name + " server shutdown: " + err.Error())
+	}
 }
 
 type Config struct {
@@ -228,6 +243,13 @@ type ConfigServer struct {
 	// content and is uncapped); event streams are exempt because a healthy
 	// stream legitimately accumulates bytes over its lifetime.
 	MaxRespSize int64 `toml:"max_resp_size"`
+	// ShutdownTimeout bounds the graceful-drain wait on SIGTERM. Streaming
+	// responses legitimately outlast WriteTimeout (rootHandler clears the
+	// per-response write deadline), so an unbounded Shutdown would hang the
+	// process on a throttled transfer until the supervisor SIGKILLs it;
+	// past the deadline the process exits and the remaining connections
+	// are dropped.
+	ShutdownTimeout int64 `toml:"shutdown_timeout"`
 
 	DebugPprofEnable bool `toml:"debug_pprof_enable,omitempty"`
 }
@@ -426,6 +448,9 @@ func initSetup() error {
 	cfg.Server.WriteTimeout = confClampInt64(cfg.Server.WriteTimeout, 61, 3, 300)
 	cfg.Server.WriteByteTimeout = confClampInt64(cfg.Server.WriteByteTimeout, 60, 5, 600)
 	cfg.Server.IdleTimeout = confClampInt64(cfg.Server.IdleTimeout, 120, 10, 600)
+	// Upper bound overlaps systemd's default TimeoutStopSec (90s): two
+	// servers draining sequentially at the cap must still fit within it.
+	cfg.Server.ShutdownTimeout = confClampInt64(cfg.Server.ShutdownTimeout, 30, 1, 300)
 
 	{
 		if cfg.Limit.Rate <= 0 {
