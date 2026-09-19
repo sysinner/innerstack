@@ -22,7 +22,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -523,19 +522,12 @@ func domainFresh(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
 	domainEntry.mu.Lock()
 	defer domainEntry.mu.Unlock()
 
+	// Expired routes need no explicit transport teardown: every proxy shares
+	// the package-level reverseProxyTransport, so there is nothing per-route
+	// to close, and closing the shared transport would drop healthy idle
+	// connections too. Connections pooled for vanished backends expire via
+	// the transport's IdleConnTimeout.
 	prevRoutes := domainEntry.Routes
-
-	for _, route := range prevRoutes {
-		if route.reverseProxy != nil {
-			for _, rp := range route.reverseProxy {
-				if rp.Transport != nil {
-					if closer, ok := rp.Transport.(io.Closer); ok {
-						closer.Close()
-					}
-				}
-			}
-		}
-	}
 
 	domainEntry.Routes = nil
 	domainEntry.indexRoutes = map[string]*DomainEntryRoute{}
