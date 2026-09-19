@@ -362,12 +362,32 @@ func TestRespWriterLocationStatusForwarded(t *testing.T) {
 	}
 }
 
-// stubProxyRoute installs a single proxied route for host "example.com" whose
-// ReverseProxy uses rt instead of dialing, and restores cfg afterwards.
+// stubDomainRoute installs a single route for host "example.com", keyed by
+// route.Path, and restores cfg afterwards.
 //
-// The swap is unsynchronized: it is safe only while this is the sole test
-// file touching cfg and nothing here uses t.Parallel or starts the
-// configRefresh / ipLimiterCleaner goroutines.
+// The swap is unsynchronized: it is safe only while no test in this package
+// uses t.Parallel or starts the configRefresh / ipLimiterCleaner goroutines.
+func stubDomainRoute(t *testing.T, route *DomainEntryRoute) {
+	t.Helper()
+
+	entry := &DomainEntry{
+		Domain:      &inapi.GatewayIngressDeploy{Domain: "example.com"},
+		indexRoutes: map[string]*DomainEntryRoute{route.Path: route},
+	}
+
+	oldLimit, oldServer, oldIndex := cfg.Limit, cfg.Server, cfg.indexDomains
+	cfg.Limit = ConfigLimit{Rate: 1 << 20, Burst: 1 << 20}
+	cfg.Server.MaxBodySize = 16 << 20
+	cfg.Server.WriteByteTimeout = 60
+	cfg.indexDomains = map[string]*DomainEntry{"example.com": entry}
+	t.Cleanup(func() {
+		cfg.Limit, cfg.Server, cfg.indexDomains = oldLimit, oldServer, oldIndex
+	})
+}
+
+// stubProxyRoute installs a single proxied route for host "example.com" whose
+// ReverseProxy uses rt instead of dialing; see stubDomainRoute for the cfg
+// swap constraints.
 func stubProxyRoute(t *testing.T, rt http.RoundTripper) {
 	t.Helper()
 
@@ -378,24 +398,11 @@ func stubProxyRoute(t *testing.T, rt http.RoundTripper) {
 	rp := newReverseProxy(u)
 	rp.Transport = rt
 
-	route := &DomainEntryRoute{
+	stubDomainRoute(t, &DomainEntryRoute{
 		Type:         inapi.GatewayIngressType_Instance,
 		Path:         "/",
 		Urls:         []*url.URL{u},
 		reverseProxy: []*httputil.ReverseProxy{rp},
-	}
-	entry := &DomainEntry{
-		Domain:      &inapi.GatewayIngressDeploy{Domain: "example.com"},
-		indexRoutes: map[string]*DomainEntryRoute{"/": route},
-	}
-
-	oldLimit, oldServer, oldIndex := cfg.Limit, cfg.Server, cfg.indexDomains
-	cfg.Limit = ConfigLimit{Rate: 1 << 20, Burst: 1 << 20}
-	cfg.Server.MaxBodySize = 16 << 20
-	cfg.Server.WriteByteTimeout = 60
-	cfg.indexDomains = map[string]*DomainEntry{"example.com": entry}
-	t.Cleanup(func() {
-		cfg.Limit, cfg.Server, cfg.indexDomains = oldLimit, oldServer, oldIndex
 	})
 }
 

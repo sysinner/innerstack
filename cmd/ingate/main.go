@@ -1262,6 +1262,12 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 // up front (streaming/throttled transfers legitimately outlast WriteTimeout);
 // the throttle re-arms it per chunk (WriteByteTimeout) to drop stalled clients,
 // and rate.Limiter.WaitN cancels on r.Context() when the client disconnects.
+//
+// Access is confined to the route's root directory via os.Root: path
+// resolution cannot escape the root even by following a symlink planted
+// inside it (rootDir comes from the zonelet-pushed ingress config and may be
+// writable by other processes, so plain os.Open would leak arbitrary host
+// files).
 func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 
 	domain := cfg.Domain(r.Host)
@@ -1298,17 +1304,36 @@ func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 	}
 
 	rootDir := route.Urls[0].Path
-	relPath := strings.TrimPrefix(urlPath, route.Path)
-	finalPath := filepath.Join(rootDir, relPath)
+	// Strip the route prefix and its separator, then clean; an empty
+	// remainder (urlPath == route.Path) cleans to ".", which the dir check
+	// below rejects with 403.
+	relPath := filepath.Clean(strings.TrimPrefix(strings.TrimPrefix(urlPath, route.Path), "/"))
 
-	// Confine access to rootDir; reject any escape attempt with 403.
-	rel, err := filepath.Rel(rootDir, finalPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
+	// Explicit lexical escapes get 403; os.Root refusals, including the
+	// symlink escapes it detects during resolution, surface as the 404
+	// below. os.Root is the confinement -- this guard only preserves the
+	// status-code distinction.
+	if filepath.IsAbs(relPath) || strings.HasPrefix(relPath, "..") {
 		handleWriteHtml(w, http.StatusForbidden, builtin_403_HTML)
 		return true
 	}
 
-	st, err := os.Stat(finalPath)
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		handleWriteHtml(w, http.StatusNotFound, builtin_404_HTML)
+		return true
+	}
+	defer root.Close()
+
+	f, err := root.Open(relPath)
+	if err != nil {
+		handleWriteHtml(w, http.StatusNotFound, builtin_404_HTML)
+		return true
+	}
+	defer f.Close()
+
+	// Stat on the open fd: no path re-resolution, no stat/open race.
+	st, err := f.Stat()
 	if err != nil {
 		handleWriteHtml(w, http.StatusNotFound, builtin_404_HTML)
 		return true
@@ -1317,15 +1342,6 @@ func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 		handleWriteHtml(w, http.StatusForbidden, builtin_403_HTML)
 		return true
 	}
-
-	// ServeContent (not ServeFile): ServeFile 301-redirects to "./" when
-	// r.URL.Path ends in "/index.html".
-	f, err := os.Open(finalPath)
-	if err != nil {
-		handleWriteHtml(w, http.StatusNotFound, builtin_404_HTML)
-		return true
-	}
-	defer f.Close()
 
 	// The write deadline is already cleared by rootHandler; the throttle
 	// re-arms it per chunk (WriteByteTimeout) so a stalled client is still dropped.
@@ -1337,7 +1353,9 @@ func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 		rc:             http.NewResponseController(w),
 	}
 
-	// ServeContent streams the file in chunks (io.CopyN) through tw, so only a
+	// ServeContent (not ServeFile): ServeFile 301-redirects to "./" when
+	// r.URL.Path ends in "/index.html". It streams the file in chunks
+	// (io.CopyN) through tw, so only a
 	// small buffer is in flight at a time rather than the whole file. It sets
 	// Content-Length = sendSize itself, and WaitN blocks (never drops bytes),
 	// so the byte count always matches -- HTTP/2 is happy as long as the
