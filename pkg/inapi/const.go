@@ -325,4 +325,18 @@ const (
 const (
 	GatewayIngressActionEnable  = "enable"  // ingress action: enable (default)
 	GatewayIngressActionDisable = "disable" // ingress action: disable
+
+	// GatewayIngressActionDelete physically removes the ingress record from
+	// the store. It is accepted only for a record that has stayed in disable
+	// state with no further operation for at least
+	// GatewayIngressDeleteDelaySeconds, so the gateway has long stopped
+	// serving the domain by the time the record goes away.
+	GatewayIngressActionDelete = "delete" // ingress action: delete the record
+)
+
+const (
+	// GatewayIngressDeleteDelaySeconds is the minimum time, in seconds,
+	// between the last operation on an ingress record (Meta.Updated) and a
+	// physical delete via GatewayIngressActionDelete.
+	GatewayIngressDeleteDelaySeconds int64 = 10 * 24 * 3600 // 10 days
 )

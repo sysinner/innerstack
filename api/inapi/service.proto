@@ -78,7 +78,9 @@ service ZoneService {
   rpc GatewayIngressList(GatewayIngressListRequest)
       returns (GatewayIngressListResponse) {}
 
-  // GatewayIngressSet creates or updates a gateway ingress entry.
+  // GatewayIngressSet creates or updates a gateway ingress entry, or deletes
+  // it when item.action is "delete" (allowed only for an entry disabled and
+  // untouched for more than 10 days).
   rpc GatewayIngressSet(GatewayIngressSetRequest)
       returns (GatewayIngressSetResponse) {}
 

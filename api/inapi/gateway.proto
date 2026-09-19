@@ -71,7 +71,9 @@ message GatewayIngress {
   // options holds optional gateway features such as TLS.
   Options options = 4;
 
-  // action is the ingress operation: "enable" (default) or "disable".
+  // action is the ingress operation: "enable" (default), "disable", or
+  // "delete" (physically remove the record; accepted only when the record
+  // has been disabled and untouched for more than 10 days).
   string action = 5;
 
   // routes are the HTTP routing rules for this domain.

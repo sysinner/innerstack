@@ -17,6 +17,8 @@ package zonelet
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"path/filepath"
@@ -170,6 +172,46 @@ func (it *zoneServer) GatewayIngressSet(
 		rs   = data.Zonelet.NewReader(key).Exec()
 	)
 
+	// action=delete physically removes the record. Eligibility (disable state
+	// plus no operation for 10+ days) is enforced by
+	// gatewayIngressDeleteEligible; the gateway already stopped serving the
+	// domain when it was disabled.
+	if req.Item.Action == inapi.GatewayIngressActionDelete {
+
+		if rs.NotFound() || len(rs.Items) == 0 {
+			return nil, lynkapi.NewNotFoundError("Domain Not Found")
+		} else if !rs.OK() {
+			return nil, lynkapi.NewInternalServerError(rs.ErrorMessage())
+		}
+
+		var prev inapi.GatewayIngress
+		if err := rs.Items[0].JsonDecode(&prev); err != nil {
+			return nil, lynkapi.NewInternalServerError(err.Error())
+		}
+		if prev.Meta == nil {
+			prev.Meta = &inapi.Metadata{}
+		}
+
+		if err := gatewayIngressDeleteEligible(&prev, time.Now().Unix()); err != nil {
+			return nil, err
+		}
+
+		// Prev-version guard: fail the delete if a concurrent update bumped
+		// the record between the read above and this delete.
+		if rs2 := data.Zonelet.NewDeleter(key).
+			SetPrevVersion(rs.Meta().Version).
+			Exec(); !rs2.OK() {
+			return nil, lynkapi.NewInternalServerError(rs2.ErrorMessage())
+		}
+
+		slog.Warn("zonelet gateway-ingress deleted",
+			"zone", config.Config.Zonelet.ZoneName,
+			"domain", prev.Domain,
+		)
+
+		return &inapi.GatewayIngressSetResponse{}, nil
+	}
+
 	// if rs.NotFound() || len(rs.Items) == 0 {
 	if !rs.OK() || len(rs.Items) == 0 {
 
@@ -302,4 +344,23 @@ func (it *zoneServer) GatewayIngressSet(
 	}
 
 	return &inapi.GatewayIngressSetResponse{Item: &item}, nil
+}
+
+// gatewayIngressDeleteEligible reports whether an ingress record may be
+// physically deleted: it must be in disable state and its last operation
+// (Meta.Updated) must be older than GatewayIngressDeleteDelaySeconds.
+func gatewayIngressDeleteEligible(item *inapi.GatewayIngress, now int64) error {
+
+	if item.Action != inapi.GatewayIngressActionDisable {
+		return lynkapi.NewClientError(
+			"Only a disabled ingress can be deleted, disable it first (action=disable)")
+	}
+
+	if elapsed := now - item.Meta.Updated; elapsed <= inapi.GatewayIngressDeleteDelaySeconds {
+		return lynkapi.NewClientError(fmt.Sprintf(
+			"Ingress %q was last operated %d day(s) ago, deletion requires more than %d day(s) after the last operation",
+			item.Domain, elapsed/86400, inapi.GatewayIngressDeleteDelaySeconds/86400))
+	}
+
+	return nil
 }

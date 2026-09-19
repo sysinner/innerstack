@@ -49,7 +49,9 @@ type GatewayIngress struct {
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
 	// options holds optional gateway features such as TLS.
 	Options *GatewayIngress_Options `protobuf:"bytes,4,opt,name=options,proto3" json:"options,omitempty" toml:"options,omitempty"`
-	// action is the ingress operation: "enable" (default) or "disable".
+	// action is the ingress operation: "enable" (default), "disable", or
+	// "delete" (physically remove the record; accepted only when the record
+	// has been disabled and untouched for more than 10 days).
 	Action string `protobuf:"bytes,5,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
 	// routes are the HTTP routing rules for this domain.
 	Routes []*GatewayIngress_HttpRoute `protobuf:"bytes,6,rep,name=routes,proto3" json:"routes,omitempty" toml:"routes,omitempty"`

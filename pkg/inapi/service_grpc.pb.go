@@ -86,7 +86,9 @@ type ZoneServiceClient interface {
 	GatewayIngressInfo(ctx context.Context, in *GatewayIngressInfoRequest, opts ...grpc.CallOption) (*GatewayIngressInfoResponse, error)
 	// GatewayIngressList retrieves all gateway ingress entries.
 	GatewayIngressList(ctx context.Context, in *GatewayIngressListRequest, opts ...grpc.CallOption) (*GatewayIngressListResponse, error)
-	// GatewayIngressSet creates or updates a gateway ingress entry.
+	// GatewayIngressSet creates or updates a gateway ingress entry, or deletes
+	// it when item.action is "delete" (allowed only for an entry disabled and
+	// untouched for more than 10 days).
 	GatewayIngressSet(ctx context.Context, in *GatewayIngressSetRequest, opts ...grpc.CallOption) (*GatewayIngressSetResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(ctx context.Context, in *PackagePushRequest, opts ...grpc.CallOption) (*PackagePushResponse, error)
@@ -291,7 +293,9 @@ type ZoneServiceServer interface {
 	GatewayIngressInfo(context.Context, *GatewayIngressInfoRequest) (*GatewayIngressInfoResponse, error)
 	// GatewayIngressList retrieves all gateway ingress entries.
 	GatewayIngressList(context.Context, *GatewayIngressListRequest) (*GatewayIngressListResponse, error)
-	// GatewayIngressSet creates or updates a gateway ingress entry.
+	// GatewayIngressSet creates or updates a gateway ingress entry, or deletes
+	// it when item.action is "delete" (allowed only for an entry disabled and
+	// untouched for more than 10 days).
 	GatewayIngressSet(context.Context, *GatewayIngressSetRequest) (*GatewayIngressSetResponse, error)
 	// PackagePush uploads a package in chunks.
 	PackagePush(context.Context, *PackagePushRequest) (*PackagePushResponse, error)

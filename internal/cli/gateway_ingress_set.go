@@ -73,6 +73,28 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 
 		zc := inapi.NewZoneServiceClient(conn)
 
+		// action=delete removes the record; eligibility (disable state plus
+		// no operation for 10+ days) is enforced by the zone server.
+		if action == inapi.GatewayIngressActionDelete {
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			if _, err := zc.GatewayIngressSet(ctx, &inapi.GatewayIngressSetRequest{
+				Item: &inapi.GatewayIngress{
+					Meta:   &inapi.Metadata{},
+					Domain: name,
+					Action: inapi.GatewayIngressActionDelete,
+				},
+			}); err != nil {
+				return fmt.Errorf("failed to delete gateway ingress: %w", err)
+			}
+
+			fmt.Printf("Gateway ingress '%s' deleted successfully\n", name)
+
+			return nil
+		}
+
 		// Fetch existing ingress by domain to preserve fields not explicitly
 		// set by the user, preventing accidental overwrites.
 		infoCtx, infoCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -140,18 +162,22 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gw-ingress-set",
 		Short: "Create or update a gateway ingress rule",
-		Long:  `Create or update a gateway ingress rule using individual flags (--name, etc.).`,
-		RunE:  run,
+		Long: `Create or update a gateway ingress rule using individual flags (--name, etc.).
+Use --action delete to remove a record that has been disabled for more than 10 days.`,
+		RunE: run,
 		Example: `  # Set ingress with flags
   innerstack gw-ingress-set --name example.com
 
   # Set ingress with interactive routes editing
-  innerstack gw-ingress-set --name example.com --routes`,
+  innerstack gw-ingress-set --name example.com --routes
+
+  # Delete a disabled ingress (allowed 10+ days after the last operation)
+  innerstack gw-ingress-set --name example.com --action delete`,
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Gateway ingress name (required)")
 	cmd.Flags().StringVarP(&description, "description", "", "", "Description of the ingress")
-	cmd.Flags().StringVarP(&action, "action", "", inapi.GatewayIngressActionEnable, "Action for the ingress (enable|disable)")
+	cmd.Flags().StringVarP(&action, "action", "", inapi.GatewayIngressActionEnable, "Action for the ingress (enable|disable|delete)")
 	cmd.Flags().BoolVarP(&letsencrypt, "letsencrypt", "", false, "Enable Let's Encrypt TLS certificate")
 	cmd.Flags().BoolVarP(&routes, "routes", "r", false, "Interactively edit routes")
 
