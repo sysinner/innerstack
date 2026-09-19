@@ -313,6 +313,15 @@ type DomainEntry struct {
 	setupRevision uint64
 }
 
+// LetsencryptEnabled reports whether the domain's current config requests a
+// Let's Encrypt certificate. The Domain proto is swapped by domainFresh, so
+// the read must hold the entry lock.
+func (it *DomainEntry) LetsencryptEnabled() bool {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	return it.Domain != nil && it.Domain.LetsencryptEnable
+}
+
 type DomainEntryRoute struct {
 	Type string     `json:"type"`
 	Path string     `json:"path"`
@@ -503,6 +512,122 @@ func initSetup() error {
 	return nil
 }
 
+// domainFresh rebuilds a DomainEntry's routing state from the incoming
+// domain config: routes, index, setup revision, and the retained domain
+// proto itself. Swapping the proto keeps per-domain flags (LetsencryptEnable)
+// current for readers like the port-80 ACME split; rebuilding routes alone
+// would leave the old decision in place until process restart. Called from
+// configRefresh under cfg.mu; the entry lock guards the fields against
+// request-time readers.
+func domainFresh(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
+	domainEntry.mu.Lock()
+	defer domainEntry.mu.Unlock()
+
+	prevRoutes := domainEntry.Routes
+
+	for _, route := range prevRoutes {
+		if route.reverseProxy != nil {
+			for _, rp := range route.reverseProxy {
+				if rp.Transport != nil {
+					if closer, ok := rp.Transport.(io.Closer); ok {
+						closer.Close()
+					}
+				}
+			}
+		}
+	}
+
+	domainEntry.Routes = nil
+	domainEntry.indexRoutes = map[string]*DomainEntryRoute{}
+	domainEntry.setupRevision = domain.Revision
+	domainEntry.Domain = domain
+
+	for _, route := range prevRoutes {
+		switch route.Type {
+		case "localfs":
+
+			if p := lynkapi.SlicesSearchFunc(domain.Routes,
+				func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
+					return a.Path == route.Path
+				}); p == nil {
+				domainEntry.Routes = append(domainEntry.Routes, route)
+				domainEntry.indexRoutes[route.Path] = route
+			}
+		}
+	}
+
+	for _, location := range domain.Routes {
+
+		if len(location.Targets) == 0 {
+			continue
+		}
+
+		switch location.Type {
+		case inapi.GatewayIngressType_Instance,
+			inapi.GatewayIngressType_Upstream:
+			var (
+				urls []*url.URL
+				rps  []*httputil.ReverseProxy
+			)
+			for _, tg := range location.Targets {
+				u := &url.URL{
+					Scheme: "http",
+					Host:   tg.Backend,
+				}
+				urls = append(urls, u)
+				rps = append(rps, newReverseProxy(u))
+			}
+			if len(urls) > 0 {
+				route := &DomainEntryRoute{
+					Path:         location.Path,
+					Type:         location.Type,
+					Urls:         urls,
+					reverseProxy: rps,
+				}
+				domainEntry.Routes = append(domainEntry.Routes, route)
+				domainEntry.indexRoutes[route.Path] = route
+			}
+
+		case inapi.GatewayIngressType_Redirect:
+
+			if u, err := url.Parse(location.Targets[0].Backend); err == nil {
+
+				route := &DomainEntryRoute{
+					Path: location.Path,
+					Type: location.Type,
+					Urls: []*url.URL{u},
+				}
+				domainEntry.Routes = append(domainEntry.Routes, route)
+				domainEntry.indexRoutes[route.Path] = route
+			} else {
+				slog.Warn("parse backend fail", "err", err.Error())
+			}
+
+		case "localfs":
+
+			route := &DomainEntryRoute{
+				Path: location.Path,
+				Type: location.Type,
+			}
+
+			if len(location.Targets) == 1 && len(location.Targets[0].Backend) > 1 {
+				localPath := filepath.Clean(location.Targets[0].Backend)
+				if st, err := os.Stat(localPath); err == nil && st.IsDir() {
+					route.Urls = []*url.URL{{Path: localPath}}
+				}
+				slog.Info(fmt.Sprintf("domain %s, route %s, localfs %s",
+					domain.Domain, route.Path, localPath))
+			}
+
+			domainEntry.Routes = append(domainEntry.Routes, route)
+			domainEntry.indexRoutes[route.Path] = route
+		}
+	}
+
+	slog.Info(fmt.Sprintf("updated domain %s, routes %d",
+		domain.Domain, len(domain.Routes)))
+}
+
 func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 
 	tn := time.Now().Unix()
@@ -553,115 +678,6 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 		flush        = false
 	)
 
-	domainFresh := func(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
-		domainEntry.mu.Lock()
-		defer domainEntry.mu.Unlock()
-
-		prevRoutes := domainEntry.Routes
-
-		for _, route := range prevRoutes {
-			if route.reverseProxy != nil {
-				for _, rp := range route.reverseProxy {
-					if rp.Transport != nil {
-						if closer, ok := rp.Transport.(io.Closer); ok {
-							closer.Close()
-						}
-					}
-				}
-			}
-		}
-
-		flush = true
-		domainEntry.Routes = nil
-		domainEntry.indexRoutes = map[string]*DomainEntryRoute{}
-		domainEntry.setupRevision = domain.Revision
-
-		for _, route := range prevRoutes {
-			switch route.Type {
-			case "localfs":
-
-				if p := lynkapi.SlicesSearchFunc(domain.Routes,
-					func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
-						return a.Path == route.Path
-					}); p == nil {
-					domainEntry.Routes = append(domainEntry.Routes, route)
-					domainEntry.indexRoutes[route.Path] = route
-				}
-			}
-		}
-
-		for _, location := range domain.Routes {
-
-			if len(location.Targets) == 0 {
-				continue
-			}
-
-			switch location.Type {
-			case inapi.GatewayIngressType_Instance,
-				inapi.GatewayIngressType_Upstream:
-				var (
-					urls []*url.URL
-					rps  []*httputil.ReverseProxy
-				)
-				for _, tg := range location.Targets {
-					u := &url.URL{
-						Scheme: "http",
-						Host:   tg.Backend,
-					}
-					urls = append(urls, u)
-					rps = append(rps, newReverseProxy(u))
-				}
-				if len(urls) > 0 {
-					route := &DomainEntryRoute{
-						Path:         location.Path,
-						Type:         location.Type,
-						Urls:         urls,
-						reverseProxy: rps,
-					}
-					domainEntry.Routes = append(domainEntry.Routes, route)
-					domainEntry.indexRoutes[route.Path] = route
-				}
-
-			case inapi.GatewayIngressType_Redirect:
-
-				if u, err := url.Parse(location.Targets[0].Backend); err == nil {
-
-					route := &DomainEntryRoute{
-						Path: location.Path,
-						Type: location.Type,
-						Urls: []*url.URL{u},
-					}
-					domainEntry.Routes = append(domainEntry.Routes, route)
-					domainEntry.indexRoutes[route.Path] = route
-				} else {
-					slog.Warn("parse backend fail", "err", err.Error())
-				}
-
-			case "localfs":
-
-				route := &DomainEntryRoute{
-					Path: location.Path,
-					Type: location.Type,
-				}
-
-				if len(location.Targets) == 1 && len(location.Targets[0].Backend) > 1 {
-					localPath := filepath.Clean(location.Targets[0].Backend)
-					if st, err := os.Stat(localPath); err == nil && st.IsDir() {
-						route.Urls = []*url.URL{{Path: localPath}}
-					}
-					slog.Info(fmt.Sprintf("domain %s, route %s, localfs %s",
-						domain.Domain, route.Path, localPath))
-				}
-
-				domainEntry.Routes = append(domainEntry.Routes, route)
-				domainEntry.indexRoutes[route.Path] = route
-			}
-		}
-
-		slog.Info(fmt.Sprintf("updated domain %s, routes %d",
-			domain.Domain, len(domain.Routes)))
-	}
-
 	cfg.mu.Lock()
 	defer cfg.mu.Unlock()
 
@@ -681,6 +697,7 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 
 		if !added || domain.Revision > domainEntry.setupRevision {
 			domainFresh(domainEntry, domain)
+			flush = true
 		}
 
 		//
@@ -1166,7 +1183,7 @@ func (it httpRootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			handleWriteHtml(w, 404, builtin_404_HTML)
 		}
-	} else if cfg.Server.HttpsPort > 0 && domain.Domain.LetsencryptEnable {
+	} else if cfg.Server.HttpsPort > 0 && domain.LetsencryptEnabled() {
 		certManager.HTTPHandler(nil).ServeHTTP(w, r)
 	} else {
 		rootHandler(w, r)
