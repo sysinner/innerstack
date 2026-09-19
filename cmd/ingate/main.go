@@ -284,8 +284,8 @@ func (c *ConfigZone) AccessKey() (*inauth.AccessKey, error) {
 }
 
 func (it *Config) Domain(name string) *DomainEntry {
-	it.mu.Lock()
-	defer it.mu.Unlock()
+	it.mu.RLock()
+	defer it.mu.RUnlock()
 	domain, ok := it.indexDomains[name]
 	if ok {
 		return domain
@@ -678,8 +678,10 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 		flush        = false
 	)
 
+	// The write lock guards only the in-memory index swap below (no early
+	// return until the matching Unlock); the TLS refresh and the config
+	// file write at the end of this function run outside it.
 	cfg.mu.Lock()
-	defer cfg.mu.Unlock()
 
 	for _, domain := range domains {
 		//
@@ -741,6 +743,8 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 		cfg.Domains = newDomains
 	}
 
+	cfg.mu.Unlock()
+
 	if cfg.Server.HttpsPort > 0 &&
 		!slices.Equal(tlsDomainCache, tlsDomainSet) {
 		//
@@ -750,8 +754,16 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 			len(tlsDomainSet), strings.Join(tlsDomainSet, ",")))
 	}
 
+	// Persist outside the write lock: every proxied request takes cfg.mu
+	// through cfg.Domain(), so holding it across the disk write (fsync)
+	// would stall all in-flight requests on each full refresh. The RLock
+	// only keeps the encoder's snapshot consistent against the next
+	// refresh; readers never block each other.
 	if flush {
-		if err := htoml.EncodeToFile(&cfg, prefix+"/etc/"+appName+".toml"); err != nil {
+		cfg.mu.RLock()
+		err := htoml.EncodeToFile(&cfg, prefix+"/etc/"+appName+".toml")
+		cfg.mu.RUnlock()
+		if err != nil {
 			return err
 		}
 	}

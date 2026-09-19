@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
@@ -62,4 +63,53 @@ func TestDomainFreshRefreshesDomainProto(t *testing.T) {
 	if entry.lookup("/") == nil {
 		t.Fatal("route / missing after refresh")
 	}
+}
+
+// TestConfigDomainReadsSynchronizedWithIndexWrites pins Domain()'s locking
+// contract: indexDomains is swapped by configRefresh under cfg.mu, so a
+// concurrent Domain() must hold at least the read lock. Under -race this
+// catches a future regression that drops the lock (concurrent map access).
+func TestConfigDomainReadsSynchronizedWithIndexWrites(t *testing.T) {
+	entry := &DomainEntry{
+		Domain:      &inapi.GatewayIngressDeploy{Domain: "example.com"},
+		indexRoutes: map[string]*DomainEntryRoute{},
+	}
+
+	oldIndex := cfg.indexDomains
+	cfg.indexDomains = map[string]*DomainEntry{"example.com": entry}
+	t.Cleanup(func() { cfg.indexDomains = oldIndex })
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	wg.Add(1)
+	go func() { // writer mimics configRefresh's index swap under cfg.mu
+		defer wg.Done()
+		defer close(stop)
+		for i := 0; i < 500; i++ {
+			cfg.mu.Lock()
+			cfg.indexDomains["example.com"] = entry
+			cfg.mu.Unlock()
+		}
+	}()
+
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					if cfg.Domain("example.com") == nil {
+						t.Error("Domain(example.com) = nil, want the entry")
+						return
+					}
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
 }
