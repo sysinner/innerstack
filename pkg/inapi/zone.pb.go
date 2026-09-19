@@ -293,9 +293,9 @@ type ZoneNetworkMap_Host struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`                     // host unique identifier
-	Peer     uint32 `protobuf:"fixed32,2,opt,name=peer,proto3" json:"peer,omitempty" toml:"peer,omitempty"`             // peer address
-	Bridge   uint32 `protobuf:"fixed32,3,opt,name=bridge,proto3" json:"bridge,omitempty" toml:"bridge,omitempty"`       // bridge address
+	Id       string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`               // host unique identifier
+	Peer     uint32 `protobuf:"fixed32,2,opt,name=peer,proto3" json:"peer,omitempty" toml:"peer,omitempty"`         // peer address
+	Bridge   uint32 `protobuf:"fixed32,3,opt,name=bridge,proto3" json:"bridge,omitempty" toml:"bridge,omitempty"`     // bridge address
 	Instance uint32 `protobuf:"fixed32,4,opt,name=instance,proto3" json:"instance,omitempty" toml:"instance,omitempty"` // instance subnet address
 }
 

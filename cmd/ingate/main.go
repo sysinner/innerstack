@@ -321,6 +321,60 @@ func (it *DomainEntry) LetsencryptEnabled() bool {
 	return it.Domain != nil && it.Domain.LetsencryptEnable
 }
 
+// gatewayIngressTypeLocalfs is an ingate-local route type: gateway.proto
+// documents only instance/upstream/redirect and the zonelet never produces
+// it, so it lives here instead of the GatewayIngressType_* set in pkg/inapi.
+const gatewayIngressTypeLocalfs = "localfs"
+
+// appendLocalfsRoutes appends src's localfs routes that dst does not already
+// carry (matched by path), returning the extended dst. The zonelet never
+// pushes this route type: localfs routes exist only in the operator's TOML,
+// and every domain proto that flows into cfg.Domains -- and from there into
+// etc/ingate.toml -- must be re-merged with them, or the config write
+// silently drops operator config, which only resurfaces as missing routes
+// after the next restart. Route objects are appended verbatim, never
+// re-synthesized, so proto fields unknown to this code survive the merge.
+func appendLocalfsRoutes(
+	dst, src []*inapi.GatewayIngressDeploy_HttpRoute,
+) []*inapi.GatewayIngressDeploy_HttpRoute {
+	for _, route := range src {
+		if route.Type != gatewayIngressTypeLocalfs {
+			continue
+		}
+		if slices.ContainsFunc(dst, func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
+			return a.Path == route.Path
+		}) {
+			continue
+		}
+		dst = append(dst, route)
+	}
+	return dst
+}
+
+// mergeLocalfsRoutes folds the entry's retained localfs routes into an
+// incoming pushed proto, keeping the persisted view (cfg.Domains) in sync
+// with the runtime index. No-op when the proto already carries them.
+func (it *DomainEntry) mergeLocalfsRoutes(domain *inapi.GatewayIngressDeploy) {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	if it.Domain == nil {
+		return
+	}
+	domain.Routes = appendLocalfsRoutes(domain.Routes, it.Domain.Routes)
+}
+
+// hasLocalfsRoutes reports whether the domain is TOML-owned: localfs routes
+// are never pushed by the zonelet (see appendLocalfsRoutes), so their
+// presence marks operator config that full refreshes must not evict.
+func (it *DomainEntry) hasLocalfsRoutes() bool {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	return it.Domain != nil && slices.ContainsFunc(it.Domain.Routes,
+		func(route *inapi.GatewayIngressDeploy_HttpRoute) bool {
+			return route.Type == gatewayIngressTypeLocalfs
+		})
+}
+
 type DomainEntryRoute struct {
 	Type string     `json:"type"`
 	Path string     `json:"path"`
@@ -370,7 +424,7 @@ var (
 
 	certManager autocert.Manager
 
-	version = "v2.0.0-alpha.5.2"
+	version = "v2.0.0"
 
 	cfg Config
 
@@ -527,26 +581,18 @@ func domainFresh(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
 	// to close, and closing the shared transport would drop healthy idle
 	// connections too. Connections pooled for vanished backends expire via
 	// the transport's IdleConnTimeout.
-	prevRoutes := domainEntry.Routes
+	prevDomain := domainEntry.Domain
 
 	domainEntry.Routes = nil
 	domainEntry.indexRoutes = map[string]*DomainEntryRoute{}
 	domainEntry.setupRevision = domain.Revision
 	domainEntry.Domain = domain
 
-	for _, route := range prevRoutes {
-		switch route.Type {
-		case "localfs":
-
-			if p := lynkapi.SlicesSearchFunc(domain.Routes,
-				func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
-					return a.Path == route.Path
-				}); p == nil {
-				domainEntry.Routes = append(domainEntry.Routes, route)
-				domainEntry.indexRoutes[route.Path] = route
-			}
-		}
-	}
+	// Retain operator-defined localfs routes the push does not carry by
+	// merging them into the incoming proto: the rebuild below then re-derives
+	// their runtime state (re-stat'ing the root each refresh), and the proto
+	// itself is the merged view that persistence writes.
+	domain.Routes = appendLocalfsRoutes(domain.Routes, prevDomain.Routes)
 
 	for _, location := range domain.Routes {
 
@@ -595,7 +641,7 @@ func domainFresh(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
 				slog.Warn("parse backend fail", "err", err.Error())
 			}
 
-		case "localfs":
+		case gatewayIngressTypeLocalfs:
 
 			route := &DomainEntryRoute{
 				Path: location.Path,
@@ -694,6 +740,12 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 			flush = true
 		}
 
+		// Steady-state refreshes re-deliver protos at an unchanged revision,
+		// so domainFresh does not run and the fresh proto lacks the retained
+		// localfs routes; merge them so cfg.Domains (and the TOML write on
+		// flush) keeps the operator's routes. No-op right after domainFresh.
+		domainEntry.mergeLocalfsRoutes(domain)
+
 		//
 		if len(domainEntry.Routes) == 0 {
 			continue
@@ -726,6 +778,15 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 			if p := lynkapi.SlicesSearchFunc(newDomains, func(a *inapi.GatewayIngressDeploy) bool {
 				return a.Domain == domain.Domain
 			}); p == nil {
+				// TOML-owned domain (localfs-bearing, never pushed): keep
+				// it in the index and the persisted config; deletion is
+				// reserved for domains the zonelet stopped pushing, i.e.
+				// CLI removals.
+				if entry, ok := cfg.indexDomains[domain.Domain]; ok &&
+					entry.hasLocalfsRoutes() {
+					newDomains = append(newDomains, domain)
+					continue
+				}
 				delete(cfg.indexDomains, domain.Domain)
 				slog.Info("delete domain " + domain.Domain)
 			}
@@ -1328,7 +1389,7 @@ func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 	}
 
 	route := domain.lookup(urlPath)
-	if route == nil || route.Type != "localfs" {
+	if route == nil || route.Type != gatewayIngressTypeLocalfs {
 		return false
 	}
 

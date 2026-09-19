@@ -1792,7 +1792,7 @@ type GatewayIngressDeployListResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Items    []*GatewayIngressDeploy `protobuf:"bytes,9,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`            // deployed ingress entries
+	Items    []*GatewayIngressDeploy `protobuf:"bytes,9,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`         // deployed ingress entries
 	Revision uint64                  `protobuf:"varint,10,opt,name=revision,proto3" json:"revision,omitempty" toml:"revision,omitempty"` // current latest revision for next sync
 }
 

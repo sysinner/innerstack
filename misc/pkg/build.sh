@@ -43,8 +43,6 @@ PKG_DIR="$SCRIPT_DIR"
 OUT_DIR="$PROJECT_ROOT/build"
 
 DEFAULT_VERSION="2.0.0"
-# Array so "-s -w" stays a single ldflags value under word splitting.
-GOBUILD_ARGS=(-trimpath -ldflags "-s -w")
 
 # Component toggles
 WITH_INGATE="yes"
@@ -213,8 +211,15 @@ check_prerequisites() {
 go_build() {
     local arch="$1" pkg="$2" out="$3"
     log_info "  building $out (linux/$arch) ..."
+    # Single quoted ldflags value so "-s -w" and the stamp survive word
+    # splitting. main.version gets the v-prefixed form the Makefile targets
+    # inject; the packaging VERSION is v-stripped for deb/rpm, so re-attach
+    # the prefix here or repo-built binaries would report the compile-time
+    # default instead of the release version.
     GOOS=linux GOARCH="$arch" CGO_ENABLED=0 \
-        go build "${GOBUILD_ARGS[@]}" -o "$out" "$pkg"
+        go build -trimpath \
+        -ldflags "-s -w -X main.version=v${VERSION}" \
+        -o "$out" "$pkg"
 }
 
 # Build the Go inagent for a single target arch.

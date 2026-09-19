@@ -8,7 +8,7 @@
 #
 # Run `make help` to see all available targets.
 
-VERSION = v2.0.0-alpha.8
+VERSION = v2.0.0-alpha.10
 
 # Toolchain
 PROTOC_CMD         = protoc
