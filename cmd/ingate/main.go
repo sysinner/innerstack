@@ -882,10 +882,11 @@ type throttledResponseWriter struct {
 	http.ResponseWriter
 	limiter *rate.Limiter
 	ctx     context.Context
-	// byteTimeout is re-armed before every chunk write, implementing the
-	// WriteByteTimeout semantic (http.Server has no such field): a write that
-	// makes no progress for this long fails and ends the response, while a
-	// slow-but-progressing transfer keeps extending it.
+	// byteTimeout is re-armed at the start of every chunk, before its
+	// limiter wait, implementing the WriteByteTimeout semantic (http.Server
+	// has no such field): a write that makes no progress for this long fails
+	// and ends the response, while a slow-but-progressing transfer keeps
+	// extending it.
 	byteTimeout time.Duration
 	rc          *http.ResponseController
 }
@@ -901,16 +902,21 @@ func (trw *throttledResponseWriter) Write(p []byte) (n int, err error) {
 
 		n_chunk := end - i
 
-		// 阻塞等待令牌发放
-		if err := trw.limiter.WaitN(trw.ctx, n_chunk); err != nil {
-			return n, err
-		}
-
-		// Re-arm the per-chunk write deadline: a stalled/dead client (no write
-		// progress) is dropped after byteTimeout; a progressing transfer keeps
-		// pushing the deadline forward. Applied uniformly to HTTP/1.1 and HTTP/2.
+		// Re-arm the per-chunk write deadline BEFORE entering the limiter
+		// queue: a stalled/dead client (no write progress) is dropped after
+		// byteTimeout, but a healthy transfer queueing behind the shared
+		// per-IP reservation must not burn its budget while waiting for
+		// tokens. Arming at queue entry gives each chunk a full byteTimeout
+		// for the wait plus the write; arming after WaitN instead would let
+		// the previous chunk's timer expire mid-queue -- on HTTP/2 that
+		// expiry fires an async RST_STREAM that a later write cannot
+		// revoke, killing healthy rate-limited streams.
 		if trw.byteTimeout > 0 && trw.rc != nil {
 			_ = trw.rc.SetWriteDeadline(time.Now().Add(trw.byteTimeout))
+		}
+
+		if err := trw.limiter.WaitN(trw.ctx, n_chunk); err != nil {
+			return n, err
 		}
 
 		m, err := trw.ResponseWriter.Write(p[i:end])

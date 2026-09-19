@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
+	"golang.org/x/time/rate"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -608,5 +610,61 @@ func TestRootHandlerGzipUnknownLength(t *testing.T) {
 	}
 	if rw.body.Len() >= len(payload) {
 		t.Fatalf("compressed size %d not smaller than raw %d", rw.body.Len(), len(payload))
+	}
+}
+
+// deadlineEventWriter records when the throttled writer arms the write
+// deadline relative to its data writes, so tests can assert the arm happens
+// before the limiter wait rather than after it.
+type deadlineEventWriter struct {
+	header http.Header
+	arms   []time.Time
+	writes []time.Time
+}
+
+func (w *deadlineEventWriter) Header() http.Header { return w.header }
+func (w *deadlineEventWriter) WriteHeader(int)     {}
+func (w *deadlineEventWriter) Write(p []byte) (int, error) {
+	w.writes = append(w.writes, time.Now())
+	return len(p), nil
+}
+func (w *deadlineEventWriter) SetWriteDeadline(time.Time) error {
+	w.arms = append(w.arms, time.Now())
+	return nil
+}
+
+// TestThrottledWriteArmsDeadlineBeforeLimiterWait pins the per-chunk ordering:
+// the write deadline must be re-armed BEFORE entering the limiter queue.
+// Arming after WaitN lets the previous chunk's timer expire while a healthy
+// transfer waits for tokens on the shared per-IP reservation -- on HTTP/2
+// that expiry RST_STREAMs the stream and a later write cannot revoke it.
+func TestThrottledWriteArmsDeadlineBeforeLimiterWait(t *testing.T) {
+	// Burst lets chunk 1 pass free; the refill rate makes chunk 2 wait ~200ms.
+	base := &deadlineEventWriter{header: http.Header{}}
+	trw := &throttledResponseWriter{
+		ResponseWriter: base,
+		limiter:        rate.NewLimiter(20<<10, 4<<10),
+		ctx:            context.Background(),
+		byteTimeout:    250 * time.Millisecond,
+		rc:             http.NewResponseController(base),
+	}
+
+	buf := make([]byte, 8<<10) // two chunks
+	n, err := trw.Write(buf)
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if n != len(buf) {
+		t.Fatalf("wrote %d bytes, want %d", n, len(buf))
+	}
+	if len(base.arms) != 2 || len(base.writes) != 2 {
+		t.Fatalf("events: %d arms, %d writes, want 2 and 2", len(base.arms), len(base.writes))
+	}
+
+	// Chunk 2's deadline must be armed at queue entry, i.e. well before its
+	// ~200ms token wait resolves and the data write lands. Arming after
+	// WaitN (the bug) puts the arm and the write within a few milliseconds.
+	if d := base.writes[1].Sub(base.arms[1]); d < 100*time.Millisecond {
+		t.Fatalf("chunk 2 deadline armed %v before its write, want >=100ms", d)
 	}
 }
