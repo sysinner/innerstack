@@ -19,8 +19,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/internal/zonelet/network"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/signals"
 )
 

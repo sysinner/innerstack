@@ -262,7 +262,10 @@ func (b *Builder) updateSpecVersion() error {
 	// Replace version in [metadata] section only
 	updated, ok := replaceMetadataVersion(string(content), newVersion)
 	if !ok {
-		return fmt.Errorf("[pkgbuild.updateSpecVersion] metadata.version not found in %s", b.specPath)
+		return fmt.Errorf(
+			"[pkgbuild.updateSpecVersion] metadata.version not found in %s",
+			b.specPath,
+		)
 	}
 
 	// Write back
@@ -553,7 +556,14 @@ func (b *Builder) copyDir(src, dst string) error {
 
 func shouldIgnore(path string) bool {
 	base := filepath.Base(path)
-	ignored := []string{".git", ".gitignore", ".gitmodules", ".DS_Store", ".build_tempdir", "ipk.toml"}
+	ignored := []string{
+		".git",
+		".gitignore",
+		".gitmodules",
+		".DS_Store",
+		".build_tempdir",
+		"ipk.toml",
+	}
 	for _, i := range ignored {
 		if base == i {
 			return true
@@ -676,7 +686,10 @@ func (b *Builder) createArchive() error {
 	defer os.Remove(tarPath)
 
 	// Compress tar
-	compressedPath := filepath.Join(os.TempDir(), fmt.Sprintf("ipk-compressed-%d", time.Now().UnixNano()))
+	compressedPath := filepath.Join(
+		os.TempDir(),
+		fmt.Sprintf("ipk-compressed-%d", time.Now().UnixNano()),
+	)
 	var compressAlgo string
 	switch b.config.Compress {
 	case "gzip":

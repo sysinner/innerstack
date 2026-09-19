@@ -380,7 +380,10 @@ func (nm *NetworkManager) VpcInstance(ipv4 string) string {
 	return ""
 }
 
-func (nm *NetworkManager) AllocHostSubNetwork(zone, hostId, instanceName string, repId uint32) string {
+func (nm *NetworkManager) AllocHostSubNetwork(
+	zone, hostId, instanceName string,
+	repId uint32,
+) string {
 
 	insRepId := fmt.Sprintf("%s_%d", instanceName, repId)
 

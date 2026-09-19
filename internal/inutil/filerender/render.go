@@ -42,7 +42,11 @@ func renderKeyFilter(k string) string {
 func renderTplFilter(tpl string) string {
 	return string(renderTplReg.ReplaceAllFunc([]byte(tpl), func(bs []byte) []byte {
 		for i := 0; i < len(renderKeyFilterRoles); i += 2 {
-			bs = bytes.ReplaceAll(bs, []byte(renderKeyFilterRoles[i]), []byte(renderKeyFilterRoles[i+1]))
+			bs = bytes.ReplaceAll(
+				bs,
+				[]byte(renderKeyFilterRoles[i]),
+				[]byte(renderKeyFilterRoles[i+1]),
+			)
 		}
 		return bs
 	}))

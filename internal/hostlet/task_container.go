@@ -692,7 +692,10 @@ func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 					slog.Info("container resource limits changed, recreating container",
 						"container", containerName)
 					// Remove and recreate with new resource limits
-					ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+					ctx, cancel := context.WithTimeout(
+						context.Background(),
+						defaultContainerTimeout,
+					)
 					if err := ctrDriver.ContainerRemove(ctx, containerName); err != nil {
 						cancel()
 						slog.Warn("container remove failed for resource update",
@@ -710,7 +713,10 @@ func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 				if containerSpecReset(rep) {
 					slog.Info("stopped container resource limits changed, recreating container",
 						"container", containerName)
-					ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+					ctx, cancel := context.WithTimeout(
+						context.Background(),
+						defaultContainerTimeout,
+					)
 					if err := ctrDriver.ContainerRemove(ctx, containerName); err != nil {
 						cancel()
 						slog.Warn("container remove failed for resource update",
@@ -728,21 +734,41 @@ func operateContainerStarting(rep *inapi.AppReplicaInstance) (string, error) {
 					// already holds valid files from a prior create, so on
 					// failure we log and start with the existing files.
 					if err := provisionInnerStack(rep); err != nil {
-						slog.Warn("provision innerstack files failed on start, using existing files",
-							"container", containerName, "error", err)
+						slog.Warn(
+							"provision innerstack files failed on start, using existing files",
+							"container",
+							containerName,
+							"error",
+							err,
+						)
 					}
 					re := hoststatus.ReplicaStage(rep.App.InstanceName(), rep.Replica.Id)
 					re.SetRunning(inapi.AppDeployStageNameContainerStart, "")
-					ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+					ctx, cancel := context.WithTimeout(
+						context.Background(),
+						defaultContainerTimeout,
+					)
 					if err := ctrDriver.ContainerStart(ctx, containerName); err != nil {
 						cancel()
 						// Remove and recreate
-						ctx2, cancel2 := context.WithTimeout(context.Background(), defaultContainerTimeout)
+						ctx2, cancel2 := context.WithTimeout(
+							context.Background(),
+							defaultContainerTimeout,
+						)
 						if err := ctrDriver.ContainerRemove(ctx2, containerName); err != nil {
 							cancel2()
-							slog.Warn("container remove failed", "container", containerName, "error", err)
+							slog.Warn(
+								"container remove failed",
+								"container",
+								containerName,
+								"error",
+								err,
+							)
 							re.SetFailed(inapi.AppDeployStageNameContainerStart, err.Error())
-							return inapi.OpStateFailed, fmt.Errorf("container remove failed: %w", err)
+							return inapi.OpStateFailed, fmt.Errorf(
+								"container remove failed: %w",
+								err,
+							)
 						}
 						cancel2()
 						hoststatus.ContainerList.Delete(containerName)
@@ -841,7 +867,13 @@ func destroyContainerByName(containerName string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 		if err := ctrDriver.ContainerStop(ctx, containerName); err != nil {
 			cancel()
-			slog.Warn("container stop failed during destroy", "container", containerName, "error", err)
+			slog.Warn(
+				"container stop failed during destroy",
+				"container",
+				containerName,
+				"error",
+				err,
+			)
 			// Continue to remove anyway
 		}
 		cancel()
@@ -962,7 +994,11 @@ func archiveContainerDirByName(containerName string) {
 func orphanQuarantine(containerName string) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 	defer cancel()
-	if err := ctrDriver.ContainerUpdateRestartPolicy(ctx, containerName, inapi.OpRestartPolicyNo); err != nil {
+	if err := ctrDriver.ContainerUpdateRestartPolicy(
+		ctx,
+		containerName,
+		inapi.OpRestartPolicyNo,
+	); err != nil {
 		slog.Warn("orphan restart-policy flip failed",
 			"container", containerName, "error", err)
 	}
@@ -980,7 +1016,11 @@ func orphanQuarantine(containerName string) {
 func orphanRestoreRestartPolicy(containerName string) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
 	defer cancel()
-	if err := ctrDriver.ContainerUpdateRestartPolicy(ctx, containerName, inapi.OpRestartPolicyAlways); err != nil {
+	if err := ctrDriver.ContainerUpdateRestartPolicy(
+		ctx,
+		containerName,
+		inapi.OpRestartPolicyAlways,
+	); err != nil {
 		slog.Warn("orphan restart-policy restore failed",
 			"container", containerName, "error", err)
 	}
@@ -1135,7 +1175,11 @@ func containerAppInstanceSync(rep *inapi.AppReplicaInstance) {
 	if err != nil {
 		// File does not exist yet, write it
 		if os.IsNotExist(err) {
-			if writeErr := inutil.JsonEncodeToFileIndent(appInstancePath, rep, 0644); writeErr != nil {
+			if writeErr := inutil.JsonEncodeToFileIndent(
+				appInstancePath,
+				rep,
+				0644,
+			); writeErr != nil {
 				slog.Warn("app_replica.json create failed",
 					"path", appInstancePath, "err", writeErr.Error())
 			}
@@ -1229,7 +1273,11 @@ func provisionInnerStack(rep *inapi.AppReplicaInstance) error {
 		srcInagentPath = srcPaths.InagentSrc(arch)
 	}
 	if _, err := os.Stat(srcInagentPath); err != nil {
-		return fmt.Errorf("[provisionInnerStack] inagent source binary not found at %s: %w", srcInagentPath, err)
+		return fmt.Errorf(
+			"[provisionInnerStack] inagent source binary not found at %s: %w",
+			srcInagentPath,
+			err,
+		)
 	}
 	if _, err := exec.Command("install", srcInagentPath, inagentPath).Output(); err != nil {
 		return fmt.Errorf("[provisionInnerStack] copy inagent binary failed: %w", err)

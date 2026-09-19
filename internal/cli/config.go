@@ -96,7 +96,11 @@ func (it *ConfigCommon) Zone(name string) (*ConfigZone, error) {
 	}
 
 	if name == "" && len(it.Zones) == 0 {
-		return nil, fmt.Errorf("no zone configured, run `%s login -n <zone> -a <host:port> -s <access-key>` first (see `%s login --help`)", AppName, AppName)
+		return nil, fmt.Errorf(
+			"no zone configured, run `%s login -n <zone> -a <host:port> -s <access-key>` first (see `%s login --help`)",
+			AppName,
+			AppName,
+		)
 	}
 
 	if name == "" && len(it.Zones) > 0 {

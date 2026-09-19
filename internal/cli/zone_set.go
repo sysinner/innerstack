@@ -108,9 +108,12 @@ VPC Network Rules:
     --domain local`,
 	}
 
-	cmd.Flags().StringVarP(&vpcBridgeCidr, "bridge", "b", "192.168.10.0/24", "VPC bridge CIDR (e.g., 192.168.10.0/24) (required)")
-	cmd.Flags().StringVarP(&vpcInstanceCidr, "instance", "i", "10.10.0.0/16", "VPC instance CIDR (e.g., 10.10.0.0/16) (required)")
-	cmd.Flags().StringVarP(&vpcNetworkDomain, "domain", "d", "local", "VPC network domain (e.g., local) (required)")
+	cmd.Flags().
+		StringVarP(&vpcBridgeCidr, "bridge", "b", "192.168.10.0/24", "VPC bridge CIDR (e.g., 192.168.10.0/24) (required)")
+	cmd.Flags().
+		StringVarP(&vpcInstanceCidr, "instance", "i", "10.10.0.0/16", "VPC instance CIDR (e.g., 10.10.0.0/16) (required)")
+	cmd.Flags().
+		StringVarP(&vpcNetworkDomain, "domain", "d", "local", "VPC network domain (e.g., local) (required)")
 
 	return cmd
 }

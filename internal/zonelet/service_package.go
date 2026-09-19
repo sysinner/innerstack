@@ -68,7 +68,11 @@ func (s *zoneServer) PackagePush(
 			return nil, errors.New("total_size is required for first chunk")
 		}
 		if req.TotalSize > inapi.PackageMaxSize {
-			return nil, fmt.Errorf("package size %d exceeds maximum %d", req.TotalSize, inapi.PackageMaxSize)
+			return nil, fmt.Errorf(
+				"package size %d exceeds maximum %d",
+				req.TotalSize,
+				inapi.PackageMaxSize,
+			)
 		}
 
 		// Validate package metadata
@@ -186,7 +190,11 @@ func (s *zoneServer) PackagePush(
 	// - For last chunk: size can be <= ChunkSize (depends on File.Size % ChunkSize)
 	if req.Chunk.Index != totalChunks-1 {
 		if int64(len(req.Chunk.Data)) != pkg.File.ChunkSize {
-			return nil, fmt.Errorf("invalid chunk size %d, expected %d", len(req.Chunk.Data), pkg.File.ChunkSize)
+			return nil, fmt.Errorf(
+				"invalid chunk size %d, expected %d",
+				len(req.Chunk.Data),
+				pkg.File.ChunkSize,
+			)
 		}
 	} else {
 		expectedLastChunkSize := pkg.File.Size % pkg.File.ChunkSize

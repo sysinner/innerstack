@@ -182,7 +182,10 @@ func (s *zoneServer) AppInstanceDeploy(
 		// Validate deploy configs against the spec (e.g. array_group key
 		// presence and uniqueness within each array_group).
 		if req.Deploy != nil && len(req.Deploy.Configs) > 0 {
-			if err := inapi.ValidateDeployConfigItems(req.Spec.Configs, req.Deploy.Configs); err != nil {
+			if err := inapi.ValidateDeployConfigItems(
+				req.Spec.Configs,
+				req.Deploy.Configs,
+			); err != nil {
 				return nil, err
 			}
 		}
@@ -217,7 +220,10 @@ func (s *zoneServer) AppInstanceDeploy(
 
 		// Build KV key from the instance name (logical key)
 		var (
-			key         = inapi.NsAppInstance(config.Config.Zonelet.ZoneName, instance.InstanceName())
+			key = inapi.NsAppInstance(
+				config.Config.Zonelet.ZoneName,
+				instance.InstanceName(),
+			)
 			prevVersion = existingKvMeta.Version
 		)
 
@@ -347,7 +353,11 @@ func (s *zoneServer) AppInstanceDeploy(
 		}
 
 		// Update reverse references (ref_by_instances) on dependent instances
-		if err := s.updateDependencyReverseRefs(instance.InstanceName(), prevDepNames, nextDepNames); err != nil {
+		if err := s.updateDependencyReverseRefs(
+			instance.InstanceName(),
+			prevDepNames,
+			nextDepNames,
+		); err != nil {
 			slog.Error("zonelet app-instance-update: failed to update reverse refs",
 				"instance_name", instance.InstanceName(),
 				"err", err.Error())
@@ -439,7 +449,11 @@ func (s *zoneServer) AppInstanceDeploy(
 
 		// Update reverse references (ref_by_instances) on dependent instances
 		depNames := deployDependInstanceNames(deploy)
-		if err := s.updateDependencyReverseRefs(instance.InstanceName(), nil, depNames); err != nil {
+		if err := s.updateDependencyReverseRefs(
+			instance.InstanceName(),
+			nil,
+			depNames,
+		); err != nil {
 			slog.Error("zonelet app-instance-deploy: failed to update reverse refs",
 				"instance_name", instance.InstanceName(),
 				"err", err.Error())
@@ -514,7 +528,10 @@ func (s *zoneServer) AppInstanceList(
 
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
 
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxInstances).Exec() // kvgo default Limit is 10
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+		SetLimit(inapi.Zonelet_MaxInstances).
+		Exec()
+		// kvgo default Limit is 10
 	for _, item := range rs.Items {
 		var instance inapi.AppInstance
 		if err := item.JsonDecode(&instance); err == nil {
@@ -806,7 +823,10 @@ func validateInstanceNameUnique(name string) error {
 
 	// Defensive scan to guard against legacy data keyed by id.
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxInstances).Exec() // kvgo default Limit is 10
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+		SetLimit(inapi.Zonelet_MaxInstances).
+		Exec()
+		// kvgo default Limit is 10
 
 	for _, item := range rs.Items {
 		var inst inapi.AppInstance
@@ -830,7 +850,10 @@ func validateAppDependencies(depends []*inapi.AppSpecDepend) error {
 
 	// Load all deployed app instances, indexed by spec.name for O(1) lookup.
 	offset := inapi.NsAppInstance(config.Config.Zonelet.ZoneName, "")
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxInstances).Exec() // kvgo default Limit is 10
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+		SetLimit(inapi.Zonelet_MaxInstances).
+		Exec()
+		// kvgo default Limit is 10
 
 	available := make(map[string]struct{}, len(rs.Items))
 

@@ -145,11 +145,15 @@ func ValidateTaskTrigger(task *AppSpecTask) error {
 	}
 
 	if triggers == 0 {
-		return errors.New("exactly one trigger field is required (on_startup, on_shutdown, interval_seconds, or cron)")
+		return errors.New(
+			"exactly one trigger field is required (on_startup, on_shutdown, interval_seconds, or cron)",
+		)
 	}
 
 	if triggers > 1 {
-		return errors.New("trigger fields are mutually exclusive (on_startup, on_shutdown, interval_seconds, cron), only one can be set")
+		return errors.New(
+			"trigger fields are mutually exclusive (on_startup, on_shutdown, interval_seconds, cron), only one can be set",
+		)
 	}
 
 	return nil
@@ -179,7 +183,11 @@ func ValidateSpecConfigField(field *AppSpecConfigItem) error {
 				return fmt.Errorf("config field %q: sub-item name is required", field.Name)
 			}
 			if _, ok := names[sub.Name]; ok {
-				return fmt.Errorf("config field %q: duplicate sub-item name %q", field.Name, sub.Name)
+				return fmt.Errorf(
+					"config field %q: duplicate sub-item name %q",
+					field.Name,
+					sub.Name,
+				)
 			}
 			names[sub.Name] = struct{}{}
 			if err := ValidateSpecConfigField(sub); err != nil {

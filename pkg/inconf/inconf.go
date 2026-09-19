@@ -278,11 +278,15 @@ func (it *appDependConfigHelper) ConfigItem(name string) *inapi.AppDeployConfigI
 	return nil
 }
 
-func (it *appDependConfigHelper) ConfigArrayGroup(name, keyName, keyValue string) AppConfigItemHelper {
+func (it *appDependConfigHelper) ConfigArrayGroup(
+	name, keyName, keyValue string,
+) AppConfigItemHelper {
 	return findArrayGroupItem(it.ConfigItem(name), keyName, keyValue)
 }
 
-func (it *appDependConfigHelper) Service(name string) (*inapi.AppDeployReplica, *inapi.AppDeployServicePort) {
+func (it *appDependConfigHelper) Service(
+	name string,
+) (*inapi.AppDeployReplica, *inapi.AppDeployServicePort) {
 	if it.AppDeployDepend != nil {
 		for _, rep := range it.AppDeployDepend.Replicas {
 			for _, v := range rep.ServicePorts {
@@ -307,7 +311,10 @@ func (it *appConfigItemHelper) ConfigItem(name string) *inapi.AppDeployConfigIte
 	return nil
 }
 
-func findArrayGroupItem(cfgItem *inapi.AppDeployConfigItem, keyName, keyValue string) AppConfigItemHelper {
+func findArrayGroupItem(
+	cfgItem *inapi.AppDeployConfigItem,
+	keyName, keyValue string,
+) AppConfigItemHelper {
 	if cfgItem == nil || len(cfgItem.Items) == 0 {
 		return nil
 	}

@@ -64,11 +64,11 @@ func NewPkgListCommand() *cobra.Command {
 
 		// Build list request with filters
 		req := &inapi.PackageListRequest{
-			All:        showAll,
-			Name:       filterName,
-			Version:    filterVer,
-			Os:         filterOs,
-			Arch:       filterArch,
+			All:     showAll,
+			Name:    filterName,
+			Version: filterVer,
+			Os:      filterOs,
+			Arch:    filterArch,
 			// --all opts out of latest-only dedup and includes incomplete uploads.
 			LatestOnly: !showAll,
 		}
@@ -183,9 +183,11 @@ Filter options:
 	}
 
 	cmd.Flags().BoolVarP(&showJson, "json", "j", false, "Output in JSON format")
-	cmd.Flags().BoolVarP(&showAll, "all", "", false, "List every version, including incomplete uploads")
+	cmd.Flags().
+		BoolVarP(&showAll, "all", "", false, "List every version, including incomplete uploads")
 	cmd.Flags().StringVar(&filterName, "name", "", "Filter by package name (exact match)")
-	cmd.Flags().StringVar(&filterVer, "version", "", "Filter by version (fuzzy match, e.g., \"2.0\" matches 2.0.x)")
+	cmd.Flags().
+		StringVar(&filterVer, "version", "", "Filter by version (fuzzy match, e.g., \"2.0\" matches 2.0.x)")
 	cmd.Flags().StringVar(&filterOs, "os", "", "Filter by operating system (e.g., linux, darwin)")
 	cmd.Flags().StringVar(&filterArch, "arch", "", "Filter by architecture (e.g., amd64, arm64)")
 

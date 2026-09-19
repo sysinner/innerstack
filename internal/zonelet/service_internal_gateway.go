@@ -119,9 +119,12 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 				continue
 			}
 
-			p := lynkapi.SlicesSearchFunc(deploy.Routes, func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
-				return route.Path == a.Path
-			})
+			p := lynkapi.SlicesSearchFunc(
+				deploy.Routes,
+				func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
+					return route.Path == a.Path
+				},
+			)
 			add := false
 
 			if p == nil {
@@ -166,17 +169,23 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 					} else {
 						hostIp = host.PeerAddr
 					}
-					if port := lynkapi.SlicesSearchFunc(rep.ServicePorts, func(a *inapi.AppDeployServicePort) bool {
-						return a.Port == uint32(appPort)
-					}); port != nil {
+					if port := lynkapi.SlicesSearchFunc(
+						rep.ServicePorts,
+						func(a *inapi.AppDeployServicePort) bool {
+							return a.Port == uint32(appPort)
+						},
+					); port != nil {
 						hostPort = int(port.HostPort)
 					} else {
 						continue
 					}
 					addr := fmt.Sprintf("%s:%d", hostIp, hostPort)
-					if !slices.ContainsFunc(p.Targets, func(t *inapi.GatewayIngressDeploy_HttpRoute_Target) bool {
-						return t.Backend == addr
-					}) {
+					if !slices.ContainsFunc(
+						p.Targets,
+						func(t *inapi.GatewayIngressDeploy_HttpRoute_Target) bool {
+							return t.Backend == addr
+						},
+					) {
 						p.Targets = append(p.Targets, &inapi.GatewayIngressDeploy_HttpRoute_Target{
 							Backend: addr,
 						})
@@ -204,9 +213,12 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 						continue
 					}
 					addr := fmt.Sprintf("%s:%d", hostIp, hostPort)
-					if !slices.ContainsFunc(p.Targets, func(t *inapi.GatewayIngressDeploy_HttpRoute_Target) bool {
-						return t.Backend == addr
-					}) {
+					if !slices.ContainsFunc(
+						p.Targets,
+						func(t *inapi.GatewayIngressDeploy_HttpRoute_Target) bool {
+							return t.Backend == addr
+						},
+					) {
 						p.Targets = append(p.Targets, &inapi.GatewayIngressDeploy_HttpRoute_Target{
 							Backend: addr,
 						})
@@ -216,12 +228,18 @@ func (it *zoneInternalServer) GatewayIngressDeployList(
 			case inapi.GatewayIngressType_Redirect:
 				for _, tgt := range route.Targets {
 					if u, err := url.Parse(tgt.Backend); err == nil {
-						if !slices.ContainsFunc(p.Targets, func(t *inapi.GatewayIngressDeploy_HttpRoute_Target) bool {
-							return t.Backend == u.String()
-						}) {
-							p.Targets = append(p.Targets, &inapi.GatewayIngressDeploy_HttpRoute_Target{
-								Backend: u.String(),
-							})
+						if !slices.ContainsFunc(
+							p.Targets,
+							func(t *inapi.GatewayIngressDeploy_HttpRoute_Target) bool {
+								return t.Backend == u.String()
+							},
+						) {
+							p.Targets = append(
+								p.Targets,
+								&inapi.GatewayIngressDeploy_HttpRoute_Target{
+									Backend: u.String(),
+								},
+							)
 						}
 					}
 				}

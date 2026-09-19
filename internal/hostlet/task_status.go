@@ -189,8 +189,12 @@ func statusRefresh() error {
 
 	req := &inapi.HostStatusUpdateRequest{
 		Host: &inapi.Host{
-			Id:       config.Config.Hostlet.HostId,
-			PeerAddr: fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
+			Id: config.Config.Hostlet.HostId,
+			PeerAddr: fmt.Sprintf(
+				"%s:%d",
+				config.Config.Hostlet.LanAddr,
+				config.Config.Server.PeerPort,
+			),
 		},
 		Status:         hs,
 		ReplicaStages:  buildReplicaStageReports(),

@@ -44,20 +44,20 @@ func TestResolvePackage(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		os        string                       // host os passed to resolvePackage
-		arch      string                       // host arch passed to resolvePackage
-		responses map[string][]*inapi.Package  // keyed by queried "os/arch"
-		queryErr  map[string]error             // keyed by queried "os/arch"
-		wantSel   string                       // selected "os/arch", "" when wantErr
+		os        string                      // host os passed to resolvePackage
+		arch      string                      // host arch passed to resolvePackage
+		responses map[string][]*inapi.Package // keyed by queried "os/arch"
+		queryErr  map[string]error            // keyed by queried "os/arch"
+		wantSel   string                      // selected "os/arch", "" when wantErr
 		wantErr   bool
 		wantTried []string // exact sequence of "os/arch" queries
 	}{
 		{
 			// Native binary present: most specific candidate wins, nothing else
 			// is queried.
-			name:    "native_binary_preferred",
-			os:      "linux",
-			arch:    "amd64",
+			name: "native_binary_preferred",
+			os:   "linux",
+			arch: "amd64",
 			responses: map[string][]*inapi.Package{
 				"linux/amd64": {mkPkg("linux", "amd64", inapi.PackageFileStateComplete)},
 				"linux/src":   {mkPkg("linux", "src", inapi.PackageFileStateComplete)},
@@ -159,16 +159,18 @@ func TestResolvePackage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var tried []string
-			lister := packageLister(func(ctx context.Context, req *inapi.PackageListRequest) (*inapi.PackageListResponse, error) {
-				key := req.Os + "/" + req.Arch
-				tried = append(tried, key)
-				if tt.queryErr != nil {
-					if e, ok := tt.queryErr[key]; ok {
-						return nil, e
+			lister := packageLister(
+				func(ctx context.Context, req *inapi.PackageListRequest) (*inapi.PackageListResponse, error) {
+					key := req.Os + "/" + req.Arch
+					tried = append(tried, key)
+					if tt.queryErr != nil {
+						if e, ok := tt.queryErr[key]; ok {
+							return nil, e
+						}
 					}
-				}
-				return &inapi.PackageListResponse{Items: tt.responses[key]}, nil
-			})
+					return &inapi.PackageListResponse{Items: tt.responses[key]}, nil
+				},
+			)
 
 			pkg, err := resolvePackage(context.Background(), lister,
 				"odoo-ce", "19.0", tt.os, tt.arch)

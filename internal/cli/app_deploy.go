@@ -333,7 +333,11 @@ If the instance name already exists, the existing app instance will be updated.`
 
 // promptAppName interactively prompts for an app instance name.
 // It displays the defaultName as a hint and sets req.Name on success.
-func promptAppName(reader *bufio.Reader, defaultName string, req *inapi.AppInstanceDeployRequest) error {
+func promptAppName(
+	reader *bufio.Reader,
+	defaultName string,
+	req *inapi.AppInstanceDeployRequest,
+) error {
 	fmt.Println()
 	fmt.Println("App Name")
 	fmt.Println(strings.Repeat("-", 60))

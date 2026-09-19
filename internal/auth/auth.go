@@ -84,7 +84,11 @@ func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
 				"method", info.FullMethod,
 				"error", err,
 			)
-			return nil, status.Errorf(codes.Unauthenticated, "authentication failed: %s", err.Error())
+			return nil, status.Errorf(
+				codes.Unauthenticated,
+				"authentication failed: %s",
+				err.Error(),
+			)
 		} else {
 			ctx = inauth.NewAppContext(ctx, av)
 		}
@@ -130,7 +134,10 @@ func (am *AuthManager) RefreshAccessKeysFromDB() error {
 
 	{
 		offset := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, "")
-		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(1000).Exec() // kvgo default Limit is 10
+		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+			SetLimit(1000).
+			Exec()
+			// kvgo default Limit is 10
 
 		for _, item := range rs.Items {
 			var key inauth.AccessKey
@@ -147,7 +154,10 @@ func (am *AuthManager) RefreshAccessKeysFromDB() error {
 
 	{
 		offset := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
-		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxHosts).Exec() // kvgo default Limit is 10
+		rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+			SetLimit(inapi.Zonelet_MaxHosts).
+			Exec()
+			// kvgo default Limit is 10
 
 		for _, item := range rs.Items {
 			var host inapi.Host

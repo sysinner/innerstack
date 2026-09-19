@@ -150,7 +150,17 @@ func (it *Resolver) Lookup(network string, req *dns.Msg) (*dns.Msg, error) {
 	)
 
 	if it.hit > 0 && ((it.hit+it.mis+it.err)%10000) == 0 {
-		slog.Info("resolver stats", "records", len(it.caches), "hit", it.hit, "mis", it.mis, "err", it.err)
+		slog.Info(
+			"resolver stats",
+			"records",
+			len(it.caches),
+			"hit",
+			it.hit,
+			"mis",
+			it.mis,
+			"err",
+			it.err,
+		)
 	}
 
 	{

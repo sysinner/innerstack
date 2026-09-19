@@ -58,7 +58,10 @@ func Extract(ipkPath, targetDir string) error {
 		return fmt.Errorf("[pkgbuild.Extract] failed to read magic number: %w", err)
 	}
 	if string(magicBuf) != PackageMagic {
-		return fmt.Errorf("[pkgbuild.Extract] invalid ipk file %s: bad magic number (expected IPK1)", ipkPath)
+		return fmt.Errorf(
+			"[pkgbuild.Extract] invalid ipk file %s: bad magic number (expected IPK1)",
+			ipkPath,
+		)
 	}
 
 	// Read the header length.
@@ -152,9 +155,17 @@ func Extract(ipkPath, targetDir string) error {
 
 		case tar.TypeReg:
 			if err := root.MkdirAll(filepath.Dir(name), 0755); err != nil {
-				return fmt.Errorf("[pkgbuild.Extract] failed to create parent directory for %s: %w", name, err)
+				return fmt.Errorf(
+					"[pkgbuild.Extract] failed to create parent directory for %s: %w",
+					name,
+					err,
+				)
 			}
-			outFile, err := root.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
+			outFile, err := root.OpenFile(
+				name,
+				os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+				os.FileMode(header.Mode),
+			)
 			if err != nil {
 				return fmt.Errorf("[pkgbuild.Extract] failed to create file %s: %w", name, err)
 			}
@@ -168,13 +179,18 @@ func Extract(ipkPath, targetDir string) error {
 			// A linkname is resolved relative to the entry's parent directory;
 			// an absolute linkname always points at the host filesystem.
 			if filepath.IsAbs(header.Linkname) {
-				return fmt.Errorf("[pkgbuild.Extract] symlink with absolute linkname rejected: %s -> %s",
-					header.Name, header.Linkname)
+				return fmt.Errorf(
+					"[pkgbuild.Extract] symlink with absolute linkname rejected: %s -> %s",
+					header.Name,
+					header.Linkname,
+				)
 			}
 			// Root blocks writing through a symlink that leaves the target
 			// directory, but the created link itself must not point outside
 			// either.
-			resolved := filepath.Clean(filepath.Join(absTarget, filepath.Dir(name), header.Linkname))
+			resolved := filepath.Clean(
+				filepath.Join(absTarget, filepath.Dir(name), header.Linkname),
+			)
 			if !withinTarget(resolved) {
 				return fmt.Errorf("[pkgbuild.Extract] symlink path traversal detected: %s -> %s",
 					header.Name, header.Linkname)
@@ -183,7 +199,11 @@ func Extract(ipkPath, targetDir string) error {
 			// same package so re-extraction stays idempotent.
 			if fi, err := root.Lstat(name); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 				if err := root.Remove(name); err != nil {
-					return fmt.Errorf("[pkgbuild.Extract] failed to replace symlink %s: %w", name, err)
+					return fmt.Errorf(
+						"[pkgbuild.Extract] failed to replace symlink %s: %w",
+						name,
+						err,
+					)
 				}
 			}
 			if err := root.Symlink(header.Linkname, name); err != nil {

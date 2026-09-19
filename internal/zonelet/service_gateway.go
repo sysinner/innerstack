@@ -154,12 +154,16 @@ func (it *zoneServer) GatewayIngressSet(
 		// - Total length must not exceed 253 characters
 		// - Each label (dot-separated segment) must not exceed 63 characters
 		if len(req.Item.Domain) > 253 {
-			return nil, lynkapi.NewClientError("Invalid Domain Name : Total length must not exceed 253 characters")
+			return nil, lynkapi.NewClientError(
+				"Invalid Domain Name : Total length must not exceed 253 characters",
+			)
 		}
 		labels := strings.Split(req.Item.Domain, ".")
 		for _, label := range labels {
 			if len(label) > 63 {
-				return nil, lynkapi.NewClientError("Invalid Domain Name : Each label (dot-separated segment) must not exceed 63 characters")
+				return nil, lynkapi.NewClientError(
+					"Invalid Domain Name : Each label (dot-separated segment) must not exceed 63 characters",
+				)
 			}
 		}
 	}
@@ -305,7 +309,9 @@ func (it *zoneServer) GatewayIngressSet(
 				for _, tgt := range route.Targets {
 					uri, err := url.ParseRequestURI(tgt.Backend)
 					if err != nil {
-						return nil, lynkapi.NewClientError("Invalid Redirect URL or Path: " + err.Error())
+						return nil, lynkapi.NewClientError(
+							"Invalid Redirect URL or Path: " + err.Error(),
+						)
 					}
 					uri.Path = filepath.Clean(uri.Path)
 					if uri.Path == "." {
@@ -318,9 +324,12 @@ func (it *zoneServer) GatewayIngressSet(
 				return nil, lynkapi.NewClientError("Invalid Route Type")
 			}
 
-			if prev := lynkapi.SlicesSearchFunc(item.Routes, func(a *inapi.GatewayIngress_HttpRoute) bool {
-				return route.Path == a.Path
-			}); prev == nil {
+			if prev := lynkapi.SlicesSearchFunc(
+				item.Routes,
+				func(a *inapi.GatewayIngress_HttpRoute) bool {
+					return route.Path == a.Path
+				},
+			); prev == nil {
 				item.Routes = append(item.Routes, route)
 			} else {
 				prev.Action = route.Action
@@ -359,7 +368,10 @@ func gatewayIngressDeleteEligible(item *inapi.GatewayIngress, now int64) error {
 	if elapsed := now - item.Meta.Updated; elapsed <= inapi.GatewayIngressDeleteDelaySeconds {
 		return lynkapi.NewClientError(fmt.Sprintf(
 			"Ingress %q was last operated %d day(s) ago, deletion requires more than %d day(s) after the last operation",
-			item.Domain, elapsed/86400, inapi.GatewayIngressDeleteDelaySeconds/86400))
+			item.Domain,
+			elapsed/86400,
+			inapi.GatewayIngressDeleteDelaySeconds/86400,
+		))
 	}
 
 	return nil

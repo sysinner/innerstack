@@ -149,7 +149,11 @@ func TestExtract(t *testing.T) {
 				if string(got) != "hello world" {
 					t.Errorf("bin/app = %q, want %q", got, "hello world")
 				}
-				if got, _ := os.ReadFile(filepath.Join(dir, "etc/config.conf")); string(got) != "key=value" {
+				if got, _ := os.ReadFile(
+					filepath.Join(dir, "etc/config.conf"),
+				); string(
+					got,
+				) != "key=value" {
 					t.Errorf("etc/config.conf = %q, want %q", got, "key=value")
 				}
 				fi, err := os.Stat(filepath.Join(dir, "bin/app"))
@@ -222,7 +226,12 @@ func TestExtract(t *testing.T) {
 			name:     "symlink to absolute dir then file under it",
 			compress: "gzip",
 			entries: []tarEntry{
-				{name: "x", typeflag: tar.TypeSymlink, mode: 0777, link: filepath.Join(outside, "dir")},
+				{
+					name:     "x",
+					typeflag: tar.TypeSymlink,
+					mode:     0777,
+					link:     filepath.Join(outside, "dir"),
+				},
 				{name: "x/pwn", typeflag: tar.TypeReg, mode: 0644, content: "PWNED"},
 			},
 			wantErr: "absolute linkname",
@@ -236,7 +245,12 @@ func TestExtract(t *testing.T) {
 			name:     "symlink to absolute file then file at link path",
 			compress: "gzip",
 			entries: []tarEntry{
-				{name: "f", typeflag: tar.TypeSymlink, mode: 0777, link: filepath.Join(outside, "file.txt")},
+				{
+					name:     "f",
+					typeflag: tar.TypeSymlink,
+					mode:     0777,
+					link:     filepath.Join(outside, "file.txt"),
+				},
 				{name: "f", typeflag: tar.TypeReg, mode: 0644, content: "PWNED"},
 			},
 			wantErr: "absolute linkname",

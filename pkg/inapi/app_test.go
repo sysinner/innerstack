@@ -120,10 +120,10 @@ func resourcesEqual(a, b *AppSpecResources) bool {
 // string fields, used to compare values without copying the embedded
 // protobuf mutex.
 type resourceSnapshot struct {
-	cpuLimit, memoryLimit, volumeLimit           string
-	cpuMin, cpuMax                               string
-	memoryMin, memoryMax                         string
-	volumeMin, volumeMax                         string
+	cpuLimit, memoryLimit, volumeLimit string
+	cpuMin, cpuMax                     string
+	memoryMin, memoryMax               string
+	volumeMin, volumeMax               string
 }
 
 func snapshotResources(r *AppSpecResources) resourceSnapshot {

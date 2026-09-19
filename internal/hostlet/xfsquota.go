@@ -355,7 +355,8 @@ func quotaKeeperInit() error {
 		}
 
 		// Verify the mount point supports project quota
-		if _, err := exec.Command(quotaCmd, "-x", "-c", "report", d.Mountpoint).CombinedOutput(); err != nil {
+		if _, err := exec.Command(quotaCmd, "-x", "-c", "report", d.Mountpoint).
+			CombinedOutput(); err != nil {
 			slog.Warn("xfsquota: prjquota not available on mount point",
 				"mount", d.Mountpoint)
 			continue
@@ -617,7 +618,8 @@ func xfsQuotaRefresh() error {
 				fmt.Sprintf("project -s -p %s %d", ctrDir, proj.Id),
 				proj.Mnt,
 			}
-			if out, err := exec.Command("sh", "-c", strings.Join(args, " ")+"\nexit 0\n").CombinedOutput(); err != nil {
+			if out, err := exec.Command("sh", "-c", strings.Join(args, " ")+"\nexit 0\n").
+				CombinedOutput(); err != nil {
 				slog.Warn("xfsquota: project init failed",
 					"container", ctrName, "error", err, "output", string(out))
 				continue
@@ -634,7 +636,8 @@ func xfsQuotaRefresh() error {
 				fmt.Sprintf("\"limit -p bsoft=%d bhard=%d %d\"", volLimit, volLimit, proj.Id),
 				proj.Mnt,
 			}
-			if out, err := exec.Command("sh", "-c", strings.Join(args, " ")+"\nexit 0\n").CombinedOutput(); err != nil {
+			if out, err := exec.Command("sh", "-c", strings.Join(args, " ")+"\nexit 0\n").
+				CombinedOutput(); err != nil {
 				slog.Warn("xfsquota: limit set failed",
 					"container", ctrName, "error", err, "output", string(out))
 				continue

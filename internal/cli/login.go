@@ -183,7 +183,10 @@ func PrintCurrentZoneHint(cmd *cobra.Command) {
 func printZoneList() {
 
 	if len(Config.Zones) == 0 {
-		fmt.Printf("No zones configured. Add one with:\n  %s login -n <zone> -a <host:port> -s <access-key>\n", AppName)
+		fmt.Printf(
+			"No zones configured. Add one with:\n  %s login -n <zone> -a <host:port> -s <access-key>\n",
+			AppName,
+		)
 		return
 	}
 

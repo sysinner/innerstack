@@ -81,7 +81,10 @@ func NewPkgExportCommand() *cobra.Command {
 			// Refuse to clobber an existing directory unless --force is set.
 			if _, err := os.Stat(targetDir); err == nil {
 				if !force {
-					return fmt.Errorf("target directory already exists: %s (use --force to overwrite)", targetDir)
+					return fmt.Errorf(
+						"target directory already exists: %s (use --force to overwrite)",
+						targetDir,
+					)
 				}
 				if err := os.RemoveAll(targetDir); err != nil {
 					return fmt.Errorf("failed to remove existing directory %s: %w", targetDir, err)
@@ -127,7 +130,8 @@ IPK File Format:
   cli pkg-export *.ipk`,
 	}
 
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Target directory (default: file name without .ipk)")
+	cmd.Flags().
+		StringVarP(&output, "output", "o", "", "Target directory (default: file name without .ipk)")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Overwrite the target directory if it exists")
 
 	return cmd

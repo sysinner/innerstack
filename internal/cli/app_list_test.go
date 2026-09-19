@@ -37,8 +37,8 @@ func TestAppListStatus(t *testing.T) {
 			Stages: &inapi.AppDeployStage{State: inapi.AppStageStateFailed},
 		}, inapi.AppStageStateFailed},
 		{"empty stage state falls back to action", &inapi.AppDeploy{
-			Action:  "stop",
-			Stages:  &inapi.AppDeployStage{},
+			Action: "stop",
+			Stages: &inapi.AppDeployStage{},
 		}, "stop"},
 	}
 	for _, c := range cases {
@@ -211,10 +211,10 @@ func TestBytesUsageLimit(t *testing.T) {
 
 func TestAppAggregateNet(t *testing.T) {
 	cases := []struct {
-		name    string
-		inst    *inapi.AppInstance
-		wantRx  int64
-		wantTx  int64
+		name   string
+		inst   *inapi.AppInstance
+		wantRx int64
+		wantTx int64
 	}{
 		{"nil", nil, 0, 0},
 		{"no status", &inapi.AppInstance{}, 0, 0},

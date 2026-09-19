@@ -48,7 +48,11 @@ func hostActiveConfigPath() string {
 // survive a hostlet restart. Failures are logged but non-fatal: a stale
 // file only risks a spurious recreate on the next restart.
 func saveHostActiveConfig() {
-	if err := inutil.JsonEncodeToFileIndent(hostActiveConfigPath(), &hoststatus.Active, 0644); err != nil {
+	if err := inutil.JsonEncodeToFileIndent(
+		hostActiveConfigPath(),
+		&hoststatus.Active,
+		0644,
+	); err != nil {
 		slog.Warn("hostlet active config save failed", "error", err)
 	}
 }

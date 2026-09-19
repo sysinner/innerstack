@@ -15,7 +15,7 @@
 package inauth
 
 type ServiceStatus struct {
-	Code    string `json:"code,omitempty" toml:"code,omitempty"`
+	Code    string `json:"code,omitempty"    toml:"code,omitempty"`
 	Message string `json:"message,omitempty" toml:"message,omitempty"`
 }
 

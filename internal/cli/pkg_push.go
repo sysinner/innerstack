@@ -73,7 +73,11 @@ func NewPkgPushCommand() *cobra.Command {
 
 		fmt.Printf("Package: %s\n", pkgId)
 		fmt.Printf("Compress: %s\n", pkg.Release.Compress)
-		fmt.Printf("Data Size: %d bytes (%.2f MB)\n", pkg.Release.Size, float64(pkg.Release.Size)/1024/1024)
+		fmt.Printf(
+			"Data Size: %d bytes (%.2f MB)\n",
+			pkg.Release.Size,
+			float64(pkg.Release.Size)/1024/1024,
+		)
 		fmt.Printf("Total Size: %d bytes (%.2f MB)\n", totalSize, float64(totalSize)/1024/1024)
 
 		chunkSize := inapi.PackageFileChunkSizeDefault

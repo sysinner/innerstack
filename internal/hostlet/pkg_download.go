@@ -115,9 +115,11 @@ func PackageDownload(pkgRef *inapi.AppSpecPackage) (string, error) {
 	// any arch) and "all" (any os) release as needed. Version is the (possibly
 	// shortened) spec version: "1.0" matches any 1.0.x (see zonelet.versionMatch),
 	// and LatestOnly collapses the matches to the newest 1.0.N via semver.
-	lister := packageLister(func(ctx context.Context, req *inapi.PackageListRequest) (*inapi.PackageListResponse, error) {
-		return zc.PackageList(ctx, req)
-	})
+	lister := packageLister(
+		func(ctx context.Context, req *inapi.PackageListRequest) (*inapi.PackageListResponse, error) {
+			return zc.PackageList(ctx, req)
+		},
+	)
 	pkg, err := resolvePackage(ctx, lister, pkgRef.Name, pkgRef.Version, targetOS, targetArch)
 	if err != nil {
 		return "", fmt.Errorf("[PackageDownload] %w", err)
@@ -275,7 +277,12 @@ func resolvePackage(ctx context.Context, list packageLister,
 				LatestOnly: true,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("failed to query package list (os %s, arch %s): %w", o, a, err)
+				return nil, fmt.Errorf(
+					"failed to query package list (os %s, arch %s): %w",
+					o,
+					a,
+					err,
+				)
 			}
 			if len(resp.Items) == 0 {
 				continue // no release for this (os, arch); try the next candidate
@@ -283,7 +290,12 @@ func resolvePackage(ctx context.Context, list packageLister,
 
 			pkg := resp.Items[0]
 			if pkg.File == nil || pkg.File.State != inapi.PackageFileStateComplete {
-				return nil, fmt.Errorf("package %s (os %s, arch %s) is not ready for download", name, o, a)
+				return nil, fmt.Errorf(
+					"package %s (os %s, arch %s) is not ready for download",
+					name,
+					o,
+					a,
+				)
 			}
 			return pkg, nil
 		}
@@ -332,7 +344,11 @@ func EnsurePackages(app *inapi.AppInstance) (map[string]string, error) {
 				"package", pkgRef.Name,
 				"version", pkgRef.Version,
 				"error", err)
-			return nil, fmt.Errorf("[EnsurePackages] failed to prepare package %s: %w", pkgRef.Name, err)
+			return nil, fmt.Errorf(
+				"[EnsurePackages] failed to prepare package %s: %w",
+				pkgRef.Name,
+				err,
+			)
 		}
 
 		result[pkgRef.Name] = installPath

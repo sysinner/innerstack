@@ -104,8 +104,12 @@ func (s *zoneServer) ZoneInit(
 
 	{
 		host := &inapi.Host{
-			Id:        config.Config.Hostlet.HostId,
-			PeerAddr:  fmt.Sprintf("%s:%d", config.Config.Hostlet.LanAddr, config.Config.Server.PeerPort),
+			Id: config.Config.Hostlet.HostId,
+			PeerAddr: fmt.Sprintf(
+				"%s:%d",
+				config.Config.Hostlet.LanAddr,
+				config.Config.Server.PeerPort,
+			),
 			AccessKey: config.Config.Hostlet.AccessKey,
 		}
 
@@ -178,7 +182,9 @@ func (s *zoneServer) ZoneSet(
 
 	// All three VPC fields must be provided together; partial updates not allowed
 	if req.VpcBridgeCidr == "" || req.VpcInstanceCidr == "" || req.VpcNetworkDomain == "" {
-		return nil, errors.New("vpc_bridge_cidr, vpc_instance_cidr, and vpc_network_domain are all required")
+		return nil, errors.New(
+			"vpc_bridge_cidr, vpc_instance_cidr, and vpc_network_domain are all required",
+		)
 	}
 
 	// Validate CIDR formats and ensure private network addresses (RFC 1918)
@@ -339,7 +345,10 @@ func (s *zoneServer) HostList(
 
 	offset := inapi.NsHostInfo(config.Config.Zonelet.ZoneName, "")
 
-	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).SetLimit(inapi.Zonelet_MaxHosts).Exec() // kvgo default Limit is 10
+	rs := data.Zonelet.NewRanger(offset, append(offset, 0xff)).
+		SetLimit(inapi.Zonelet_MaxHosts).
+		Exec()
+		// kvgo default Limit is 10
 	for _, item := range rs.Items {
 		var host inapi.Host
 		if err := item.JsonDecode(&host); err == nil {

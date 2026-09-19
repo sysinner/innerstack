@@ -19,7 +19,7 @@ import (
 )
 
 type IdentityToken struct {
-	Roles  []string `json:"roles,omitempty" toml:"roles,omitempty"`
+	Roles  []string `json:"roles,omitempty"  toml:"roles,omitempty"`
 	Groups []string `json:"groups,omitempty" toml:"groups,omitempty"`
 
 	// Type string `json:"type,omitempty" toml:"type,omitempty"`

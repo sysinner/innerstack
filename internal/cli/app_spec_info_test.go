@@ -48,10 +48,15 @@ func TestRenderAppSpec(t *testing.T) {
 			{Name: "server", Title: "Server", Type: "group", Items: []*inapi.AppSpecConfigItem{
 				{Name: "domain", Title: "Domain", Type: "string", Default: "localhost"},
 			}},
-			{Name: "databases", Type: "array_group", KeyItem: "name", Items: []*inapi.AppSpecConfigItem{
-				{Name: "name", Type: "string"},
-				{Name: "host", Type: "string"},
-			}},
+			{
+				Name:    "databases",
+				Type:    "array_group",
+				KeyItem: "name",
+				Items: []*inapi.AppSpecConfigItem{
+					{Name: "name", Type: "string"},
+					{Name: "host", Type: "string"},
+				},
+			},
 		},
 		Tasks: []*inapi.AppSpecTask{
 			{Name: "init", OnStartup: true, Script: "gitea admin init"},

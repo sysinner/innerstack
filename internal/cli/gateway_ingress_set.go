@@ -177,8 +177,10 @@ Use --action delete to remove a record that has been disabled for more than 10 d
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Gateway ingress name (required)")
 	cmd.Flags().StringVarP(&description, "description", "", "", "Description of the ingress")
-	cmd.Flags().StringVarP(&action, "action", "", inapi.GatewayIngressActionEnable, "Action for the ingress (enable|disable|delete)")
-	cmd.Flags().BoolVarP(&letsencrypt, "letsencrypt", "", false, "Enable Let's Encrypt TLS certificate")
+	cmd.Flags().
+		StringVarP(&action, "action", "", inapi.GatewayIngressActionEnable, "Action for the ingress (enable|disable|delete)")
+	cmd.Flags().
+		BoolVarP(&letsencrypt, "letsencrypt", "", false, "Enable Let's Encrypt TLS certificate")
 	cmd.Flags().BoolVarP(&routes, "routes", "r", false, "Interactively edit routes")
 
 	cmd.MarkFlagRequired("name")
@@ -188,7 +190,9 @@ Use --action delete to remove a record that has been disabled for more than 10 d
 
 // interactiveRoutesEdit provides an interactive prompt-based editor for
 // managing HTTP routes on a gateway ingress.
-func interactiveRoutesEdit(existing []*inapi.GatewayIngress_HttpRoute) ([]*inapi.GatewayIngress_HttpRoute, error) {
+func interactiveRoutesEdit(
+	existing []*inapi.GatewayIngress_HttpRoute,
+) ([]*inapi.GatewayIngress_HttpRoute, error) {
 	routes := make([]*inapi.GatewayIngress_HttpRoute, len(existing))
 	copy(routes, existing)
 
@@ -278,7 +282,11 @@ func interactiveRoutesEdit(existing []*inapi.GatewayIngress_HttpRoute) ([]*inapi
 
 // promptRoute interactively prompts for a single HTTP route entry.
 // If current is non-nil, its values are shown as defaults (press Enter to keep).
-func promptRoute(scanner *bufio.Scanner, validTypes []string, current *inapi.GatewayIngress_HttpRoute) (*inapi.GatewayIngress_HttpRoute, error) {
+func promptRoute(
+	scanner *bufio.Scanner,
+	validTypes []string,
+	current *inapi.GatewayIngress_HttpRoute,
+) (*inapi.GatewayIngress_HttpRoute, error) {
 
 	// Prompt for path
 	promptHint := "  Path (e.g. / or /api/v1)"
@@ -340,7 +348,11 @@ var targetPrompts = map[string]targetPromptConfig{
 // each entry and re-prompting on invalid input.
 // If current is non-nil and has targets, they are pre-filled as defaults.
 // Each target includes an address and an optional weight.
-func promptTargets(scanner *bufio.Scanner, routeType string, current *inapi.GatewayIngress_HttpRoute) []*inapi.GatewayIngress_HttpRoute_Target {
+func promptTargets(
+	scanner *bufio.Scanner,
+	routeType string,
+	current *inapi.GatewayIngress_HttpRoute,
+) []*inapi.GatewayIngress_HttpRoute_Target {
 	cfg, ok := targetPrompts[routeType]
 	if !ok {
 		cfg = targetPromptConfig{
@@ -390,7 +402,11 @@ func promptTargets(scanner *bufio.Scanner, routeType string, current *inapi.Gate
 
 	for {
 		if len(targets) > 0 {
-			fmt.Printf("  %s (current: %s, enter empty to finish, or continue adding): ", cfg.hint, formatTargetAddrs(targets))
+			fmt.Printf(
+				"  %s (current: %s, enter empty to finish, or continue adding): ",
+				cfg.hint,
+				formatTargetAddrs(targets),
+			)
 		} else {
 			fmt.Printf("  %s (e.g. %s): ", cfg.hint, cfg.example)
 		}
@@ -515,7 +531,11 @@ func validateTarget(routeType, target string) error {
 
 // promptValidType repeatedly prompts for a route type until a valid value
 // is entered. If current is non-nil, its type is used as default on empty input.
-func promptValidType(scanner *bufio.Scanner, validTypes []string, current *inapi.GatewayIngress_HttpRoute) string {
+func promptValidType(
+	scanner *bufio.Scanner,
+	validTypes []string,
+	current *inapi.GatewayIngress_HttpRoute,
+) string {
 	defaultType := inapi.GatewayIngressType_Instance
 	if current != nil {
 		defaultType = current.Type
@@ -535,7 +555,11 @@ func promptValidType(scanner *bufio.Scanner, validTypes []string, current *inapi
 				return routeType
 			}
 		}
-		fmt.Printf("  Invalid type '%s', please enter one of [%s]\n", routeType, strings.Join(validTypes, "/"))
+		fmt.Printf(
+			"  Invalid type '%s', please enter one of [%s]\n",
+			routeType,
+			strings.Join(validTypes, "/"),
+		)
 	}
 }
 

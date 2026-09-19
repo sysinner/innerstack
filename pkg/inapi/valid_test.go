@@ -28,7 +28,11 @@ func TestDNSNameValid(t *testing.T) {
 		{"valid starts with digit", "3rd-app", false},
 		{"valid starts with letter digit hyphen mix", "app1-prod", false},
 		{"valid min length 3", "abc", false},
-		{"valid max length 63", "a23456789012345678901234567890123456789012345678901234567890123", false},
+		{
+			"valid max length 63",
+			"a23456789012345678901234567890123456789012345678901234567890123",
+			false,
+		},
 		{"valid with multiple hyphens", "my-app-prod-01", false},
 		{"valid single segment with digits", "node123", false},
 		{"valid all digits", "123", false},
@@ -41,7 +45,11 @@ func TestDNSNameValid(t *testing.T) {
 		{"too short 2 chars", "ab", true},
 
 		// invalid cases: max=63
-		{"too long 64 chars", "a234567890123456789012345678901234567890123456789012345678901234", true},
+		{
+			"too long 64 chars",
+			"a234567890123456789012345678901234567890123456789012345678901234",
+			true,
+		},
 
 		// invalid cases: rfc1123_compliant
 		{"starts with hyphen", "-app", true},

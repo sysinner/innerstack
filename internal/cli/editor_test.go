@@ -88,7 +88,8 @@ func TestShellQuote(t *testing.T) {
 	}
 	// Embedded single quote must be escaped and result stays a single shell token.
 	got := shellQuote("it's")
-	if !strings.HasPrefix(got, "'") || !strings.HasSuffix(got, "'") || !strings.Contains(got, `'\''`) {
+	if !strings.HasPrefix(got, "'") || !strings.HasSuffix(got, "'") ||
+		!strings.Contains(got, `'\''`) {
 		t.Errorf("shellQuote(it's) = %q, expected escaped single quotes", got)
 	}
 }

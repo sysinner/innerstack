@@ -48,7 +48,8 @@ func NewPkgBuildCommand() *cobra.Command {
 		}
 
 		// Validate architecture: amd64, arm64, or src (source package)
-		if arch != "" && arch != pkgbuild.ArchAMD64 && arch != pkgbuild.ArchARM64 && arch != pkgbuild.ArchSrc {
+		if arch != "" && arch != pkgbuild.ArchAMD64 && arch != pkgbuild.ArchARM64 &&
+			arch != pkgbuild.ArchSrc {
 			return fmt.Errorf("invalid --arch: must be 'amd64', 'arm64' or 'src'")
 		}
 
@@ -157,7 +158,8 @@ Environment Variables:
 	cmd.Flags().StringVar(&dir, "dir", "", "Package source directory (default: current directory)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output directory for the package")
 	cmd.Flags().StringVar(&spec, "spec", "", "Spec file path (default: auto-detect)")
-	cmd.Flags().StringVar(&version, "version", "", "Full version with optional pre-release/build metadata")
+	cmd.Flags().
+		StringVar(&version, "version", "", "Full version with optional pre-release/build metadata")
 	cmd.Flags().StringVar(&os, "os", "linux", "Operating system (linux, freebsd, all)")
 	cmd.Flags().StringVar(&arch, "arch", "amd64", "Architecture (amd64, arm64, src)")
 	cmd.Flags().StringVar(&compress, "compress", "xz", "Compression format (xz or gzip)")

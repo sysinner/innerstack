@@ -123,7 +123,11 @@ func SpecFind(packDir string, specOverride string) (string, *inapi.PackageSpec, 
 		}
 	}
 
-	return "", nil, fmt.Errorf("no spec file found in %s (searched: %s)", packDir, strings.Join(searchPaths, ", "))
+	return "", nil, fmt.Errorf(
+		"no spec file found in %s (searched: %s)",
+		packDir,
+		strings.Join(searchPaths, ", "),
+	)
 }
 
 // MetadataValidate validates package metadata
@@ -137,7 +141,10 @@ func MetadataValidate(meta *inapi.PackageMetadata) error {
 	}
 
 	if !NameRegex.MatchString(meta.Name) {
-		return fmt.Errorf("invalid metadata.name '%s': must be lowercase, start with a letter, and contain only alphanumeric, hyphens, or underscores", meta.Name)
+		return fmt.Errorf(
+			"invalid metadata.name '%s': must be lowercase, start with a letter, and contain only alphanumeric, hyphens, or underscores",
+			meta.Name,
+		)
 	}
 
 	if meta.Version == "" {
@@ -151,7 +158,10 @@ func MetadataValidate(meta *inapi.PackageMetadata) error {
 		v = "v" + v
 	}
 	if !semver.IsValid(v) {
-		return fmt.Errorf("invalid metadata.version '%s': must be semantic version core format (e.g., 1.0.0, v2.1.0)", meta.Version)
+		return fmt.Errorf(
+			"invalid metadata.version '%s': must be semantic version core format (e.g., 1.0.0, v2.1.0)",
+			meta.Version,
+		)
 	}
 
 	return nil
@@ -191,21 +201,30 @@ func ReleaseValidate(release *inapi.PackageRelease) error {
 		v = "v" + v
 	}
 	if !semver.IsValid(v) {
-		return fmt.Errorf("invalid release.version '%s': must be semantic version format (e.g., 1.0.0, 1.0.0-beta.1)", release.Version)
+		return fmt.Errorf(
+			"invalid release.version '%s': must be semantic version format (e.g., 1.0.0, 1.0.0-beta.1)",
+			release.Version,
+		)
 	}
 
 	if release.Os == "" {
 		return fmt.Errorf("release.os is required")
 	}
 	if !ValidOS[release.Os] {
-		return fmt.Errorf("invalid release.os '%s': must be one of linux, freebsd, darwin, all", release.Os)
+		return fmt.Errorf(
+			"invalid release.os '%s': must be one of linux, freebsd, darwin, all",
+			release.Os,
+		)
 	}
 
 	if release.Arch == "" {
 		return fmt.Errorf("release.arch is required")
 	}
 	if !ValidArch[release.Arch] {
-		return fmt.Errorf("invalid release.arch '%s': must be one of amd64, arm64, src", release.Arch)
+		return fmt.Errorf(
+			"invalid release.arch '%s': must be one of amd64, arm64, src",
+			release.Arch,
+		)
 	}
 
 	return nil

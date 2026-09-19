@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
@@ -37,8 +37,12 @@ func (s *hostInternalServer) HostInit(
 ) (*inapi.HostInitResponse, error) {
 
 	// Only allow callers with host:rw:<host_id> scope on this host
-	if !inauth.AppContext(ctx).Allow(fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, config.Config.Hostlet.HostId)) {
-		return nil, fmt.Errorf("auth fail: caller not authorized for host %s", config.Config.Hostlet.HostId)
+	if !inauth.AppContext(ctx).
+		Allow(fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, config.Config.Hostlet.HostId)) {
+		return nil, fmt.Errorf(
+			"auth fail: caller not authorized for host %s",
+			config.Config.Hostlet.HostId,
+		)
 	}
 
 	if len(req.ZoneHosts) > 0 {

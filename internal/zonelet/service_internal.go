@@ -87,7 +87,12 @@ func (s *zoneInternalServer) HostStatusUpdate(
 			} else {
 				host.PeerAddr = req.Host.PeerAddr
 				if rs := data.Zonelet.NewWriter(
-					inapi.NsHostInfo(config.Config.Zonelet.ZoneName, host.Id), host).Exec(); !rs.OK() {
+					inapi.NsHostInfo(
+						config.Config.Zonelet.ZoneName,
+						host.Id,
+					),
+					host,
+				).Exec(); !rs.OK() {
 					return nil, rs.Error()
 				}
 			}
@@ -134,8 +139,11 @@ func (s *zoneInternalServer) HostStatusUpdate(
 					if peerIp, ok := zoneNetMgr.HostPeerIp(rep.HostId); ok {
 						rep2.HostIpv4 = peerIp
 					} else if kvDepHost := gHostSet.Load(rep.HostId); kvDepHost != nil {
-						if depHost, ok := kvDepHost.Value.(*inapi.Host); ok && depHost.PeerAddr != "" {
-							if ip, err := inetutil.ParsePrivateAddress(depHost.PeerAddr); err == nil {
+						if depHost, ok := kvDepHost.Value.(*inapi.Host); ok &&
+							depHost.PeerAddr != "" {
+							if ip, err := inetutil.ParsePrivateAddress(
+								depHost.PeerAddr,
+							); err == nil {
 								rep2.HostIpv4 = inetutil.IP4ToString(ip)
 							}
 						}

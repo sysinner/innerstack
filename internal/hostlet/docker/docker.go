@@ -611,7 +611,11 @@ func (it *dockerDriver) ContainerCreate(
 				"error", err)
 		}
 
-		return nil, fmt.Errorf("[docker.ContainerCreate] create container %s failed: %w", opts.Name, err)
+		return nil, fmt.Errorf(
+			"[docker.ContainerCreate] create container %s failed: %w",
+			opts.Name,
+			err,
+		)
 	}
 
 	return &hostapi.ContainerInfo{
@@ -719,7 +723,10 @@ func (it *dockerDriver) ContainerRemove(ctx context.Context, nameOrId string) er
 // restart does not resurrect a stopped orphan) and to restore normal behavior
 // ("always") when an orphan returns to the desired set. "No such container" is
 // treated as success, matching ContainerStop/ContainerRemove.
-func (it *dockerDriver) ContainerUpdateRestartPolicy(ctx context.Context, nameOrId, policy string) error {
+func (it *dockerDriver) ContainerUpdateRestartPolicy(
+	ctx context.Context,
+	nameOrId, policy string,
+) error {
 	defer recoverPanic()
 
 	if err := it.init(); err != nil {
@@ -736,7 +743,11 @@ func (it *dockerDriver) ContainerUpdateRestartPolicy(ctx context.Context, nameOr
 				"container", nameOrId)
 			return nil
 		}
-		return fmt.Errorf("[docker.ContainerUpdateRestartPolicy] update %s failed: %w", nameOrId, err)
+		return fmt.Errorf(
+			"[docker.ContainerUpdateRestartPolicy] update %s failed: %w",
+			nameOrId,
+			err,
+		)
 	}
 
 	return nil

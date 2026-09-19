@@ -508,7 +508,10 @@ func schedulerRefresh(forceRefresh bool) error {
 
 			repStage := app.Value.Deploy.StagesRoot().ReplicaStage(rep.Id)
 			rev := app.Value.Deploy.Revision
-			schedStage := repStage.Child(inapi.AppDeployStageNameSchedule, inapi.AppStageOwnerZonelet)
+			schedStage := repStage.Child(
+				inapi.AppDeployStageNameSchedule,
+				inapi.AppStageOwnerZonelet,
+			)
 			schedStage.SetRunning("")
 			schedStage.Revision = rev
 
@@ -537,9 +540,11 @@ func schedulerRefresh(forceRefresh bool) error {
 				break
 			}
 
-			schedStage.Child(inapi.AppDeployStageNameHostFit, inapi.AppStageOwnerZonelet).SetInstant("")
-			schedStage.Child(inapi.AppDeployStageNameHostPrioritize, inapi.AppStageOwnerZonelet).SetInstant(
-				hit.HostId)
+			schedStage.Child(inapi.AppDeployStageNameHostFit, inapi.AppStageOwnerZonelet).
+				SetInstant("")
+			schedStage.Child(inapi.AppDeployStageNameHostPrioritize, inapi.AppStageOwnerZonelet).
+				SetInstant(
+					hit.HostId)
 			schedStage.SetSuccess(hit.HostId)
 
 			kvHost := gHostSet.Load(hit.HostId)
@@ -557,7 +562,8 @@ func schedulerRefresh(forceRefresh bool) error {
 						hit.HostId, app.Value.InstanceName(), rep.Id)
 				}
 			}
-			repStage.Child(inapi.AppDeployStageNameIpamAlloc, inapi.AppStageOwnerZonelet).SetInstant(rep.VpcIpv4)
+			repStage.Child(inapi.AppDeployStageNameIpamAlloc, inapi.AppStageOwnerZonelet).
+				SetInstant(rep.VpcIpv4)
 
 			rep.ServicePorts = []*inapi.AppDeployServicePort{}
 
@@ -581,11 +587,13 @@ func schedulerRefresh(forceRefresh bool) error {
 					HostPort: hp,
 				})
 			}
-			repStage.Child(inapi.AppDeployStageNamePortAlloc, inapi.AppStageOwnerZonelet).SetInstant("")
+			repStage.Child(inapi.AppDeployStageNamePortAlloc, inapi.AppStageOwnerZonelet).
+				SetInstant("")
 
 			// The instance is now addressed to this host; delivery begins on
 			// the host's next status poll.
-			repStage.Child(inapi.AppDeployStageNameDeliver, inapi.AppStageOwnerZonelet).SetInstant(hit.HostId)
+			repStage.Child(inapi.AppDeployStageNameDeliver, inapi.AppStageOwnerZonelet).
+				SetInstant(hit.HostId)
 
 			// Stamp the zone-side stages with the current deploy revision.
 			repStage.SetRevisionDeep(rev)

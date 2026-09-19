@@ -29,9 +29,14 @@ import (
 
 // MinifyJS minifies a JavaScript file
 func MinifyJS(src, dst string) error {
-	return minifyFile(src, dst, "text/javascript", func(m *minify.M, w io.Writer, r io.Reader) error {
-		return js.Minify(m, w, r, nil)
-	})
+	return minifyFile(
+		src,
+		dst,
+		"text/javascript",
+		func(m *minify.M, w io.Writer, r io.Reader) error {
+			return js.Minify(m, w, r, nil)
+		},
+	)
 }
 
 // MinifyCSS minifies a CSS file

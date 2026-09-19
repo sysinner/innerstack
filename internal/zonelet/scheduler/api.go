@@ -52,7 +52,7 @@ type ScheduleHostVolume struct {
 	Name string `json:"name" toml:"name"`
 
 	Total int64 `json:"total" toml:"total"` // Bytes
-	Used  int64 `json:"used" toml:"used"`   // Bytes
+	Used  int64 `json:"used"  toml:"used"`  // Bytes
 	Alloc int64 `json:"alloc" toml:"alloc"` // Bytes
 
 	// Attrs uint64 `json:"attrs" toml:"attrs"`
@@ -64,11 +64,11 @@ type ScheduleHostItem struct {
 	OpAction []string `json:"op_action,omitempty" toml:"op_action,omitempty"`
 
 	CpuTotal int64 `json:"cpu_total,omitempty" toml:"cpu_total,omitempty"` // mCores (1 core = 1000m)
-	CpuUsed  int64 `json:"cpu_used,omitempty" toml:"cpu_used,omitempty"`   // mCores (1 core = 1000m)
+	CpuUsed  int64 `json:"cpu_used,omitempty"  toml:"cpu_used,omitempty"`  // mCores (1 core = 1000m)
 	CpuAlloc int64 `json:"cpu_alloc,omitempty" toml:"cpu_alloc,omitempty"` // mCores (1 core = 1000m)
 
 	MemTotal int64 `json:"mem_total,omitempty" toml:"mem_total,omitempty"` // Bytes
-	MemUsed  int64 `json:"mem_used,omitempty" toml:"mem_used,omitempty"`   // Bytes
+	MemUsed  int64 `json:"mem_used,omitempty"  toml:"mem_used,omitempty"`  // Bytes
 	MemAlloc int64 `json:"mem_alloc,omitempty" toml:"mem_alloc,omitempty"` // Bytes
 
 	Volumes []*ScheduleHostVolume `json:"volumes" toml:"volumes"`

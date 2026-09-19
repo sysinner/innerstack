@@ -78,8 +78,8 @@ func TestRenderAppInstance(t *testing.T) {
 				"Referenced by: web-front",
 				"== Packages ==",
 				"== Deploy Stages ==",
-				"1.2s",   // setup stage duration
-				"800ms",  // nested zonelet stage duration
+				"1.2s",  // setup stage duration
+				"800ms", // nested zonelet stage duration
 				"zonelet",
 			},
 		},

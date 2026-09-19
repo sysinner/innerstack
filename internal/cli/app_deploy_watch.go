@@ -69,7 +69,15 @@ func watchDeployStages(
 		info, err := fetchInstanceInfo(zc, name)
 		now := time.Now().UnixMilli()
 		clearScreen()
-		terminal, failed, fallback := renderDeployStages(info, err, name, effAction, terminalStage, start.UnixMilli(), now)
+		terminal, failed, fallback := renderDeployStages(
+			info,
+			err,
+			name,
+			effAction,
+			terminalStage,
+			start.UnixMilli(),
+			now,
+		)
 		if fallback {
 			if fallbackSince.IsZero() {
 				fallbackSince = time.Now()
@@ -265,7 +273,14 @@ func renderStageChildren(stages []*inapi.AppDeployStage, indent int, nowMs int64
 // message.
 func printStageLine(s *inapi.AppDeployStage, pad string, nowMs int64) {
 	msg := s.Message
-	fmt.Printf("%s%s %-8s %-22s %8s", pad, stateMark(s.State), s.Owner, s.Name, stageDuration(s, nowMs))
+	fmt.Printf(
+		"%s%s %-8s %-22s %8s",
+		pad,
+		stateMark(s.State),
+		s.Owner,
+		s.Name,
+		stageDuration(s, nowMs),
+	)
 	if msg != "" {
 		fmt.Printf("  %s", msg)
 	}

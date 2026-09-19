@@ -60,7 +60,11 @@ func Setup(ver string) error {
 	var err error
 
 	for _, p := range prefixes {
-		if err = htoml.DecodeFromFile(p+"/etc/"+AppName+"d.toml", &Config); err == nil && !os.IsNotExist(err) {
+		if err = htoml.DecodeFromFile(
+			p+"/etc/"+AppName+"d.toml",
+			&Config,
+		); err == nil &&
+			!os.IsNotExist(err) {
 			Prefix = p
 			break
 		}
@@ -208,17 +212,20 @@ func parseFile(path string) error {
 
 func watcher() error {
 
-	filepath.Walk(Config.Server.ConfigDirectory, func(path string, info os.FileInfo, err error) error {
-		if info == nil || info.IsDir() {
-			return nil
-		}
-		cfg, err := fileReload(path)
-		if err != nil {
-			slog.Warn("load config file error", "path", path, "error", err)
-			return err
-		}
-		return Records.setZone(*cfg)
-	})
+	filepath.Walk(
+		Config.Server.ConfigDirectory,
+		func(path string, info os.FileInfo, err error) error {
+			if info == nil || info.IsDir() {
+				return nil
+			}
+			cfg, err := fileReload(path)
+			if err != nil {
+				slog.Warn("load config file error", "path", path, "error", err)
+				return err
+			}
+			return Records.setZone(*cfg)
+		},
+	)
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {

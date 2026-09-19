@@ -36,24 +36,24 @@ import (
 type ConfigCommon struct {
 	filepath string
 
-	Server  ServerConfig  `json:"server" toml:"server"`
+	Server  ServerConfig  `json:"server"  toml:"server"`
 	Zonelet ZoneletConfig `json:"zonelet" toml:"zonelet"`
 	Hostlet HostletConfig `json:"hostlet" toml:"hostlet"`
 
-	ZoneDatabase    *kvclient.Config `json:"zone_database,omitempty" toml:"zone_database,omitempty"`
+	ZoneDatabase    *kvclient.Config `json:"zone_database,omitempty"    toml:"zone_database,omitempty"`
 	PackageDatabase *kvclient.Config `json:"package_database,omitempty" toml:"package_database,omitempty"`
 }
 
 type ServerConfig struct {
-	HttpPort  int      `json:"http_port" toml:"http_port"`
-	PeerPort  int      `json:"peer_port" toml:"peer_port"`
+	HttpPort  int      `json:"http_port"  toml:"http_port"`
+	PeerPort  int      `json:"peer_port"  toml:"peer_port"`
 	ZoneHosts []string `json:"zone_hosts" toml:"zone_hosts"`
 
 	PublicApiEnable bool `json:"public_api_enable" toml:"public_api_enable"`
 }
 
 type HostletConfig struct {
-	HostId  string `json:"host_id" toml:"host_id"`
+	HostId  string `json:"host_id"  toml:"host_id"`
 	LanAddr string `json:"lan_addr" toml:"lan_addr"`
 
 	AccessKey string `json:"access_key" toml:"access_key"`
@@ -67,25 +67,25 @@ type HostletConfig struct {
 	// inagent when true. Defaults to false, using the Go inagent build.
 	InagentSlimEnable bool `json:"inagent_slim_enable,omitempty" toml:"inagent_slim_enable,omitempty"`
 
-	VpcBridgeIP     string `json:"vpc_bridge_ip,omitempty" toml:"vpc_bridge_ip,omitempty"`
+	VpcBridgeIP     string `json:"vpc_bridge_ip,omitempty"     toml:"vpc_bridge_ip,omitempty"`
 	VpcInstanceCIDR string `json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
 
 	VpcNetworkDomain string   `json:"vpc_network_domain,omitempty" toml:"vpc_network_domain,omitempty"`
-	DnsServers       []string `json:"dns_servers,omitempty" toml:"dns_servers,omitempty"`
+	DnsServers       []string `json:"dns_servers,omitempty"        toml:"dns_servers,omitempty"`
 }
 
 type ZoneletConfig struct {
 	ZoneName string `json:"zone_name" toml:"zone_name"`
 
-	VpcBridgeCidr    string `json:"vpc_bridge_cidr,omitempty" toml:"vpc_bridge_cidr,omitempty"`
-	VpcInstanceCidr  string `json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
+	VpcBridgeCidr    string `json:"vpc_bridge_cidr,omitempty"    toml:"vpc_bridge_cidr,omitempty"`
+	VpcInstanceCidr  string `json:"vpc_instance_cidr,omitempty"  toml:"vpc_instance_cidr,omitempty"`
 	VpcNetworkDomain string `json:"vpc_network_domain,omitempty" toml:"vpc_network_domain,omitempty"`
 
 	AccessKeys []*AccessKeyPublic `json:"access_keys,omitempty" toml:"access_keys,omitempty"`
 }
 
 type AccessKeyPublic struct {
-	AccessKey   string `json:"access_key" toml:"access_key"`
+	AccessKey   string `json:"access_key"            toml:"access_key"`
 	Description string `json:"description,omitempty" toml:"description,omitempty"`
 }
 

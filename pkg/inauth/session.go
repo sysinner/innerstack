@@ -19,7 +19,7 @@ import (
 )
 
 type SessionToken struct {
-	AccessToken   *AccessToken   `json:"access_token" toml:"access_token"`
+	AccessToken   *AccessToken   `json:"access_token"   toml:"access_token"`
 	IdentityToken *IdentityToken `json:"identity_token" toml:"identity_token"`
 }
 
