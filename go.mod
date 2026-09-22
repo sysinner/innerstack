@@ -12,7 +12,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hooto/hflag4g v0.10.1
 	github.com/hooto/hlog4g v0.9.5
-	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/htoml4g v0.9.5
 	github.com/hooto/httpsrv/v2 v2.0.0-beta.2
 	github.com/lynkdb/kvgo/v2 v2.0.17
@@ -62,6 +61,7 @@ require (
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
+	github.com/hooto/hmetrics v0.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
