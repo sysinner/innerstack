@@ -19,7 +19,7 @@
 using namespace inagent;
 
 #ifndef INAGENT_VERSION
-#define INAGENT_VERSION "v2.0.0-alpha.5.2"
+#define INAGENT_VERSION "dev"
 #endif
 
 static const char* kVersion = INAGENT_VERSION;

@@ -8,7 +8,15 @@
 #
 # Run `make help` to see all available targets.
 
-VERSION = v2.0.0-alpha.10
+# Release version, bare semver (no "v" prefix), derived from the nearest
+# reachable git tag at build time. Tagging a release (git tag v2.0.0-alpha.12)
+# is the only per-release step; no Makefile or source edits. Builds between
+# tags carry the "-N-g<sha>" suffix from git describe. Only git tags use the
+# v prefix (Go modules require vX.Y.Z tag form).
+VERSION := $(shell git describe --tags --always --match 'v*' 2>/dev/null | sed 's/^v//')
+ifeq ($(strip $(VERSION)),)
+VERSION := 2.0.0-dev
+endif
 
 # Toolchain
 PROTOC_CMD         = protoc
@@ -148,7 +156,11 @@ repo-clean: ## Remove assembled repository data
 	find build/rpm -type d -name repodata -prune -exec rm -rf {} +
 
 # Utility
-.PHONY: help
+.PHONY: print-version help
+print-version: ## Print the bare release version consumed by build scripts
+	@echo $(VERSION)
+
+
 help: ## Show this help message
 	@printf "InnerStack - available targets:\n\n"
 	@awk 'BEGIN {FS = ":.*?## "} \

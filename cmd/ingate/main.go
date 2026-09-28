@@ -47,9 +47,9 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/client"
 	"github.com/sysinner/innerstack/v2/internal/inutil/tplrender"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
-	"github.com/sysinner/innerstack/v2/pkg/inmetrics"
 	"github.com/sysinner/innerstack/v2/pkg/inauth"
 	"github.com/sysinner/innerstack/v2/pkg/inlog"
+	"github.com/sysinner/innerstack/v2/pkg/inmetrics"
 	"github.com/sysinner/innerstack/v2/pkg/signals"
 )
 
@@ -424,7 +424,10 @@ var (
 
 	certManager autocert.Manager
 
-	version = "v2.0.0"
+	// Release version, bare semver; stamped at build time via
+	// -ldflags "-X main.version=$(VERSION)" (Makefile / misc/pkg/build.sh).
+	// "dev" marks an unstamped build (raw go build / go test).
+	version = "dev"
 
 	cfg Config
 
@@ -1228,7 +1231,9 @@ func (w *respWriter) finish() {
 
 // setProxyBadge stamps the gateway identity over any upstream-supplied
 // X-Proxy value; called at header-commit time, after ReverseProxy has copied
-// the upstream headers, and by localfsServe.
+// the upstream headers, and by localfsServe. The value carries the bare
+// release semver of the stamped build, e.g. "InnerStack/2.0.0-alpha.11";
+// "InnerStack/dev" means the binary was built without a version stamp.
 func setProxyBadge(h http.Header) {
 	h.Set("X-Proxy", "InnerStack/"+version)
 }

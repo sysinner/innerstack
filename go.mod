@@ -14,7 +14,7 @@ require (
 	github.com/hooto/hlog4g v0.9.5
 	github.com/hooto/htoml4g v0.9.5
 	github.com/hooto/httpsrv/v2 v2.0.0-beta.2
-	github.com/lynkdb/kvgo/v2 v2.0.17
+	github.com/lynkdb/kvgo/v2 v2.0.18
 	github.com/lynkdb/lynkapi v0.0.16
 	github.com/miekg/dns v1.1.73
 	github.com/olekukonko/tablewriter v1.1.4
@@ -39,7 +39,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ServiceWeaver/weaver v0.24.6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
@@ -61,7 +60,6 @@ require (
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
-	github.com/hooto/hmetrics v0.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

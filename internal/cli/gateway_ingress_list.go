@@ -111,7 +111,7 @@ func NewGatewayIngressListCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "gw-ingress-list",
+		Use:   "ingress-list",
 		Short: "List all gateway ingress rules",
 		RunE:  run,
 	}

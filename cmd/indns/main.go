@@ -31,7 +31,7 @@ func init() {
 }
 
 var (
-	version = "v2.0.0-alpha.5.2"
+	version = "dev"
 )
 
 func main() {

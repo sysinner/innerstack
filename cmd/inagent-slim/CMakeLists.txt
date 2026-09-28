@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.14)
 project(inagent VERSION 2.0.0 LANGUAGES CXX)
 
-# Version stamp; override via -DINAGENT_VERSION=<ver> (the Dockerfile forwards
-# the Makefile VERSION here). Surfaces as a compile definition for main.cpp.
-set(INAGENT_VERSION "v2.0.0-alpha.5.2" CACHE STRING "inagent version")
+# Version stamp, bare semver (no "v" prefix) to match the Go inagent;
+# override via -DINAGENT_VERSION=<ver> (the Dockerfile forwards the Makefile
+# VERSION here). "dev" marks a build without a stamp. Surfaces as a compile
+# definition for main.cpp.
+set(INAGENT_VERSION "dev" CACHE STRING "inagent version")
 add_compile_definitions(INAGENT_VERSION="${INAGENT_VERSION}")
 
 set(CMAKE_CXX_STANDARD 17)

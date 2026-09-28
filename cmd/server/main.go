@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	version = "v2.0.0-alpha.7"
+	version = "dev"
 )
 
 func main() {

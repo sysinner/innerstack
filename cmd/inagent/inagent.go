@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	version = "v2.0.0-alpha.5.2"
+	version = "dev"
 	Prefix  = "/home/action"
 )
 

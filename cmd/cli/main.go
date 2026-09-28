@@ -50,8 +50,9 @@ import (
 
 const AppName = "innerstack"
 
-// version is overridden at build time via -ldflags "-X main.version=$(VERSION)".
-var version = "v2.0.0-alpha.5.2"
+// version is the bare release semver, stamped at build time via
+// -ldflags "-X main.version=$(VERSION)"; "dev" marks an unstamped build.
+var version = "dev"
 
 // main is the entry point of the InnerStack CLI application.
 // It initializes the root command and registers all subcommands
@@ -129,9 +130,9 @@ func main() {
 	rootCmd.AddCommand(cli.NewAppSpecInfoCommand())
 
 	// Register gateway ingress management commands
-	// - gw-ingress-list: List all gateway ingress rules
-	// - gw-ingress-info: Display detailed information about a specific ingress
-	// - gw-ingress-set: Create or update a gateway ingress rule
+	// - ingress-list: List all gateway ingress rules
+	// - ingress-info: Display detailed information about a specific ingress
+	// - ingress-set: Create or update a gateway ingress rule
 	rootCmd.AddCommand(cli.NewGatewayIngressListCommand())
 	rootCmd.AddCommand(cli.NewGatewayIngressInfoCommand())
 	rootCmd.AddCommand(cli.NewGatewayIngressSetCommand())

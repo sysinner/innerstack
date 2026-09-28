@@ -180,8 +180,15 @@ parse_args() {
 
     if [[ -z "$VERSION" ]]; then
         VERSION=$(cd "$PROJECT_ROOT" && git describe --tags --always 2>/dev/null || echo "$DEFAULT_VERSION")
-        VERSION="${VERSION#v}"
     fi
+
+    # Normalize to the v-stripped form whatever the source (--version
+    # argument, git describe, or default): go_build stamps main.version with
+    # it as-is, and deb/rpm versions must start with a digit. A letter-led
+    # value (e.g. a bare --always commit id or "dev") gets a numeric base so
+    # the package version stays valid.
+    VERSION="${VERSION#v}"
+    [[ "$VERSION" =~ ^[0-9] ]] || VERSION="2.0.0+${VERSION}"
 
     # Derive the release suffix from the generation id.
     if [[ -n "$GEN_ID" ]]; then
@@ -212,13 +219,11 @@ go_build() {
     local arch="$1" pkg="$2" out="$3"
     log_info "  building $out (linux/$arch) ..."
     # Single quoted ldflags value so "-s -w" and the stamp survive word
-    # splitting. main.version gets the v-prefixed form the Makefile targets
-    # inject; the packaging VERSION is v-stripped for deb/rpm, so re-attach
-    # the prefix here or repo-built binaries would report the compile-time
-    # default instead of the release version.
+    # splitting. VERSION is normalized to bare semver at argument-parse time,
+    # which is what main.version and the deb/rpm version field both expect.
     GOOS=linux GOARCH="$arch" CGO_ENABLED=0 \
         go build -trimpath \
-        -ldflags "-s -w -X main.version=v${VERSION}" \
+        -ldflags "-s -w -X main.version=${VERSION}" \
         -o "$out" "$pkg"
 }
 

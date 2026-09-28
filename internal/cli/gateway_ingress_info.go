@@ -126,7 +126,7 @@ func NewGatewayIngressInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "gw-ingress-info",
+		Use:   "ingress-info",
 		Short: "Show gateway ingress details",
 		RunE:  run,
 	}

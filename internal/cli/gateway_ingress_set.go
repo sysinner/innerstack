@@ -160,19 +160,19 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "gw-ingress-set",
+		Use:   "ingress-set",
 		Short: "Create or update a gateway ingress rule",
 		Long: `Create or update a gateway ingress rule using individual flags (--name, etc.).
 Use --action delete to remove a record that has been disabled for more than 10 days.`,
 		RunE: run,
 		Example: `  # Set ingress with flags
-  innerstack gw-ingress-set --name example.com
+  innerstack ingress-set --name example.com
 
   # Set ingress with interactive routes editing
-  innerstack gw-ingress-set --name example.com --routes
+  innerstack ingress-set --name example.com --routes
 
   # Delete a disabled ingress (allowed 10+ days after the last operation)
-  innerstack gw-ingress-set --name example.com --action delete`,
+  innerstack ingress-set --name example.com --action delete`,
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Gateway ingress name (required)")
