@@ -32,6 +32,8 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/inauth"
 	"github.com/sysinner/innerstack/v2/pkg/inetutil"
+	"google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 )
 
 // uploadMutex provides per-package mutex for concurrent upload protection
@@ -40,6 +42,15 @@ var uploadMutex sync.Map // map[string]*sync.Mutex
 // calcTotalChunks calculates total chunks from file size and chunk size
 func calcTotalChunks(totalSize, chunkSize int64) int64 {
 	return (totalSize + chunkSize - 1) / chunkSize
+}
+
+// authAllow enforces an access scope; the gRPC PermissionDenied error lets
+// the audit interceptor classify the call as denied.
+func authAllow(ctx context.Context, scope string) error {
+	if !inauth.AppContext(ctx).Allow(scope) {
+		return grpcstatus.Error(codes.PermissionDenied, "missing "+scope+" scope")
+	}
+	return nil
 }
 
 type zoneServer struct {
@@ -62,8 +73,8 @@ func (s *zoneServer) ZoneInit(
 	ctx context.Context, req *inapi.ZoneInitRequest,
 ) (*inapi.ZoneInitResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Zone_Write) {
-		return nil, errors.New("auth fail: missing zone:rw scope")
+	if err := authAllow(ctx, inapi.AuthScope_Zone_Write); err != nil {
+		return nil, err
 	}
 
 	req.Name = strings.ToLower(req.Name)
@@ -133,8 +144,8 @@ func (s *zoneServer) ZoneInfo(
 	ctx context.Context, req *inapi.ZoneInfoRequest,
 ) (*inapi.ZoneInfoResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Zone_Read) {
-		return nil, errors.New("auth fail: missing zone:ro scope")
+	if err := authAllow(ctx, inapi.AuthScope_Zone_Read); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {
@@ -172,8 +183,8 @@ func (s *zoneServer) ZoneSet(
 	if !status.IsZoneletLeader() {
 		return nil, errors.New("zonelet leader")
 	}
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Zone_Write) {
-		return nil, errors.New("auth fail: missing zone:rw scope")
+	if err := authAllow(ctx, inapi.AuthScope_Zone_Write); err != nil {
+		return nil, err
 	}
 
 	if config.Config.Zonelet.ZoneName == "" {
@@ -259,8 +270,8 @@ func (s *zoneServer) HostJoin(
 	ctx context.Context, req *inapi.HostJoinRequest,
 ) (*inapi.HostJoinResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Host_Write) {
-		return nil, errors.New("auth fail: missing host:rw scope")
+	if err := authAllow(ctx, inapi.AuthScope_Host_Write); err != nil {
+		return nil, err
 	}
 
 	if err := inapi.Ip4AddrValid(req.Addr); err != nil {
@@ -333,8 +344,8 @@ func (s *zoneServer) HostList(
 	ctx context.Context, req *inapi.HostListRequest,
 ) (*inapi.HostListResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Host_Read) {
-		return nil, errors.New("auth fail: missing host:ro scope")
+	if err := authAllow(ctx, inapi.AuthScope_Host_Read); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {

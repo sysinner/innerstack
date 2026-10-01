@@ -24,6 +24,7 @@ import (
 	"github.com/hooto/httpsrv/v2"
 	"google.golang.org/grpc"
 
+	"github.com/sysinner/innerstack/v2/internal/audit"
 	"github.com/sysinner/innerstack/v2/internal/auth"
 	"github.com/sysinner/innerstack/v2/internal/config"
 )
@@ -43,10 +44,19 @@ var (
 
 // Setup initializes the gRPC server with optional interceptors
 func Setup() error {
+
+	// Chain order: auth first (injects the actor into ctx); auth failures
+	// are recorded by audit.AuthFailure inside the auth interceptor. No
+	// stream RPCs today; extend the stream chain if one is added.
+	unaryChain := []grpc.UnaryServerInterceptor{
+		auth.AuthMgr.GrpcAuthInterceptor(),
+		audit.Interceptor(),
+	}
+
 	opts := []grpc.ServerOption{
 		grpc.MaxSendMsgSize(grpcMsgByteMax),
 		grpc.MaxRecvMsgSize(grpcMsgByteMax),
-		grpc.ChainUnaryInterceptor(auth.AuthMgr.GrpcAuthInterceptor()),
+		grpc.ChainUnaryInterceptor(unaryChain...),
 		grpc.ChainStreamInterceptor(auth.AuthMgr.GrpcStreamAuthInterceptor()),
 	}
 

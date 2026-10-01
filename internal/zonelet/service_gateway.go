@@ -16,7 +16,6 @@ package zonelet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -36,7 +35,6 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/inutil"
 	"github.com/sysinner/innerstack/v2/internal/status"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
-	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
 func (it *zoneServer) GatewayIngressList(
@@ -44,8 +42,8 @@ func (it *zoneServer) GatewayIngressList(
 	req *inapi.GatewayIngressListRequest,
 ) (*inapi.GatewayIngressListResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_GatewayIngress_Read) {
-		return nil, errors.New("auth fail: missing read scope")
+	if err := authAllow(ctx, inapi.AuthScope_GatewayIngress_Read); err != nil {
+		return nil, err
 	}
 
 	rsp := &inapi.GatewayIngressListResponse{}
@@ -86,8 +84,8 @@ func (it *zoneServer) GatewayIngressInfo(
 	req *inapi.GatewayIngressInfoRequest,
 ) (*inapi.GatewayIngressInfoResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_GatewayIngress_Read) {
-		return nil, errors.New("auth fail: missing read scope")
+	if err := authAllow(ctx, inapi.AuthScope_GatewayIngress_Read); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {
@@ -127,8 +125,8 @@ func (it *zoneServer) GatewayIngressSet(
 	req *inapi.GatewayIngressSetRequest,
 ) (*inapi.GatewayIngressSetResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_GatewayIngress_Write) {
-		return nil, errors.New("auth fail: missing write scope")
+	if err := authAllow(ctx, inapi.AuthScope_GatewayIngress_Write); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {

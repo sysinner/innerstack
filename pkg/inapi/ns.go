@@ -57,6 +57,31 @@ func NsZoneletGatewayIngress(zone, name string) []byte {
 	return []byte(NsPrefix + fmt.Sprintf("zone/%s/gateway/default/ingress/%s", zone, name))
 }
 
+// NsZoneletAuditLog returns the KV key for one audit record. The id is
+// {ts_ms_hex12}{rand_hex4}: lexicographic key order equals write order, and
+// the id doubles as the pagination cursor.
+func NsZoneletAuditLog(zone, id string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/audit/log/%s", zone, id))
+}
+
+// NsZoneletAuditLogPrefix returns the KV key prefix of all audit records of
+// a zone.
+func NsZoneletAuditLogPrefix(zone string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/audit/log/", zone))
+}
+
+// NsZoneletAuditAnchor returns the KV key for a daily audit anchor (pinned
+// once per day, written without TTL).
+func NsZoneletAuditAnchor(zone, date string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/audit/anchor/%s", zone, date))
+}
+
+// NsZoneletAuditAnchorPrefix returns the KV key prefix of all audit anchors
+// of a zone.
+func NsZoneletAuditAnchorPrefix(zone string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/audit/anchor/", zone))
+}
+
 func NsHostInfo(zone, host string) []byte {
 	return []byte(NsPrefix + fmt.Sprintf("host/%s/info/%s", zone, host))
 }

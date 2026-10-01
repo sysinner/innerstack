@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/sysinner/innerstack/v2/internal/audit"
 	"github.com/sysinner/innerstack/v2/internal/zonelet/network"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/signals"
@@ -58,6 +59,8 @@ func Run() {
 			if err = schedulerRefresh(forceRefresh); err != nil {
 				slog.Error(fmt.Sprintf("zonelet scheduler refresh, err %s", err.Error()))
 			}
+			// Pin the audit chain head once per local day (no-op otherwise).
+			audit.AnchorRefresh()
 		}
 		tr.Reset(1e9)
 	}

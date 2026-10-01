@@ -39,9 +39,46 @@ type ConfigCommon struct {
 	Server  ServerConfig  `json:"server"  toml:"server"`
 	Zonelet ZoneletConfig `json:"zonelet" toml:"zonelet"`
 	Hostlet HostletConfig `json:"hostlet" toml:"hostlet"`
+	Audit   AuditConfig   `json:"audit"   toml:"audit"`
 
 	ZoneDatabase    *kvclient.Config `json:"zone_database,omitempty"    toml:"zone_database,omitempty"`
 	PackageDatabase *kvclient.Config `json:"package_database,omitempty" toml:"package_database,omitempty"`
+}
+
+// AuditConfig configures the audit log. Pointer fields distinguish an
+// omitted [audit] section (defaults: enabled, 365 days) from explicit
+// values ("enabled = false", "retention_days = 0" = keep forever); Setup
+// materializes the defaults and config.Setup flushes them back to the file.
+type AuditConfig struct {
+	Enabled       *bool `json:"enabled"        toml:"enabled"`
+	RetentionDays *int  `json:"retention_days" toml:"retention_days"`
+}
+
+// Setup applies the defaults: enabled, 365-day retention (MLPS 2.0 requires
+// at least 6 months).
+func (it *AuditConfig) Setup() {
+	if it.Enabled == nil {
+		enabled := true
+		it.Enabled = &enabled
+	}
+	if it.RetentionDays == nil {
+		days := 365
+		it.RetentionDays = &days
+	}
+}
+
+// On reports whether audit recording is enabled.
+func (it *AuditConfig) On() bool {
+	return it.Enabled != nil && *it.Enabled
+}
+
+// RetentionMs returns the record TTL in milliseconds; 0 means retain
+// forever.
+func (it *AuditConfig) RetentionMs() int64 {
+	if it.RetentionDays == nil || *it.RetentionDays <= 0 {
+		return 0
+	}
+	return int64(*it.RetentionDays) * 86400000
 }
 
 type ServerConfig struct {
@@ -138,6 +175,8 @@ func Setup(version string) error {
 			Config.Server.PeerPort = 9533
 		}
 	}
+
+	Config.Audit.Setup()
 
 	// Auto-create default sysadmin access key if not configured
 	if len(Config.Zonelet.AccessKeys) == 0 ||

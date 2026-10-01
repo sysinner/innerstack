@@ -31,7 +31,6 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/pkgbuild"
 	"github.com/sysinner/innerstack/v2/internal/status"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
-	"github.com/sysinner/innerstack/v2/pkg/inauth"
 	"golang.org/x/mod/semver"
 )
 
@@ -39,8 +38,8 @@ func (s *zoneServer) PackagePush(
 	ctx context.Context, req *inapi.PackagePushRequest,
 ) (*inapi.PackagePushResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Package_Write) {
-		return nil, errors.New("auth fail: missing pkg:rw scope")
+	if err := authAllow(ctx, inapi.AuthScope_Package_Write); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {
@@ -272,8 +271,8 @@ func (s *zoneServer) PackageList(
 	ctx context.Context, req *inapi.PackageListRequest,
 ) (*inapi.PackageListResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Package_Read) {
-		return nil, errors.New("auth fail: missing pkg:ro scope")
+	if err := authAllow(ctx, inapi.AuthScope_Package_Read); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {
@@ -332,8 +331,8 @@ func (s *zoneServer) PackageDelete(
 	ctx context.Context, req *inapi.PackageDeleteRequest,
 ) (*inapi.PackageDeleteResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_Package_Write) {
-		return nil, errors.New("auth fail: missing pkg:rw scope")
+	if err := authAllow(ctx, inapi.AuthScope_Package_Write); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {

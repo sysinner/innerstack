@@ -90,7 +90,35 @@ const (
 	AuthScope_Package_Read  = "pkg:ro"
 	AuthScope_Package_Write = "pkg:rw"
 
+	// AuthScope_Audit_Read is the only audit scope (records are append-only).
+	AuthScope_Audit_Read = "audit:ro"
+
 	AuthScope_Wildcard = "*"
+)
+
+// Audit query limits; AuditScanLimit bounds one AuditList scan (kvgo has no
+// secondary index).
+const (
+	AuditListLimitDefault = 100
+	AuditListLimitMax     = 1000
+	AuditScanLimit        = 10000
+)
+
+// AuditRecord.Status values: the outcome of the audited RPC attempt.
+const (
+	AuditStatusOK              = "ok"              // handler succeeded
+	AuditStatusDenied          = "denied"          // scope check rejected the call
+	AuditStatusError           = "error"           // handler returned an error
+	AuditStatusUnauthenticated = "unauthenticated" // credential validation failed
+)
+
+// AuditRecord.ActorType values.
+const (
+	AuditActorUser      = "User"      // human access key
+	AuditActorApp       = "App"       // machine/service access key
+	AuditActorHost      = "Host"      // host-scoped access key (hostlet)
+	AuditActorSystem    = "System"    // platform-internal action
+	AuditActorAnonymous = "Anonymous" // unparseable or missing credential
 )
 
 const (

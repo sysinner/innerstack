@@ -26,7 +26,6 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/data"
 	"github.com/sysinner/innerstack/v2/internal/status"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
-	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
 // AppSpecList lists application specifications stored in the zone. When the
@@ -36,8 +35,8 @@ func (s *zoneServer) AppSpecList(
 	ctx context.Context, req *inapi.AppSpecListRequest,
 ) (*inapi.AppSpecListResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Read) {
-		return nil, errors.New("auth fail: missing app:ro scope")
+	if err := authAllow(ctx, inapi.AuthScope_App_Read); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {

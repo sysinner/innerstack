@@ -57,9 +57,9 @@ func (s *zoneInternalServer) HostStatusUpdate(
 		return nil, errors.New("invalid host_id")
 	}
 
-	if !inauth.AppContext(ctx).Allow(
-		fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, req.Host.Id)) {
-		return nil, errors.New("auth fail")
+	if err := authAllow(ctx,
+		fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, req.Host.Id)); err != nil {
+		return nil, err
 	}
 
 	resp := &inapi.HostStatusUpdateResponse{}
@@ -252,9 +252,10 @@ func (s *zoneInternalServer) PackageChunk(
 		return nil, errors.New("zonelet leader")
 	}
 
-	if ak := inauth.AppContext(ctx).AccessKey(); !ak.Allow(
-		fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, ak.Id)) {
-		return nil, errors.New("auth fail")
+	ak := inauth.AppContext(ctx).AccessKey()
+	if err := authAllow(ctx,
+		fmt.Sprintf("%s:%s", inapi.AuthScope_Host_Write, ak.Id)); err != nil {
+		return nil, err
 	}
 
 	if req.Id == "" {

@@ -50,6 +50,8 @@ const (
 	ZoneService_PackagePush_FullMethodName        = "/inapi.ZoneService/PackagePush"
 	ZoneService_PackageList_FullMethodName        = "/inapi.ZoneService/PackageList"
 	ZoneService_PackageDelete_FullMethodName      = "/inapi.ZoneService/PackageDelete"
+	ZoneService_AuditList_FullMethodName          = "/inapi.ZoneService/AuditList"
+	ZoneService_AuditVerify_FullMethodName        = "/inapi.ZoneService/AuditVerify"
 )
 
 // ZoneServiceClient is the client API for ZoneService service.
@@ -96,6 +98,12 @@ type ZoneServiceClient interface {
 	PackageList(ctx context.Context, in *PackageListRequest, opts ...grpc.CallOption) (*PackageListResponse, error)
 	// PackageDelete deletes a package and all its chunks from the zone.
 	PackageDelete(ctx context.Context, in *PackageDeleteRequest, opts ...grpc.CallOption) (*PackageDeleteResponse, error)
+	// AuditList queries audit records with time-window, actor, action, target
+	// and status filters. Requires the audit:ro scope.
+	AuditList(ctx context.Context, in *AuditListRequest, opts ...grpc.CallOption) (*AuditListResponse, error)
+	// AuditVerify recomputes the audit hash chain over the live window and
+	// checks it against the daily anchors. Requires the audit:ro scope.
+	AuditVerify(ctx context.Context, in *AuditVerifyRequest, opts ...grpc.CallOption) (*AuditVerifyResponse, error)
 }
 
 type zoneServiceClient struct {
@@ -259,6 +267,24 @@ func (c *zoneServiceClient) PackageDelete(ctx context.Context, in *PackageDelete
 	return out, nil
 }
 
+func (c *zoneServiceClient) AuditList(ctx context.Context, in *AuditListRequest, opts ...grpc.CallOption) (*AuditListResponse, error) {
+	out := new(AuditListResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AuditList_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) AuditVerify(ctx context.Context, in *AuditVerifyRequest, opts ...grpc.CallOption) (*AuditVerifyResponse, error) {
+	out := new(AuditVerifyResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AuditVerify_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ZoneServiceServer is the server API for ZoneService service.
 // All implementations must embed UnimplementedZoneServiceServer
 // for forward compatibility
@@ -303,6 +329,12 @@ type ZoneServiceServer interface {
 	PackageList(context.Context, *PackageListRequest) (*PackageListResponse, error)
 	// PackageDelete deletes a package and all its chunks from the zone.
 	PackageDelete(context.Context, *PackageDeleteRequest) (*PackageDeleteResponse, error)
+	// AuditList queries audit records with time-window, actor, action, target
+	// and status filters. Requires the audit:ro scope.
+	AuditList(context.Context, *AuditListRequest) (*AuditListResponse, error)
+	// AuditVerify recomputes the audit hash chain over the live window and
+	// checks it against the daily anchors. Requires the audit:ro scope.
+	AuditVerify(context.Context, *AuditVerifyRequest) (*AuditVerifyResponse, error)
 	mustEmbedUnimplementedZoneServiceServer()
 }
 
@@ -360,6 +392,12 @@ func (UnimplementedZoneServiceServer) PackageList(context.Context, *PackageListR
 }
 func (UnimplementedZoneServiceServer) PackageDelete(context.Context, *PackageDeleteRequest) (*PackageDeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PackageDelete not implemented")
+}
+func (UnimplementedZoneServiceServer) AuditList(context.Context, *AuditListRequest) (*AuditListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AuditList not implemented")
+}
+func (UnimplementedZoneServiceServer) AuditVerify(context.Context, *AuditVerifyRequest) (*AuditVerifyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AuditVerify not implemented")
 }
 func (UnimplementedZoneServiceServer) mustEmbedUnimplementedZoneServiceServer() {}
 
@@ -680,6 +718,42 @@ func _ZoneService_PackageDelete_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ZoneService_AuditList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuditListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AuditList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AuditList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AuditList(ctx, req.(*AuditListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_AuditVerify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuditVerifyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AuditVerify(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AuditVerify_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AuditVerify(ctx, req.(*AuditVerifyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ZoneService_ServiceDesc is the grpc.ServiceDesc for ZoneService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -754,6 +828,14 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PackageDelete",
 			Handler:    _ZoneService_PackageDelete_Handler,
+		},
+		{
+			MethodName: "AuditList",
+			Handler:    _ZoneService_AuditList_Handler,
+		},
+		{
+			MethodName: "AuditVerify",
+			Handler:    _ZoneService_AuditVerify_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

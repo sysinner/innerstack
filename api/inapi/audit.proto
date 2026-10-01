@@ -1,0 +1,99 @@
+// Copyright 2026 Eryx <evorui at gmail dot com>, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+// AuditRecord is a single management-plane change event: who (actor), when
+// (ts), from where (source_ip), on what (target), did what (action), and with
+// which outcome (status). Records are append-only and chained by hash.
+message AuditRecord {
+  // -- locating
+  string zone = 1; // zone name; empty for pre-ZoneInit events
+  string id = 2;   // {ts_ms_hex12}{rand_hex4}, identical to the KV key suffix,
+                   // used as the exclusive pagination cursor
+  int64 ts = 3;    // unix milliseconds, kept logically monotonic by the writer
+
+  // -- actor
+  string actor_id = 10;   // access key id (kid); recorded on auth failure too
+                          // when the token is parseable
+  string actor_user = 11; // AccessKey.user (human or service principal name)
+  string actor_type = 12; // User | App | Host | System | Anonymous
+
+  // -- action
+  string action = 20;    // RPC method, e.g. "ZoneService/AppInstanceDeploy"
+  string source_ip = 21; // gRPC peer address
+
+  // -- target
+  string target_type = 30; // zone | host | app-instance | app-spec | pkg |
+                           // ingress | access-key
+  string target_id = 31;   // resource primary key (instance name, pkg id,
+                           // domain, ...)
+
+  // -- outcome
+  string status = 32; // ok | denied | error | unauthenticated
+  string error = 33;  // sanitized and truncated (<= 256 bytes)
+  string detail = 34; // JSON of whitelisted fields only (<= 512 bytes)
+
+  // -- tamper evidence
+  string prev_hash = 40; // hash of the previous record; empty for genesis
+  string hash = 41;      // sha256(canonical(record, all fields but hash,
+                         // including prev_hash))
+
+  // -- backpressure transparency
+  int32 dropped_before = 42;   // >0: N records were dropped before this one
+  int32 suppressed_count = 43; // >0: this record aggregates N rate-limited
+                               // identical events
+}
+
+// AuditAnchor pins the chain head once per day. It has no TTL: when the
+// retention policy expires old records from the head of the chain, anchors
+// keep every historical chain head verifiable.
+message AuditAnchor {
+  string date = 1;     // yyyymmdd (local time of the zonelet)
+  string head_hash = 2; // chain head (hash of the last record) at anchor time
+  int64 count = 3;     // cumulative records written since genesis
+}
+
+message AuditListRequest {
+  int64 ts_start = 1;   // unix ms; 0 = unbounded
+  int64 ts_end = 2;     // unix ms; 0 = unbounded
+  string actor_id = 3;  // exact match
+  string action = 4;    // exact match
+  string target_id = 5; // prefix match (e.g. "app-instance/web")
+  string status = 6;    // ok | denied | error | unauthenticated
+  uint32 limit = 7;     // default 100, max 1000
+  bool revert = 8;      // true: oldest first; false (default): newest first
+  string offset = 9;    // last id of the previous page (exclusive cursor)
+}
+
+message AuditListResponse {
+  repeated AuditRecord items = 1;
+  bool has_more = 2;
+}
+
+message AuditVerifyRequest {}
+
+message AuditVerifyResponse {
+  bool valid = 1;
+  int64 count = 2;
+  string first_id = 3;
+  string last_id = 4;
+  string head_hash = 5;
+  string broken_at = 6; // when !valid: id of the first inconsistent record
+}

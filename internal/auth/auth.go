@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/sysinner/innerstack/v2/internal/audit"
 	"github.com/sysinner/innerstack/v2/internal/config"
 	"github.com/sysinner/innerstack/v2/internal/data"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
@@ -84,6 +85,8 @@ func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
 				"method", info.FullMethod,
 				"error", err,
 			)
+			// Record the failed attempt (deduped in audit.AuthFailure).
+			audit.AuthFailure(ctx, info.FullMethod, err)
 			return nil, status.Errorf(
 				codes.Unauthenticated,
 				"authentication failed: %s",

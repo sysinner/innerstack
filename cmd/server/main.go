@@ -20,6 +20,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sysinner/innerstack/v2/internal/audit"
 	"github.com/sysinner/innerstack/v2/internal/auth"
 	"github.com/sysinner/innerstack/v2/internal/config"
 	"github.com/sysinner/innerstack/v2/internal/data"
@@ -57,6 +58,10 @@ func main() {
 	}
 	defer data.Close()
 
+	if err := audit.Setup(data.Zonelet, config.Config.Audit); err != nil {
+		log.Fatalf("audit setup error %s", err.Error())
+	}
+
 	if err := server.Setup(); err != nil {
 		log.Fatalf("server setup error %s", err.Error())
 	}
@@ -77,7 +82,12 @@ func main() {
 	// shared HTTP server (ServerConfig.HttpPort).
 	hostlet.RegisterHostletRoutes(server.HttpRouter().Group("/in/api/v2/hostlet"))
 
-	signals.Go(server.Run, server.Close)
+	// Teardown order: gRPC stop (no new events) -> audit flush -> db close
+	// (deferred data.Close).
+	signals.Go(server.Run, func() {
+		server.Close()
+		audit.Close()
+	})
 
 	if err := hostlet.TryRun(); err != nil {
 		log.Fatalf("hostlet start error %s", err.Error())

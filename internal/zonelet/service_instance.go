@@ -29,15 +29,14 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/inutil/autofill"
 	"github.com/sysinner/innerstack/v2/internal/status"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
-	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
 func (s *zoneServer) AppInstanceDeploy(
 	ctx context.Context, req *inapi.AppInstanceDeployRequest,
 ) (*inapi.AppInstanceDeployResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Write) {
-		return nil, errors.New("auth fail: missing app:rw scope")
+	if err := authAllow(ctx, inapi.AuthScope_App_Write); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {
@@ -477,8 +476,8 @@ func (s *zoneServer) AppInstanceInfo(
 	ctx context.Context, req *inapi.AppInstanceInfoRequest,
 ) (*inapi.AppInstanceInfoResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Read) {
-		return nil, errors.New("auth fail: missing app:ro scope")
+	if err := authAllow(ctx, inapi.AuthScope_App_Read); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {
@@ -516,8 +515,8 @@ func (s *zoneServer) AppInstanceList(
 	ctx context.Context, req *inapi.AppInstanceListRequest,
 ) (*inapi.AppInstanceListResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Read) {
-		return nil, errors.New("auth fail: missing app:ro scope")
+	if err := authAllow(ctx, inapi.AuthScope_App_Read); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {
@@ -548,8 +547,8 @@ func (s *zoneServer) AppInstanceDelete(
 	ctx context.Context, req *inapi.AppInstanceDeleteRequest,
 ) (*inapi.AppInstanceDeleteResponse, error) {
 
-	if !inauth.AppContext(ctx).Allow(inapi.AuthScope_App_Write) {
-		return nil, errors.New("auth fail: missing app:rw scope")
+	if err := authAllow(ctx, inapi.AuthScope_App_Write); err != nil {
+		return nil, err
 	}
 
 	if !status.IsZoneletLeader() {

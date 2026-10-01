@@ -25,6 +25,7 @@ import "app.proto";
 import "gateway.proto";
 import "package.proto";
 import "metrics.proto";
+import "audit.proto";
 
 // ZoneService is the gRPC service for zone-level management.
 // It handles zone initialization, host management, and application deployment.
@@ -92,6 +93,14 @@ service ZoneService {
 
   // PackageDelete deletes a package and all its chunks from the zone.
   rpc PackageDelete(PackageDeleteRequest) returns (PackageDeleteResponse) {}
+
+  // AuditList queries audit records with time-window, actor, action, target
+  // and status filters. Requires the audit:ro scope.
+  rpc AuditList(AuditListRequest) returns (AuditListResponse) {}
+
+  // AuditVerify recomputes the audit hash chain over the live window and
+  // checks it against the daily anchors. Requires the audit:ro scope.
+  rpc AuditVerify(AuditVerifyRequest) returns (AuditVerifyResponse) {}
 }
 
 // ZoneInternalService is the gRPC service for internal zone communication.

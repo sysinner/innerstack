@@ -151,6 +151,12 @@ func main() {
 	rootCmd.AddCommand(cli.NewPkgExportCommand())
 	rootCmd.AddCommand(cli.NewPkgDelCommand())
 
+	// Register audit commands
+	// - audit list: Query audit records with filters
+	// - audit export: Export audit records as JSONL with a manifest
+	// - audit verify: Verify the audit hash chain
+	rootCmd.AddCommand(cli.NewAuditCommand())
+
 	// Execute the root command and handle errors
 	// Exit with code 1 if any error occurs during command execution
 	if err := rootCmd.Execute(); err != nil {
