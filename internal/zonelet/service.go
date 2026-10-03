@@ -327,6 +327,7 @@ func (s *zoneServer) HostJoin(
 		inapi.AuthScope_Host_Write + ":" + resp.HostId,
 		inapi.AuthScope_Package_Read,
 	}
+	ak.Type = inauth.AccessKey_Type_Host
 	auth.AuthMgr.SaveAccessKey(ak)
 
 	slog.Warn("zonelet init-host",

@@ -48,6 +48,12 @@ func NsZoneletAccessKey(zone, kid string) []byte {
 	return []byte(NsPrefix + fmt.Sprintf("zone/%s/ak/%s", zone, kid))
 }
 
+// NsZoneletUser returns the KV key for a user entity of a zone. The name is
+// the primary key; access keys reference it through AccessKey.User.
+func NsZoneletUser(zone, name string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/user/%s", zone, name))
+}
+
 // NsZoneletNetworkIPAM returns the KV key for persisting IPAM state.
 func NsZoneletNetworkIPAM(zone string) []byte {
 	return []byte(NsPrefix + fmt.Sprintf("zone/%s/network/ipam", zone))

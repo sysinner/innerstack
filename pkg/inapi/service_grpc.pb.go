@@ -52,6 +52,13 @@ const (
 	ZoneService_PackageDelete_FullMethodName      = "/inapi.ZoneService/PackageDelete"
 	ZoneService_AuditList_FullMethodName          = "/inapi.ZoneService/AuditList"
 	ZoneService_AuditVerify_FullMethodName        = "/inapi.ZoneService/AuditVerify"
+	ZoneService_UserSet_FullMethodName            = "/inapi.ZoneService/UserSet"
+	ZoneService_UserDelete_FullMethodName         = "/inapi.ZoneService/UserDelete"
+	ZoneService_UserGet_FullMethodName            = "/inapi.ZoneService/UserGet"
+	ZoneService_UserList_FullMethodName           = "/inapi.ZoneService/UserList"
+	ZoneService_AccessKeySet_FullMethodName       = "/inapi.ZoneService/AccessKeySet"
+	ZoneService_AccessKeyDelete_FullMethodName    = "/inapi.ZoneService/AccessKeyDelete"
+	ZoneService_AccessKeyList_FullMethodName      = "/inapi.ZoneService/AccessKeyList"
 )
 
 // ZoneServiceClient is the client API for ZoneService service.
@@ -104,6 +111,27 @@ type ZoneServiceClient interface {
 	// AuditVerify recomputes the audit hash chain over the live window and
 	// checks it against the daily anchors. Requires the audit:ro scope.
 	AuditVerify(ctx context.Context, in *AuditVerifyRequest, opts ...grpc.CallOption) (*AuditVerifyResponse, error)
+	// UserSet creates a user or updates its description/state. Requires the
+	// zone:rw scope. Disabling a user revokes all of its access keys.
+	UserSet(ctx context.Context, in *UserSetRequest, opts ...grpc.CallOption) (*UserSetResponse, error)
+	// UserDelete removes a user. Rejected while any access key still
+	// references the user. Requires the zone:rw scope.
+	UserDelete(ctx context.Context, in *UserDeleteRequest, opts ...grpc.CallOption) (*UserDeleteResponse, error)
+	// UserGet retrieves a single user by name. Requires the zone:ro scope.
+	UserGet(ctx context.Context, in *UserGetRequest, opts ...grpc.CallOption) (*UserGetResponse, error)
+	// UserList lists users, newest first by name order. Requires the zone:ro
+	// scope.
+	UserList(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error)
+	// AccessKeySet creates a user access key: the server generates the key id
+	// and secret; the full credential is returned once in the response.
+	// Requires the zone:rw scope.
+	AccessKeySet(ctx context.Context, in *AccessKeySetRequest, opts ...grpc.CallOption) (*AccessKeySetResponse, error)
+	// AccessKeyDelete revokes an access key (idempotent). Requires the
+	// zone:rw scope.
+	AccessKeyDelete(ctx context.Context, in *AccessKeyDeleteRequest, opts ...grpc.CallOption) (*AccessKeyDeleteResponse, error)
+	// AccessKeyList lists access keys (secrets never returned). Requires the
+	// zone:ro scope.
+	AccessKeyList(ctx context.Context, in *AccessKeyListRequest, opts ...grpc.CallOption) (*AccessKeyListResponse, error)
 }
 
 type zoneServiceClient struct {
@@ -285,6 +313,69 @@ func (c *zoneServiceClient) AuditVerify(ctx context.Context, in *AuditVerifyRequ
 	return out, nil
 }
 
+func (c *zoneServiceClient) UserSet(ctx context.Context, in *UserSetRequest, opts ...grpc.CallOption) (*UserSetResponse, error) {
+	out := new(UserSetResponse)
+	err := c.cc.Invoke(ctx, ZoneService_UserSet_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) UserDelete(ctx context.Context, in *UserDeleteRequest, opts ...grpc.CallOption) (*UserDeleteResponse, error) {
+	out := new(UserDeleteResponse)
+	err := c.cc.Invoke(ctx, ZoneService_UserDelete_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) UserGet(ctx context.Context, in *UserGetRequest, opts ...grpc.CallOption) (*UserGetResponse, error) {
+	out := new(UserGetResponse)
+	err := c.cc.Invoke(ctx, ZoneService_UserGet_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) UserList(ctx context.Context, in *UserListRequest, opts ...grpc.CallOption) (*UserListResponse, error) {
+	out := new(UserListResponse)
+	err := c.cc.Invoke(ctx, ZoneService_UserList_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) AccessKeySet(ctx context.Context, in *AccessKeySetRequest, opts ...grpc.CallOption) (*AccessKeySetResponse, error) {
+	out := new(AccessKeySetResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AccessKeySet_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) AccessKeyDelete(ctx context.Context, in *AccessKeyDeleteRequest, opts ...grpc.CallOption) (*AccessKeyDeleteResponse, error) {
+	out := new(AccessKeyDeleteResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AccessKeyDelete_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) AccessKeyList(ctx context.Context, in *AccessKeyListRequest, opts ...grpc.CallOption) (*AccessKeyListResponse, error) {
+	out := new(AccessKeyListResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AccessKeyList_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ZoneServiceServer is the server API for ZoneService service.
 // All implementations must embed UnimplementedZoneServiceServer
 // for forward compatibility
@@ -335,6 +426,27 @@ type ZoneServiceServer interface {
 	// AuditVerify recomputes the audit hash chain over the live window and
 	// checks it against the daily anchors. Requires the audit:ro scope.
 	AuditVerify(context.Context, *AuditVerifyRequest) (*AuditVerifyResponse, error)
+	// UserSet creates a user or updates its description/state. Requires the
+	// zone:rw scope. Disabling a user revokes all of its access keys.
+	UserSet(context.Context, *UserSetRequest) (*UserSetResponse, error)
+	// UserDelete removes a user. Rejected while any access key still
+	// references the user. Requires the zone:rw scope.
+	UserDelete(context.Context, *UserDeleteRequest) (*UserDeleteResponse, error)
+	// UserGet retrieves a single user by name. Requires the zone:ro scope.
+	UserGet(context.Context, *UserGetRequest) (*UserGetResponse, error)
+	// UserList lists users, newest first by name order. Requires the zone:ro
+	// scope.
+	UserList(context.Context, *UserListRequest) (*UserListResponse, error)
+	// AccessKeySet creates a user access key: the server generates the key id
+	// and secret; the full credential is returned once in the response.
+	// Requires the zone:rw scope.
+	AccessKeySet(context.Context, *AccessKeySetRequest) (*AccessKeySetResponse, error)
+	// AccessKeyDelete revokes an access key (idempotent). Requires the
+	// zone:rw scope.
+	AccessKeyDelete(context.Context, *AccessKeyDeleteRequest) (*AccessKeyDeleteResponse, error)
+	// AccessKeyList lists access keys (secrets never returned). Requires the
+	// zone:ro scope.
+	AccessKeyList(context.Context, *AccessKeyListRequest) (*AccessKeyListResponse, error)
 	mustEmbedUnimplementedZoneServiceServer()
 }
 
@@ -398,6 +510,27 @@ func (UnimplementedZoneServiceServer) AuditList(context.Context, *AuditListReque
 }
 func (UnimplementedZoneServiceServer) AuditVerify(context.Context, *AuditVerifyRequest) (*AuditVerifyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuditVerify not implemented")
+}
+func (UnimplementedZoneServiceServer) UserSet(context.Context, *UserSetRequest) (*UserSetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserSet not implemented")
+}
+func (UnimplementedZoneServiceServer) UserDelete(context.Context, *UserDeleteRequest) (*UserDeleteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserDelete not implemented")
+}
+func (UnimplementedZoneServiceServer) UserGet(context.Context, *UserGetRequest) (*UserGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGet not implemented")
+}
+func (UnimplementedZoneServiceServer) UserList(context.Context, *UserListRequest) (*UserListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserList not implemented")
+}
+func (UnimplementedZoneServiceServer) AccessKeySet(context.Context, *AccessKeySetRequest) (*AccessKeySetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AccessKeySet not implemented")
+}
+func (UnimplementedZoneServiceServer) AccessKeyDelete(context.Context, *AccessKeyDeleteRequest) (*AccessKeyDeleteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AccessKeyDelete not implemented")
+}
+func (UnimplementedZoneServiceServer) AccessKeyList(context.Context, *AccessKeyListRequest) (*AccessKeyListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AccessKeyList not implemented")
 }
 func (UnimplementedZoneServiceServer) mustEmbedUnimplementedZoneServiceServer() {}
 
@@ -754,6 +887,132 @@ func _ZoneService_AuditVerify_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ZoneService_UserSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserSetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).UserSet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_UserSet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).UserSet(ctx, req.(*UserSetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_UserDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).UserDelete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_UserDelete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).UserDelete(ctx, req.(*UserDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_UserGet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).UserGet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_UserGet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).UserGet(ctx, req.(*UserGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_UserList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).UserList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_UserList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).UserList(ctx, req.(*UserListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_AccessKeySet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AccessKeySetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AccessKeySet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AccessKeySet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AccessKeySet(ctx, req.(*AccessKeySetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_AccessKeyDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AccessKeyDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AccessKeyDelete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AccessKeyDelete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AccessKeyDelete(ctx, req.(*AccessKeyDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_AccessKeyList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AccessKeyListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AccessKeyList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AccessKeyList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AccessKeyList(ctx, req.(*AccessKeyListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ZoneService_ServiceDesc is the grpc.ServiceDesc for ZoneService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -836,6 +1095,34 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AuditVerify",
 			Handler:    _ZoneService_AuditVerify_Handler,
+		},
+		{
+			MethodName: "UserSet",
+			Handler:    _ZoneService_UserSet_Handler,
+		},
+		{
+			MethodName: "UserDelete",
+			Handler:    _ZoneService_UserDelete_Handler,
+		},
+		{
+			MethodName: "UserGet",
+			Handler:    _ZoneService_UserGet_Handler,
+		},
+		{
+			MethodName: "UserList",
+			Handler:    _ZoneService_UserList_Handler,
+		},
+		{
+			MethodName: "AccessKeySet",
+			Handler:    _ZoneService_AccessKeySet_Handler,
+		},
+		{
+			MethodName: "AccessKeyDelete",
+			Handler:    _ZoneService_AccessKeyDelete_Handler,
+		},
+		{
+			MethodName: "AccessKeyList",
+			Handler:    _ZoneService_AccessKeyList_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

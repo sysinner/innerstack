@@ -23,39 +23,41 @@ option go_package = "./;inapi";
 // (ts), from where (source_ip), on what (target), did what (action), and with
 // which outcome (status). Records are append-only and chained by hash.
 message AuditRecord {
-  // -- locating
+  // locating
   string zone = 1; // zone name; empty for pre-ZoneInit events
   string id = 2;   // {ts_ms_hex12}{rand_hex4}, identical to the KV key suffix,
                    // used as the exclusive pagination cursor
   int64 ts = 3;    // unix milliseconds, kept logically monotonic by the writer
 
-  // -- actor
+  // actor
   string actor_id = 10;   // access key id (kid); recorded on auth failure too
                           // when the token is parseable
-  string actor_user = 11; // AccessKey.user (human or service principal name)
+  string actor_user = 11; // user id (AccessKey.user); empty for keys without
+                          // a user label, and on auth failure unless the kid
+                          // maps to a known key
   string actor_type = 12; // User | App | Host | System | Anonymous
 
-  // -- action
+  // action
   string action = 20;    // RPC method, e.g. "ZoneService/AppInstanceDeploy"
   string source_ip = 21; // gRPC peer address
 
-  // -- target
+  // target
   string target_type = 30; // zone | host | app-instance | app-spec | pkg |
-                           // ingress | access-key
+                           // ingress | access-key | user
   string target_id = 31;   // resource primary key (instance name, pkg id,
                            // domain, ...)
 
-  // -- outcome
+  // outcome
   string status = 32; // ok | denied | error | unauthenticated
   string error = 33;  // sanitized and truncated (<= 256 bytes)
   string detail = 34; // JSON of whitelisted fields only (<= 512 bytes)
 
-  // -- tamper evidence
+  // tamper evidence
   string prev_hash = 40; // hash of the previous record; empty for genesis
   string hash = 41;      // sha256(canonical(record, all fields but hash,
                          // including prev_hash))
 
-  // -- backpressure transparency
+  // backpressure transparency
   int32 dropped_before = 42;   // >0: N records were dropped before this one
   int32 suppressed_count = 43; // >0: this record aggregates N rate-limited
                                // identical events
@@ -71,15 +73,23 @@ message AuditAnchor {
 }
 
 message AuditListRequest {
-  int64 ts_start = 1;   // unix ms; 0 = unbounded
-  int64 ts_end = 2;     // unix ms; 0 = unbounded
-  string actor_id = 3;  // exact match
-  string action = 4;    // exact match
-  string target_id = 5; // prefix match (e.g. "app-instance/web")
-  string status = 6;    // ok | denied | error | unauthenticated
-  uint32 limit = 7;     // default 100, max 1000
-  bool revert = 8;      // true: oldest first; false (default): newest first
-  string offset = 9;    // last id of the previous page (exclusive cursor)
+  // window
+  int64 ts_start = 1; // unix ms; 0 = unbounded
+  int64 ts_end = 2;   // unix ms; 0 = unbounded
+
+  // actor
+  string actor_id = 3;   // access key id, exact match
+  string actor_user = 4; // user id, exact match
+
+  // what / where / outcome
+  string action = 5;    // exact match
+  string target_id = 6; // prefix match (e.g. "app-instance/web")
+  string status = 7;    // ok | denied | error | unauthenticated
+
+  // paging
+  uint32 limit = 8;   // default 100, max 1000
+  bool revert = 9;    // true: oldest first; false (default): newest first
+  string offset = 10; // last id of the previous page (exclusive cursor)
 }
 
 message AuditListResponse {

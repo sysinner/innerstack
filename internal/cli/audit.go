@@ -31,7 +31,6 @@ import (
 	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 
-	"github.com/sysinner/innerstack/v2/internal/client"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
@@ -54,6 +53,7 @@ func newAuditListCommand() *cobra.Command {
 
 	var (
 		actorId  string
+		actorUsr string
 		action   string
 		targetId string
 		status   string
@@ -70,7 +70,7 @@ func newAuditListCommand() *cobra.Command {
 			return err
 		}
 
-		_, zc, err := auditZoneClient()
+		_, zc, err := zoneClient()
 		if err != nil {
 			return err
 		}
@@ -79,14 +79,15 @@ func newAuditListCommand() *cobra.Command {
 		defer cancel()
 
 		resp, err := zc.AuditList(ctx, &inapi.AuditListRequest{
-			TsStart:  tsStart,
-			TsEnd:    tsEnd,
-			ActorId:  actorId,
-			Action:   action,
-			TargetId: targetId,
-			Status:   status,
-			Limit:    limit,
-			Revert:   false, // newest first
+			TsStart:   tsStart,
+			TsEnd:     tsEnd,
+			ActorId:   actorId,
+			ActorUser: actorUsr,
+			Action:    action,
+			TargetId:  targetId,
+			Status:    status,
+			Limit:     limit,
+			Revert:    false, // newest first
 		})
 		if err != nil {
 			return fmt.Errorf("failed to list audit records: %s", err.Error())
@@ -137,12 +138,18 @@ func newAuditListCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&actorId, "actor", "", "filter by access key id (exact)")
-	cmd.Flags().StringVar(&action, "action", "", "filter by action (exact, e.g. ZoneService/AppInstanceDeploy)")
-	cmd.Flags().StringVar(&targetId, "target", "", "filter by target id (prefix, e.g. app-instance/web)")
-	cmd.Flags().StringVar(&status, "status", "", "filter by status: ok | denied | error | unauthenticated")
-	cmd.Flags().StringVar(&since, "since", "", "window start: RFC3339 timestamp or duration ago (e.g. 24h)")
+	cmd.Flags().StringVar(&actorUsr, "user", "", "filter by user id (exact)")
+	cmd.Flags().
+		StringVar(&action, "action", "", "filter by action (exact, e.g. ZoneService/AppInstanceDeploy)")
+	cmd.Flags().
+		StringVar(&targetId, "target", "", "filter by target id (prefix, e.g. app-instance/web)")
+	cmd.Flags().
+		StringVar(&status, "status", "", "filter by status: ok | denied | error | unauthenticated")
+	cmd.Flags().
+		StringVar(&since, "since", "", "window start: RFC3339 timestamp or duration ago (e.g. 24h)")
 	cmd.Flags().StringVar(&until, "until", "", "window end: RFC3339 timestamp")
-	cmd.Flags().Uint32Var(&limit, "limit", 100, "max records to return (server cap 1000)")
+	cmd.Flags().Uint32Var(&limit, "limit", inapi.AuditListLimitDefault,
+		"max records to return (server cap 1000)")
 	cmd.Flags().BoolVarP(&showJson, "show-json", "j", false, "show raw response with json")
 
 	return cmd
@@ -163,7 +170,7 @@ func newAuditExportCommand() *cobra.Command {
 			return err
 		}
 
-		zone, zc, err := auditZoneClient()
+		zone, zc, err := zoneClient()
 		if err != nil {
 			return err
 		}
@@ -228,13 +235,16 @@ func newAuditExportCommand() *cobra.Command {
 
 		// The manifest is the tamper-evidence root: stderr keeps it out of
 		// the JSONL stream; archive it with the export externally.
-		fmt.Fprintf(os.Stderr,
+		fmt.Fprintf(
+			os.Stderr,
 			"manifest: zone=%s count=%d sha256=%s first_id=%s first_hash=%s last_id=%s last_hash=%s\n",
 			zone.Addr,
 			count,
 			hex.EncodeToString(hasher.Sum(nil)),
-			firstId, firstHash,
-			lastId, lastHash,
+			firstId,
+			firstHash,
+			lastId,
+			lastHash,
 		)
 
 		return nil
@@ -247,7 +257,8 @@ func newAuditExportCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&output, "output", "o", "", "output file (default stdout)")
-	cmd.Flags().StringVar(&since, "since", "", "window start: RFC3339 timestamp or duration ago (e.g. 24h)")
+	cmd.Flags().
+		StringVar(&since, "since", "", "window start: RFC3339 timestamp or duration ago (e.g. 24h)")
 	cmd.Flags().StringVar(&until, "until", "", "window end: RFC3339 timestamp")
 
 	return cmd
@@ -257,7 +268,7 @@ func newAuditVerifyCommand() *cobra.Command {
 
 	run := func(cmd *cobra.Command, args []string) error {
 
-		_, zc, err := auditZoneClient()
+		_, zc, err := zoneClient()
 		if err != nil {
 			return err
 		}
@@ -286,29 +297,6 @@ func newAuditVerifyCommand() *cobra.Command {
 		Short: "Verify the audit hash chain and daily anchors",
 		RunE:  run,
 	}
-}
-
-// auditZoneClient resolves the current zone config and returns a connected
-// ZoneService client.
-func auditZoneClient() (*ConfigZone, inapi.ZoneServiceClient, error) {
-
-	zone, err := Config.Zone("")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	ak, err := zone.AccessKey()
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid access key: %w", err)
-	}
-
-	conn, err := client.Connect(zone.Addr, ak, false)
-	if err != nil {
-		return nil, nil, fmt.Errorf(
-			"failed to connect to zone server %s: %w", zone.Addr, err)
-	}
-
-	return zone, inapi.NewZoneServiceClient(conn), nil
 }
 
 // parseTimeWindow resolves the --since/--until flags to unix milliseconds.

@@ -36,6 +36,11 @@ const (
 const (
 	AccessKey_State_Active  = "active"
 	AccessKey_State_Disable = "disable"
+
+	// AccessKey_Type_Host labels a host-scoped key (hostlet credential);
+	// User and App types are set by the NewUserAccessKey/NewAppAccessKey
+	// constructors.
+	AccessKey_Type_Host = "Host"
 )
 
 var (

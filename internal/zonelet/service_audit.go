@@ -44,16 +44,17 @@ func (s *zoneServer) AuditList(
 	}
 
 	items, hasMore, err := audit.List(data.Zonelet, audit.ListOptions{
-		Zone:     config.Config.Zonelet.ZoneName,
-		TsStart:  req.TsStart,
-		TsEnd:    req.TsEnd,
-		ActorId:  req.ActorId,
-		Action:   req.Action,
-		TargetId: req.TargetId,
-		Status:   req.Status,
-		Limit:    int(req.Limit),
-		Revert:   req.Revert,
-		Offset:   req.Offset,
+		Zone:      config.Config.Zonelet.ZoneName,
+		TsStart:   req.TsStart,
+		TsEnd:     req.TsEnd,
+		ActorId:   req.ActorId,
+		ActorUser: req.ActorUser,
+		Action:    req.Action,
+		TargetId:  req.TargetId,
+		Status:    req.Status,
+		Limit:     int(req.Limit),
+		Revert:    req.Revert,
+		Offset:    req.Offset,
 	})
 	if err != nil {
 		return nil, err

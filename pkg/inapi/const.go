@@ -121,6 +121,21 @@ const (
 	AuditActorAnonymous = "Anonymous" // unparseable or missing credential
 )
 
+// User.state values; disabling a user revokes all of its access keys.
+const (
+	UserStateActive   = "active"
+	UserStateDisabled = "disabled"
+)
+
+// AccessKey management list limits.
+const (
+	AccessKeyListLimitDefault = 100
+	AccessKeyListLimitMax     = 1000
+
+	UserListLimitDefault = 100
+	UserListLimitMax     = 1000
+)
+
 const (
 	// User action command
 	OpActionStart   = "start"   // user action: start

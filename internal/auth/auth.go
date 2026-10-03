@@ -15,8 +15,10 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"google.golang.org/grpc"
@@ -42,16 +44,20 @@ type AuthManager struct {
 func Setup() error {
 
 	// Load access keys from config (newly created or existing)
-	for _, ak := range config.Config.Zonelet.AccessKeys {
-		ak, err := inauth.ParseAccessKey(ak.AccessKey)
+	for _, pub := range config.Config.Zonelet.AccessKeys {
+		ak, err := inauth.ParseAccessKey(pub.AccessKey)
 		if err != nil {
 			slog.Warn("load access-key from zone config fail : " + err.Error())
 			continue
 		}
 		ak.Scopes = []string{inapi.AuthScope_Wildcard}
+		// The export string carries only id+secret; restore the owner
+		// label and type declared alongside it.
+		pub.ApplyTo(ak)
 		AuthMgr.keyMgr.Set(ak)
 		slog.Info("load access-key from zone config",
 			"id", ak.Id,
+			"user", ak.User,
 		)
 	}
 
@@ -85,8 +91,9 @@ func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
 				"method", info.FullMethod,
 				"error", err,
 			)
-			// Record the failed attempt (deduped in audit.AuthFailure).
-			audit.AuthFailure(ctx, info.FullMethod, err)
+			// Record the failed attempt (deduped in audit.AuthFailure);
+			// the claimed key attributes the user when the kid is known.
+			audit.AuthFailure(ctx, info.FullMethod, err, am.claimedKey(ctx))
 			return nil, status.Errorf(
 				codes.Unauthenticated,
 				"authentication failed: %s",
@@ -98,6 +105,17 @@ func (am *AuthManager) GrpcAuthInterceptor() grpc.UnaryServerInterceptor {
 
 		return handler(ctx, req)
 	}
+}
+
+// claimedKey recovers the claimed access key from the credential header
+// when the kid maps to a known key (wrong signature, replay): an auth
+// failure record can then attribute the user the token claims.
+func (am *AuthManager) claimedKey(ctx context.Context) *inauth.AccessKey {
+	at, err := inauth.ParseAccessTokenWithContext(ctx)
+	if err != nil {
+		return nil
+	}
+	return am.keyMgr.Key(at.Header.Kid)
 }
 
 // GrpcStreamAuthInterceptor returns a gRPC stream interceptor for authentication
@@ -149,6 +167,11 @@ func (am *AuthManager) RefreshAccessKeysFromDB() error {
 				continue
 			}
 			if key.Id != "" && key.Secret != "" {
+				// Revoked keys (user disabled) stay in the DB for
+				// listing but must never authenticate again.
+				if key.State == inauth.AccessKey_State_Disable {
+					continue
+				}
 				am.keyMgr.Set(&key)
 				slog.Debug("auth key loaded from db", "key_id", key.Id)
 			}
@@ -176,6 +199,7 @@ func (am *AuthManager) RefreshAccessKeysFromDB() error {
 					inapi.AuthScope_Host_Write + ":" + host.Id,
 					inapi.AuthScope_Package_Read,
 				}
+				ak.Type = inauth.AccessKey_Type_Host
 				AuthMgr.keyMgr.Set(ak)
 
 				slog.Warn("load host access-key", "host_id", host.Id)
@@ -214,7 +238,10 @@ func (am *AuthManager) SaveAccessKey(key *inauth.AccessKey) error {
 	return nil
 }
 
-// DeleteAccessKey deletes an access key from the database
+// DeleteAccessKey deletes a DB-managed access key. A key that lives only
+// in memory (config-declared bootstrap sysadmin/ingate, or a host key) is
+// refused: it is revoked via config or host re-assignment, not this API.
+// Unknown keys are an idempotent no-op.
 func (am *AuthManager) DeleteAccessKey(keyId string) error {
 
 	if data.Zonelet == nil {
@@ -227,10 +254,24 @@ func (am *AuthManager) DeleteAccessKey(keyId string) error {
 
 	dbKey := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, keyId)
 
-	if rs := data.Zonelet.NewDeleter(dbKey).Exec(); !rs.OK() {
+	// Read first: the deleter reports OK for a missing key, so only a
+	// read tells a DB-managed key from one that lives in memory alone.
+	if rs := data.Zonelet.NewReader(dbKey).Exec(); !rs.OK() {
 		if !rs.NotFound() {
-			return status.Errorf(codes.Internal, "failed to delete access key: %s", rs.Error())
+			return status.Errorf(codes.Internal,
+				"failed to load access key: %s", rs.Error())
 		}
+		// Absent from the DB but known in memory: not user-managed.
+		if am.keyMgr.Key(keyId) != nil {
+			return status.Errorf(codes.FailedPrecondition,
+				"key %s is config-declared, revoke it via innerstack.toml", keyId)
+		}
+		// Genuinely unknown: no-op success.
+		return nil
+	}
+
+	if rs := data.Zonelet.NewDeleter(dbKey).Exec(); !rs.OK() && !rs.NotFound() {
+		return status.Errorf(codes.Internal, "failed to delete access key: %s", rs.Error())
 	}
 
 	am.keyMgr.Del(keyId)
@@ -242,4 +283,104 @@ func (am *AuthManager) DeleteAccessKey(keyId string) error {
 
 func (it *AuthManager) KeyMgr() *inauth.AccessKeyManager {
 	return it.keyMgr
+}
+
+// scanPageSize is the kvgo page size for filtered key scans; a page may
+// be short (kvgo also caps by total size), so scans stop on an empty page.
+const scanPageSize = 1000
+
+// AccessKeysOf loads the DB-managed access keys of one user (all keys when
+// userId is empty), in key-id order with an exclusive-cursor offset.
+// hasMore reports matches beyond limit. A filtered scan pages through the
+// namespace until limit matches are collected (plus one to prove hasMore)
+// or the range is exhausted, so non-matching keys cannot end the scan
+// early.
+func (am *AuthManager) AccessKeysOf(
+	userId, offset string, limit int,
+) ([]*inauth.AccessKey, bool, error) {
+
+	if limit <= 0 {
+		limit = inapi.AccessKeyListLimitDefault
+	}
+
+	prefix := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, "")
+	// kvgo ranges are (lower, upper]: the offset is the exclusive cursor.
+	lower := append(bytes.Clone(prefix), offset...)
+	upper := append(bytes.Clone(prefix), 0xff)
+
+	var keys []*inauth.AccessKey
+	for {
+		rs := data.Zonelet.NewRanger(bytes.Clone(lower), bytes.Clone(upper)).
+			SetLimit(scanPageSize).
+			Exec()
+		if !rs.OK() {
+			if rs.NotFound() {
+				break
+			}
+			return nil, false, rs.Error()
+		}
+		if len(rs.Items) == 0 {
+			break
+		}
+
+		for _, item := range rs.Items {
+			var key inauth.AccessKey
+			if err := item.JsonDecode(&key); err != nil {
+				continue
+			}
+			if userId != "" && key.User != userId {
+				continue
+			}
+			if len(keys) >= limit {
+				// One extra match proves more pages exist.
+				return keys, true, nil
+			}
+			keys = append(keys, &key)
+		}
+
+		// Follow the page: the last scanned key is the next exclusive
+		// bound.
+		lower = bytes.Clone(rs.Items[len(rs.Items)-1].Key)
+	}
+
+	return keys, false, nil
+}
+
+// SetUserKeysEnabled toggles every DB-managed key of a user: disabling
+// marks each key AccessKey_State_Disable (the library-level revocation
+// vocabulary enforced by inauth token verification) and evicts it from the
+// in-memory manager; enabling restores AccessKey_State_Active.
+func (am *AuthManager) SetUserKeysEnabled(userId string, enabled bool) error {
+
+	keys, _, err := am.AccessKeysOf(userId, "", inapi.AccessKeyListLimitMax)
+	if err != nil {
+		return err
+	}
+
+	for _, key := range keys {
+
+		if enabled == (key.State != inauth.AccessKey_State_Disable) {
+			continue // already in the target state
+		}
+
+		if enabled {
+			key.State = inauth.AccessKey_State_Active
+		} else {
+			key.State = inauth.AccessKey_State_Disable
+		}
+
+		dbKey := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, key.Id)
+		if rs := data.Zonelet.NewWriter(dbKey, key).Exec(); !rs.OK() {
+			return fmt.Errorf("failed to save access key %s: %s",
+				key.Id, rs.ErrorMessage())
+		}
+
+		if enabled {
+			am.keyMgr.Set(key)
+		} else {
+			am.keyMgr.Del(key.Id)
+		}
+	}
+
+	return nil
 }

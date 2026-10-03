@@ -124,6 +124,24 @@ type ZoneletConfig struct {
 type AccessKeyPublic struct {
 	AccessKey   string `json:"access_key"            toml:"access_key"`
 	Description string `json:"description,omitempty" toml:"description,omitempty"`
+	// User labels the key owner (e.g. "sysadmin"); empty for unlabeled
+	// infrastructure keys.
+	User string `json:"user,omitempty" toml:"user,omitempty"`
+	// Type is User or App; inferred as User when a user is set and type is
+	// empty.
+	Type string `json:"type,omitempty" toml:"type,omitempty"`
+}
+
+// ApplyTo copies the declared identity onto a parsed access key: the TOML
+// export string carries only id and secret.
+func (it *AccessKeyPublic) ApplyTo(ak *inauth.AccessKey) {
+	ak.User = it.User
+	ak.Description = it.Description
+	if it.Type != "" {
+		ak.Type = it.Type
+	} else if it.User != "" {
+		ak.Type = "User"
+	}
 }
 
 var (
@@ -181,20 +199,45 @@ func Setup(version string) error {
 	// Auto-create default sysadmin access key if not configured
 	if len(Config.Zonelet.AccessKeys) == 0 ||
 		Config.Zonelet.AccessKeys[0].AccessKey == "" {
-		ak := inauth.NewAccessKey()
+		ak := inauth.NewUserAccessKey()
+		ak.User = "sysadmin"
 		Config.Zonelet.AccessKeys = []*AccessKeyPublic{
 			{
 				AccessKey:   ak.Export(),
 				Description: "for sysadmin",
+				User:        ak.User,
+				Type:        ak.Type,
 			},
 		}
 	}
+	// Label the admin key of pre-existing configs, but only on evidence
+	// this Setup auto-created it: the owner label flows into the
+	// tamper-evident audit chain, so it is never guessed from slot
+	// position. Persisted back to the TOML by the final Flush.
+	if Config.Zonelet.AccessKeys[0].User == "" &&
+		Config.Zonelet.AccessKeys[0].Description == "for sysadmin" {
+		Config.Zonelet.AccessKeys[0].User = "sysadmin"
+	}
 	if len(Config.Zonelet.AccessKeys) == 1 {
-		ak := inauth.NewAccessKey()
+		ak := inauth.NewAppAccessKey()
+		ak.User = "ingate"
 		Config.Zonelet.AccessKeys = append(Config.Zonelet.AccessKeys, &AccessKeyPublic{
 			AccessKey:   ak.Export(),
 			Description: "for ingate daemon",
+			User:        ak.User,
+			Type:        ak.Type,
 		})
+	}
+	// Label the ingate key of pre-existing multi-key configs (created
+	// before owner labels existed), mirroring the sysadmin restore above:
+	// only on this Setup's own auto-generated description, never guessed
+	// from slot position. The label flows into the tamper-evident audit
+	// chain, so it is persisted back to the TOML by the final Flush.
+	if len(Config.Zonelet.AccessKeys) > 1 &&
+		Config.Zonelet.AccessKeys[1].User == "" &&
+		Config.Zonelet.AccessKeys[1].Description == "for ingate daemon" {
+		Config.Zonelet.AccessKeys[1].User = "ingate"
+		Config.Zonelet.AccessKeys[1].Type = "App"
 	}
 
 	{
@@ -220,6 +263,7 @@ func Setup(version string) error {
 					inapi.AuthScope_Host_Write + ":" + Config.Hostlet.HostId,
 					inapi.AuthScope_Package_Read,
 				}
+				ak.Type = inauth.AccessKey_Type_Host
 				Config.Hostlet.ak = ak
 			}
 		}

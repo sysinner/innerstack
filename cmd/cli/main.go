@@ -157,6 +157,14 @@ func main() {
 	// - audit verify: Verify the audit hash chain
 	rootCmd.AddCommand(cli.NewAuditCommand())
 
+	// Register user management commands
+	// - user add/info/set/list/delete: Manage zone users
+	rootCmd.AddCommand(cli.NewUserCommand())
+
+	// Register access key management commands
+	// - key create/list/delete: Manage user access keys
+	rootCmd.AddCommand(cli.NewKeyCommand())
+
 	// Execute the root command and handle errors
 	// Exit with code 1 if any error occurs during command execution
 	if err := rootCmd.Execute(); err != nil {

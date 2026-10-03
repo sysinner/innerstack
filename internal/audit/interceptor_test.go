@@ -69,7 +69,11 @@ func TestStatusMapping(t *testing.T) {
 	}{
 		{"ok", nil, inapi.AuditStatusOK},
 		{"denied", status.Error(codes.PermissionDenied, "no"), inapi.AuditStatusDenied},
-		{"unauthenticated", status.Error(codes.Unauthenticated, "who"), inapi.AuditStatusUnauthenticated},
+		{
+			"unauthenticated",
+			status.Error(codes.Unauthenticated, "who"),
+			inapi.AuditStatusUnauthenticated,
+		},
 		{"error", status.Error(codes.Internal, "boom"), inapi.AuditStatusError},
 		{"plain_error", errTest("plain"), inapi.AuditStatusError},
 	}
@@ -231,6 +235,9 @@ func TestAuthFailureDedupWindow(t *testing.T) {
 
 	config.Config.Zonelet.ZoneName = testZone
 
+	ak := inauth.NewUserAccessKey()
+	ak.User = "alice"
+
 	m := &Manager{
 		db:           nil, // AuthFailure never touches the db directly
 		queue:        make(chan *inapi.AuditRecord, 16),
@@ -241,8 +248,6 @@ func TestAuthFailureDedupWindow(t *testing.T) {
 	Mgr = m
 	t.Cleanup(func() { Mgr = oldMgr })
 
-	ak := inauth.NewUserAccessKey()
-
 	mdCtx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
 		inauth.AppHttpHeaderKey, inauth.NewAppCredential(ak).AuthToken()))
 	mdCtx = peer.NewContext(mdCtx, &peer.Peer{
@@ -252,8 +257,9 @@ func TestAuthFailureDedupWindow(t *testing.T) {
 	const method = "/inapi.ZoneService/HostStatusUpdate"
 
 	// Burst of failures within the window: only the first is recorded.
+	// The claimed key resolves the kid to its user (wrong signature).
 	for range 4 {
-		AuthFailure(mdCtx, method, errTest("bad signature"))
+		AuthFailure(mdCtx, method, errTest("bad signature"), ak)
 	}
 
 	if len(m.queue) != 1 {
@@ -268,7 +274,11 @@ func TestAuthFailureDedupWindow(t *testing.T) {
 		t.Fatalf("status = %q", first.Status)
 	}
 	if first.ActorId != ak.Id {
-		t.Fatalf("actor_id = %q, want %q (parseable token)", first.ActorId, ak.Id)
+		t.Fatalf("actor_id = %q, want %q (parseable token)",
+			first.ActorId, ak.Id)
+	}
+	if first.ActorUser != "alice" {
+		t.Fatalf("actor_user = %q, want alice (kid maps to a known key)", first.ActorUser)
 	}
 	if first.ActorType != inapi.AuditActorAnonymous {
 		t.Fatalf("actor_type = %q, want Anonymous", first.ActorType)
@@ -283,7 +293,7 @@ func TestAuthFailureDedupWindow(t *testing.T) {
 	m.authFailures.items[k].window = time.Now().Unix() - 61
 	m.authFailures.mu.Unlock()
 
-	AuthFailure(mdCtx, method, errTest("bad signature"))
+	AuthFailure(mdCtx, method, errTest("bad signature"), nil)
 
 	if len(m.queue) != 1 {
 		t.Fatalf("queue len = %d, want 1", len(m.queue))
@@ -300,7 +310,7 @@ func TestAuthFailureNoManager(t *testing.T) {
 	Mgr = nil
 	t.Cleanup(func() { Mgr = oldMgr })
 
-	AuthFailure(context.Background(), "/m", errTest("x")) // must not panic
+	AuthFailure(context.Background(), "/m", errTest("x"), nil) // must not panic
 }
 
 // TestInterceptorPassThroughDisabled: with no manager the interceptor just

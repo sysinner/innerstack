@@ -66,8 +66,9 @@ func recordHash(rec *inapi.AuditRecord) (string, error) {
 // the previous page's last item (in return order).
 type ListOptions struct {
 	Zone           string
-	TsStart, TsEnd int64 // unix ms, 0 = unbounded
-	ActorId        string
+	TsStart, TsEnd int64  // unix ms, 0 = unbounded
+	ActorId        string // access key id, exact match
+	ActorUser      string // user id, exact match
 	Action         string
 	TargetId       string // prefix match
 	Status         string
@@ -177,6 +178,9 @@ func matchRecord(rec *inapi.AuditRecord, opt ListOptions) bool {
 		return false
 	}
 	if opt.ActorId != "" && rec.ActorId != opt.ActorId {
+		return false
+	}
+	if opt.ActorUser != "" && rec.ActorUser != opt.ActorUser {
 		return false
 	}
 	if opt.Action != "" && rec.Action != opt.Action {

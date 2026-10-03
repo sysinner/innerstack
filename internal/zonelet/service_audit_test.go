@@ -84,12 +84,13 @@ func seedAuditRecords(t *testing.T, n int, action, st string) {
 		ts := time.Now().UnixMilli() + int64(i)
 		id := audit.AuditIdOfTs(ts) + fmt.Sprintf("%04x", i)
 		rec := &inapi.AuditRecord{
-			Zone:    auditTestZone,
-			Id:      id,
-			Ts:      ts,
-			Action:  action,
-			Status:  st,
-			ActorId: "actor1",
+			Zone:      auditTestZone,
+			Id:        id,
+			Ts:        ts,
+			Action:    action,
+			Status:    st,
+			ActorId:   "actor1",
+			ActorUser: "sysadmin",
 		}
 		if rs := data.Zonelet.NewWriter(
 			inapi.NsZoneletAuditLog(auditTestZone, id), rec).Exec(); !rs.OK() {
@@ -163,8 +164,11 @@ func TestServiceAuditListFilters(t *testing.T) {
 			wantCount: 1,
 		},
 		{
-			name:      "action",
-			req:       &inapi.AuditListRequest{Action: "ZoneService/ZoneInit", Status: inapi.AuditStatusOK},
+			name: "action",
+			req: &inapi.AuditListRequest{
+				Action: "ZoneService/ZoneInit",
+				Status: inapi.AuditStatusOK,
+			},
 			wantCount: 2,
 		},
 		{
@@ -175,6 +179,16 @@ func TestServiceAuditListFilters(t *testing.T) {
 		{
 			name:      "actor_no_match",
 			req:       &inapi.AuditListRequest{ActorId: "nobody"},
+			wantCount: 0,
+		},
+		{
+			name:      "actor_user",
+			req:       &inapi.AuditListRequest{ActorUser: "sysadmin"},
+			wantCount: 3,
+		},
+		{
+			name:      "actor_user_no_match",
+			req:       &inapi.AuditListRequest{ActorUser: "nobody"},
 			wantCount: 0,
 		},
 	}

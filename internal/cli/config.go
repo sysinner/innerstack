@@ -22,6 +22,8 @@ import (
 
 	"github.com/hooto/htoml4g/htoml"
 
+	"github.com/sysinner/innerstack/v2/internal/client"
+	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/inauth"
 )
 
@@ -123,4 +125,27 @@ func Flush() error {
 		return err
 	}
 	return os.Chmod(loadedConfigPath, 0600)
+}
+
+// zoneClient resolves the current zone config and returns a connected
+// ZoneService client.
+func zoneClient() (*ConfigZone, inapi.ZoneServiceClient, error) {
+
+	zone, err := Config.Zone("")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ak, err := zone.AccessKey()
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid access key: %w", err)
+	}
+
+	conn, err := client.Connect(zone.Addr, ak, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf(
+			"failed to connect to zone server %s: %w", zone.Addr, err)
+	}
+
+	return zone, inapi.NewZoneServiceClient(conn), nil
 }

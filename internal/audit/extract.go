@@ -45,6 +45,10 @@ var extractors = map[string]Extractor{
 	"/inapi.ZoneService/GatewayIngressSet": extractGatewayIngressSet,
 	"/inapi.ZoneService/PackagePush":       extractPackagePush,
 	"/inapi.ZoneService/PackageDelete":     extractPackageDelete,
+	"/inapi.ZoneService/UserSet":           extractUserSet,
+	"/inapi.ZoneService/UserDelete":        extractUserDelete,
+	"/inapi.ZoneService/AccessKeySet":      extractAccessKeySet,
+	"/inapi.ZoneService/AccessKeyDelete":   extractAccessKeyDelete,
 }
 
 // TargetId format is "{type}/{key}" so prefix filters such as
@@ -199,6 +203,56 @@ func extractPackageDelete(req, resp any, err error) (string, string, map[string]
 		detail["chunks_deleted"] = strconv.Itoa(int(rp.ChunksDeleted))
 	}
 	return "pkg", "pkg/" + r.Id, detail, true
+}
+
+func extractUserSet(req, resp any, err error) (string, string, map[string]any, bool) {
+	r, ok := req.(*inapi.UserSetRequest)
+	if !ok {
+		return "user", "user/", nil, true
+	}
+	detail := map[string]any{"name": r.Name}
+	if r.Description != "" {
+		detail["description"] = r.Description
+	}
+	if r.State != "" {
+		detail["state"] = r.State
+	}
+	return "user", "user/" + r.Name, detail, true
+}
+
+func extractUserDelete(req, resp any, err error) (string, string, map[string]any, bool) {
+	r, ok := req.(*inapi.UserDeleteRequest)
+	if !ok {
+		return "user", "user/", nil, true
+	}
+	return "user", "user/" + r.Name, map[string]any{"name": r.Name}, true
+}
+
+// extractAccessKeySet never records the response credential (one-time
+// secret); the generated kid is attached on success.
+func extractAccessKeySet(req, resp any, err error) (string, string, map[string]any, bool) {
+	r, ok := req.(*inapi.AccessKeySetRequest)
+	if !ok {
+		return "access-key", "access-key/", nil, true
+	}
+	detail := map[string]any{
+		"user":   r.User,
+		"scopes": strings.Join(r.Scopes, ","),
+	}
+	kid := ""
+	if rp, ok := resp.(*inapi.AccessKeySetResponse); ok && rp != nil {
+		kid = rp.KeyId
+		detail["key_id"] = kid
+	}
+	return "access-key", "access-key/" + kid, detail, true
+}
+
+func extractAccessKeyDelete(req, resp any, err error) (string, string, map[string]any, bool) {
+	r, ok := req.(*inapi.AccessKeyDeleteRequest)
+	if !ok {
+		return "access-key", "access-key/", nil, true
+	}
+	return "access-key", "access-key/" + r.KeyId, map[string]any{"key_id": r.KeyId}, true
 }
 
 // encodeDetail renders detail as canonical JSON, dropping trailing fields

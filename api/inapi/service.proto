@@ -101,6 +101,35 @@ service ZoneService {
   // AuditVerify recomputes the audit hash chain over the live window and
   // checks it against the daily anchors. Requires the audit:ro scope.
   rpc AuditVerify(AuditVerifyRequest) returns (AuditVerifyResponse) {}
+
+  // UserSet creates a user or updates its description/state. Requires the
+  // zone:rw scope. Disabling a user revokes all of its access keys.
+  rpc UserSet(UserSetRequest) returns (UserSetResponse) {}
+
+  // UserDelete removes a user. Rejected while any access key still
+  // references the user. Requires the zone:rw scope.
+  rpc UserDelete(UserDeleteRequest) returns (UserDeleteResponse) {}
+
+  // UserGet retrieves a single user by name. Requires the zone:ro scope.
+  rpc UserGet(UserGetRequest) returns (UserGetResponse) {}
+
+  // UserList lists users, newest first by name order. Requires the zone:ro
+  // scope.
+  rpc UserList(UserListRequest) returns (UserListResponse) {}
+
+  // AccessKeySet creates a user access key: the server generates the key id
+  // and secret; the full credential is returned once in the response.
+  // Requires the zone:rw scope.
+  rpc AccessKeySet(AccessKeySetRequest) returns (AccessKeySetResponse) {}
+
+  // AccessKeyDelete revokes an access key (idempotent). Requires the
+  // zone:rw scope.
+  rpc AccessKeyDelete(AccessKeyDeleteRequest)
+      returns (AccessKeyDeleteResponse) {}
+
+  // AccessKeyList lists access keys (secrets never returned). Requires the
+  // zone:ro scope.
+  rpc AccessKeyList(AccessKeyListRequest) returns (AccessKeyListResponse) {}
 }
 
 // ZoneInternalService is the gRPC service for internal zone communication.
@@ -494,4 +523,160 @@ message PackageChunkResponse {
   // file contains the file metadata (size, chunk_size) for calculating
   // progress.
   PackageFile file = 2;
+}
+
+// User is a management-plane principal. The name is the primary key and is
+// immutable; access keys reference it through AccessKey.user.
+message User {
+  // name is the user id (e.g. "sysadmin", "tim"). DNS-label validated.
+  string name = 1;
+
+  // description is free-form operator metadata.
+  string description = 2;
+
+  // state is active or disabled. Disabling revokes all of the user's
+  // access keys until re-enabled.
+  string state = 3;
+
+  // created is the creation time in unix milliseconds.
+  int64 created = 4;
+
+  // updated is the last modification time in unix milliseconds.
+  int64 updated = 5;
+}
+
+// UserSetRequest is the request message for creating or updating a user.
+message UserSetRequest {
+  // name is the user id to create or update.
+  string name = 1;
+
+  // description replaces the existing description when non-empty.
+  string description = 2;
+
+  // state sets active or disabled; empty keeps the current state
+  // (active on create).
+  string state = 3;
+}
+
+// UserSetResponse is the response message after creating or updating a user.
+message UserSetResponse {
+  // item is the resulting user.
+  User item = 1;
+}
+
+// UserDeleteRequest is the request message for deleting a user.
+message UserDeleteRequest {
+  // name is the user id to delete.
+  string name = 1;
+}
+
+// UserDeleteResponse is the response message after deleting a user.
+message UserDeleteResponse {}
+
+// UserGetRequest is the request message for retrieving one user.
+message UserGetRequest {
+  // name is the user id to look up.
+  string name = 1;
+}
+
+// UserGetResponse is the response message containing the user.
+message UserGetResponse {
+  // item is the requested user.
+  User item = 1;
+}
+
+// UserListRequest is the request message for listing users.
+message UserListRequest {
+  // state filters by active or disabled; empty lists all.
+  string state = 1;
+
+  // limit is the page size (default 100, max 1000).
+  uint32 limit = 2;
+
+  // offset is the last name of the previous page (exclusive cursor).
+  string offset = 3;
+}
+
+// UserListResponse is the response message containing users.
+message UserListResponse {
+  // items is the list of users.
+  repeated User items = 1;
+
+  // has_more reports matches beyond the returned page.
+  bool has_more = 2;
+}
+
+// AccessKeySetRequest is the request message for creating a user access key.
+message AccessKeySetRequest {
+  // user is the owning user name; the user must exist and be active.
+  string user = 1;
+
+  // scopes grants permissions (e.g. "app:rw", "pkg:ro"); at least one is
+  // required.
+  repeated string scopes = 2;
+
+  // description is free-form operator metadata.
+  string description = 3;
+}
+
+// AccessKeySetResponse is the response message with the one-time credential.
+message AccessKeySetResponse {
+  // key_id is the generated access key id.
+  string key_id = 1;
+
+  // access_key is the full credential "ak_<id>_<secret>", shown once and
+  // never returned again.
+  string access_key = 2;
+}
+
+// AccessKeyDeleteRequest is the request message for revoking an access key.
+message AccessKeyDeleteRequest {
+  // key_id is the access key id to revoke.
+  string key_id = 1;
+}
+
+// AccessKeyDeleteResponse is the response message after revoking a key.
+message AccessKeyDeleteResponse {}
+
+// AccessKeyListRequest is the request message for listing access keys.
+message AccessKeyListRequest {
+  // user filters by owning user; empty lists all keys.
+  string user = 1;
+
+  // limit is the page size (default 100, max 1000).
+  uint32 limit = 2;
+
+  // offset is the last key id of the previous page (exclusive cursor).
+  string offset = 3;
+}
+
+// AccessKeyItem is a listed access key without its secret.
+message AccessKeyItem {
+  // key_id is the access key id.
+  string key_id = 1;
+
+  // user is the owning user; empty for infrastructure keys (hostlet).
+  string user = 2;
+
+  // description is free-form operator metadata.
+  string description = 3;
+
+  // scopes are the granted permissions.
+  repeated string scopes = 4;
+
+  // state is empty (active), or disabled.
+  string state = 5;
+
+  // type is the credential kind (User | App); empty for infrastructure
+  // keys (hostlet).
+  string type = 6;
+}
+
+// AccessKeyListResponse is the response message containing access keys.
+message AccessKeyListResponse {
+  // items is the list of access keys.
+  repeated AccessKeyItem items = 1;
+
+  // has_more reports matches beyond the returned page.
+  bool has_more = 2;
 }

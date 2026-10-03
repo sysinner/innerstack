@@ -41,9 +41,9 @@ type Metadata struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id      string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`             // unique identifier
-	Name    string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`         // human-readable and unique name
-	User    string `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty" toml:"user,omitempty"`         // owner or creator
+	Id      string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`                  // unique identifier
+	Name    string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`            // human-readable and unique name
+	User    string `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty" toml:"user,omitempty"`            // owner or creator
 	Created int64  `protobuf:"varint,14,opt,name=created,proto3" json:"created,omitempty" toml:"created,omitempty"` // creation time, unix timestamp in seconds
 	Updated int64  `protobuf:"varint,15,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"` // last update time, unix timestamp in seconds
 	Version uint64 `protobuf:"varint,16,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"` // resource version for optimistic concurrency

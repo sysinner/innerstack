@@ -122,8 +122,12 @@ func buildRecord(
 
 // AuthFailure records an authentication failure from the auth interceptor
 // (the audit interceptor never runs on that path). The kid is recovered
-// from the credential token when parseable.
-func AuthFailure(ctx context.Context, method string, authErr error) {
+// from the credential token when parseable; claimed, when non-nil, is the
+// known key that kid resolves to (wrong signature, replay), letting the
+// record attribute the user the token claims.
+func AuthFailure(
+	ctx context.Context, method string, authErr error, claimed *inauth.AccessKey,
+) {
 
 	if Mgr == nil {
 		return
@@ -162,6 +166,11 @@ func AuthFailure(ctx context.Context, method string, authErr error) {
 		ActorType:       inapi.AuditActorAnonymous,
 		SourceIp:        peerIP(ctx),
 		SuppressedCount: suppressed,
+	}
+	// The kid is unverified at this point; when it still maps to a known
+	// key, attribute the claimed user too.
+	if claimed != nil {
+		rec.ActorUser = claimed.User
 	}
 	if authErr != nil {
 		rec.Error = truncateString(authErr.Error(), errorMaxLen)

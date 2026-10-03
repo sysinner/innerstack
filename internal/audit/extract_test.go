@@ -208,6 +208,61 @@ func TestExtractors(t *testing.T) {
 			targetType: "pkg",
 			targetId:   "pkg/nginx_1.0.0_linux_amd64",
 		},
+		{
+			name:   "user_set",
+			method: "/inapi.ZoneService/UserSet",
+			req: &inapi.UserSetRequest{
+				Name:        "tim",
+				State:       "disabled",
+				Description: "on leave",
+			},
+			audit:      true,
+			targetType: "user",
+			targetId:   "user/tim",
+			detailWant: map[string]any{
+				"name":        "tim",
+				"state":       "disabled",
+				"description": "on leave",
+			},
+		},
+		{
+			name:       "user_delete",
+			method:     "/inapi.ZoneService/UserDelete",
+			req:        &inapi.UserDeleteRequest{Name: "tim"},
+			audit:      true,
+			targetType: "user",
+			targetId:   "user/tim",
+			detailWant: map[string]any{"name": "tim"},
+		},
+		{
+			name:   "access_key_set",
+			method: "/inapi.ZoneService/AccessKeySet",
+			req: &inapi.AccessKeySetRequest{
+				User:   "tim",
+				Scopes: []string{"app:rw", "pkg:ro"},
+			},
+			resp: &inapi.AccessKeySetResponse{
+				KeyId:     "69cb4cfe4b64",
+				AccessKey: "ak_69cb4cfe4b64_topsecretvalue",
+			},
+			audit:      true,
+			targetType: "access-key",
+			targetId:   "access-key/69cb4cfe4b64",
+			detailWant: map[string]any{
+				"user":   "tim",
+				"scopes": "app:rw,pkg:ro",
+				"key_id": "69cb4cfe4b64",
+			},
+		},
+		{
+			name:       "access_key_delete",
+			method:     "/inapi.ZoneService/AccessKeyDelete",
+			req:        &inapi.AccessKeyDeleteRequest{KeyId: "69cb4cfe4b64"},
+			audit:      true,
+			targetType: "access-key",
+			targetId:   "access-key/69cb4cfe4b64",
+			detailWant: map[string]any{"key_id": "69cb4cfe4b64"},
+		},
 	}
 
 	for _, f := range fixtures {
@@ -264,6 +319,7 @@ func TestExtractorSanitization(t *testing.T) {
 	const (
 		hostJoinSecret = "ak_000000000000_hjoinTopSecret123"
 		specSecret     = "s3cr3tPa55word"
+		keySecret      = "oneTimeKeySecret99"
 	)
 
 	fixtures := []struct {
@@ -277,6 +333,15 @@ func TestExtractorSanitization(t *testing.T) {
 			method: "/inapi.ZoneService/HostJoin",
 			req:    &inapi.HostJoinRequest{Addr: "10.0.0.9", AccessKey: hostJoinSecret},
 			resp:   &inapi.HostJoinResponse{},
+		},
+		{
+			name:   "access_key_set_credential",
+			method: "/inapi.ZoneService/AccessKeySet",
+			req:    &inapi.AccessKeySetRequest{User: "tim", Scopes: []string{"app:rw"}},
+			resp: &inapi.AccessKeySetResponse{
+				KeyId:     "69cb4cfe4b64",
+				AccessKey: "ak_69cb4cfe4b64_" + keySecret,
+			},
 		},
 		{
 			name:   "app_deploy_config_values",
@@ -312,7 +377,7 @@ func TestExtractorSanitization(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			for _, secret := range []string{"hjoinTopSecret123", "s3cr3tPa55word"} {
+			for _, secret := range []string{"hjoinTopSecret123", "s3cr3tPa55word", keySecret} {
 				if strings.Contains(string(bs), secret) {
 					t.Fatalf("secret %q leaked into audit detail: %s", secret, bs)
 				}
