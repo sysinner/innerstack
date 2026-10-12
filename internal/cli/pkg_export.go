@@ -25,10 +25,10 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/pkgbuild"
 )
 
-// NewPkgExportCommand creates the "pkg-export" command for extracting .ipk packages.
+// newPkgExportCommand creates the "pkg export" command for extracting .ipk packages.
 // It decompresses (xz/gzip) and extracts the package file tree into a directory,
-// the inverse of pkg-build.
-func NewPkgExportCommand() *cobra.Command {
+// the inverse of pkg build.
+func newPkgExportCommand() *cobra.Command {
 
 	var (
 		output string
@@ -40,7 +40,7 @@ func NewPkgExportCommand() *cobra.Command {
 			return fmt.Errorf("no package file specified")
 		}
 
-		// Expand arguments, supporting glob patterns like *.ipk (same as pkg-info).
+		// Expand arguments, supporting glob patterns like *.ipk (same as pkg info).
 		var files []string
 		for _, arg := range args {
 			matches, err := filepath.Glob(arg)
@@ -101,11 +101,11 @@ func NewPkgExportCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "pkg-export <file.ipk>...",
+		Use:   "export <file.ipk>...",
 		Short: "Extract a .ipk package into a directory",
 		Long: `Extract the contents of one or more .ipk package files into directories.
 
-This is the inverse of pkg-build: it decompresses (xz/gzip) and extracts the
+This is the inverse of pkg build: it decompresses (xz/gzip) and extracts the
 package file tree. By default each package is extracted into a directory named
 after the file (the .ipk suffix stripped).
 
@@ -118,16 +118,13 @@ IPK File Format:
   - Data Block: Compressed tar archive (xz or gzip)`,
 		RunE: runE,
 		Example: `  # Extract a package into ./hooto-press_0.10.7-r2_linux_amd64
-  cli pkg-export hooto-press_0.10.7-r2_linux_amd64.ipk
+  innerstack pkg export hooto-press_0.10.7-r2_linux_amd64.ipk
 
   # Extract into a specific directory
-  cli pkg-export hooto-press_0.10.7-r2_linux_amd64.ipk -o /tmp/hooto-press
-
-  # Overwrite an existing target directory
-  cli pkg-export hooto-press_0.10.7-r2_linux_amd64.ipk --force
+  innerstack pkg export hooto-press_0.10.7-r2_linux_amd64.ipk -o /tmp/hooto-press
 
   # Extract multiple packages (each into its own directory)
-  cli pkg-export *.ipk`,
+  innerstack pkg export *.ipk`,
 	}
 
 	cmd.Flags().

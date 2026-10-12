@@ -31,7 +31,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewHostListCommand() *cobra.Command {
+func newHostListCommand() *cobra.Command {
 
 	var (
 		showJson bool
@@ -152,7 +152,7 @@ func NewHostListCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "host-list",
+		Use:   "list",
 		Short: "List all hosts in the zone",
 		RunE:  run,
 	}

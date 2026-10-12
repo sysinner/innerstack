@@ -26,7 +26,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewZoneSetCommand() *cobra.Command {
+func newZoneSetCommand() *cobra.Command {
 
 	var (
 		vpcBridgeCidr    string
@@ -79,7 +79,7 @@ func NewZoneSetCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "zone-set",
+		Use:   "set",
 		Short: "Set zone VPC network configuration",
 		Long: `Set zone VPC network configuration.
 
@@ -102,7 +102,7 @@ VPC Network Rules:
 
   The bridge and instance CIDRs must not overlap.`,
 		RunE: run,
-		Example: `  innerstack zone-set \
+		Example: `  innerstack zone set \
     --bridge 192.168.10.0/24 \
     --instance 10.10.0.0/16 \
     --domain local`,

@@ -40,7 +40,7 @@ func NewLoginCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "login [zone-name]",
-		Short: "Add/update a zone login, switch the current zone, or list zones",
+		Short: "Manage local zone logins",
 		Long: `Manage local zone logins. The login command only edits the local config
 file; it does not connect to any server.
 

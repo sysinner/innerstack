@@ -25,7 +25,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewZoneInitCommand() *cobra.Command {
+func newZoneInitCommand() *cobra.Command {
 
 	var (
 		name string
@@ -47,7 +47,7 @@ func NewZoneInitCommand() *cobra.Command {
 			return fmt.Errorf("invalid access key: %w", err)
 		}
 
-		// Connect to gRPC server (no auth needed for zone-init)
+		// Connect to gRPC server (no auth needed for zone init)
 		conn, err := client.Connect(zone.Addr, ak, false)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server %s: %w", zone.Addr, err)
@@ -78,16 +78,9 @@ func NewZoneInitCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "zone-init",
+		Use:   "init",
 		Short: "Initialize a new zone",
-		Long: `Initialize a new zone with the specified name.
-This command connects to the zonelet server and creates a new zone configuration.`,
-		RunE: initZoneRun,
-		Example: `  # Initialize a zone with default server address (127.0.0.1:9533)
-  app zone-init --name firefly
-
-  # Initialize a zone with a specific server address
-  app zone-init --name firefly --addr 192.168.1.100:9533`,
+		RunE:  initZoneRun,
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Zone name (required)")

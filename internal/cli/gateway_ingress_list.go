@@ -30,7 +30,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewGatewayIngressListCommand() *cobra.Command {
+func newGatewayIngressListCommand() *cobra.Command {
 
 	var (
 		showJson bool
@@ -111,8 +111,8 @@ func NewGatewayIngressListCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "ingress-list",
-		Short: "List all gateway ingress rules",
+		Use:   "list",
+		Short: "List ingress rules",
 		RunE:  run,
 	}
 

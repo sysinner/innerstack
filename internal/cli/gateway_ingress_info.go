@@ -29,7 +29,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewGatewayIngressInfoCommand() *cobra.Command {
+func newGatewayIngressInfoCommand() *cobra.Command {
 
 	var (
 		name     string
@@ -126,8 +126,8 @@ func NewGatewayIngressInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "ingress-info",
-		Short: "Show gateway ingress details",
+		Use:   "info",
+		Short: "Show ingress rule details",
 		RunE:  run,
 	}
 

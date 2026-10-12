@@ -22,10 +22,10 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/pkgbuild"
 )
 
-// NewPkgBuildCommand creates the "pkg-build" command for building .ipk packages.
+// newPkgBuildCommand creates the "pkg build" command for building .ipk packages.
 // An .ipk package is a distributable archive containing application binaries
 // and metadata, ready for deployment to zonelet servers.
-func NewPkgBuildCommand() *cobra.Command {
+func newPkgBuildCommand() *cobra.Command {
 
 	var (
 		dir        string
@@ -77,8 +77,8 @@ func NewPkgBuildCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "pkg-build",
-		Short: "Build an innerstack binary package",
+		Use:   "build",
+		Short: "Build a .ipk package",
 		Long: `Build a distributable .ipk package from a local project.
 
 Packages the project into a deployable archive based on ipk.toml specification.
@@ -128,31 +128,19 @@ Environment Variables:
   IPK_PREFIX          - Install prefix`,
 		RunE: runE,
 		Example: `  # Build from current directory (uses version from ipk.toml)
-  cli pkg-build
+  innerstack pkg build
 
-  # Build with pre-release version
-  cli pkg-build --version 1.0.0-beta.1
+  # Build with a specific version
+  innerstack pkg build --version 1.0.0-beta.1
 
-  # Build with full semver including build metadata
-  cli pkg-build --version 1.0.0-beta.1+build.123
+  # Build for a specific os/arch
+  innerstack pkg build --arch arm64 --os linux
 
-  # Build for specific architecture
-  cli pkg-build --arch arm64 --os linux
+  # Build a source package
+  innerstack pkg build --arch src
 
-  # Build with gzip compression
-  cli pkg-build --compress gzip
-
-  # Build source package
-  cli pkg-build --arch src
-
-  # Build with custom output directory
-  cli pkg-build --output /tmp/packages
-
-  # Show build script before execution
-  cli pkg-build --show-build
-
-  # Build without compression (for debugging)
-  cli pkg-build --no-compress --build-dir ./debug-build`,
+  # Build into a custom output directory
+  innerstack pkg build --output /tmp/packages`,
 	}
 
 	cmd.Flags().StringVar(&dir, "dir", "", "Package source directory (default: current directory)")

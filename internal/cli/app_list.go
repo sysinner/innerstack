@@ -30,7 +30,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewAppListCommand() *cobra.Command {
+func newAppListCommand() *cobra.Command {
 
 	var (
 		showJson bool
@@ -131,19 +131,19 @@ func NewAppListCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "app-list",
+		Use:   "list",
 		Short: "List all app instances",
 		Long: `List all application instances deployed in the current zone.
 
 Displays name, image/version, status, action, ready/desired replicas, resource
-limits, host placement and age. Use app-info for full detail on a single
+limits, host placement and age. Use app info for full detail on a single
 instance.
 
   # List all app instances
-  cli app-list
+  innerstack app list
 
   # Show raw JSON output
-  cli app-list --show-json`,
+  innerstack app list --show-json`,
 		RunE: run,
 	}
 

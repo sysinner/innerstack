@@ -34,9 +34,9 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-// NewPkgInfoCommand creates the "pkg-info" command for inspecting .ipk files.
+// newPkgInfoCommand creates the "pkg info" command for inspecting .ipk files.
 // Displays package metadata and can extract the data block from the archive.
-func NewPkgInfoCommand() *cobra.Command {
+func newPkgInfoCommand() *cobra.Command {
 
 	var (
 		showJson bool
@@ -97,7 +97,7 @@ func NewPkgInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "pkg-info <file.ipk>...",
+		Use:   "info <file.ipk>...",
 		Short: "Display information about .ipk package files",
 		Long: `Display metadata and release information from .ipk package files.
 Supports glob patterns for batch processing.
@@ -108,17 +108,14 @@ IPK File Format:
   - Header Block (JSON): Package metadata and release info
   - Data Block: Compressed tar archive (xz or gzip)`,
 		RunE: runE,
-		Example: `  # Show info for a single package
-  cli pkg-info myapp_1.0.0_linux_amd64.ipk
-
-  # Show info for multiple packages (supports glob)
-  cli pkg-info *.ipk
+		Example: `  # Show info for a package file
+  innerstack pkg info myapp_1.0.0_linux_amd64.ipk
 
   # Show raw JSON header
-  cli pkg-info myapp_1.0.0_linux_amd64.ipk --json
+  innerstack pkg info myapp_1.0.0_linux_amd64.ipk --json
 
   # Extract data block to current directory
-  cli pkg-info myapp.ipk --extract`,
+  innerstack pkg info myapp.ipk --extract`,
 	}
 
 	cmd.Flags().BoolVarP(&showJson, "json", "j", false, "Output raw JSON header")

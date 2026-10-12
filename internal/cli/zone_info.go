@@ -26,7 +26,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewZoneInfoCommand() *cobra.Command {
+func newZoneInfoCommand() *cobra.Command {
 
 	var run = func(cmd *cobra.Command, args []string) error {
 
@@ -67,7 +67,7 @@ func NewZoneInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "zone-info",
+		Use:   "info",
 		Short: "Show zone information",
 		RunE:  run,
 	}

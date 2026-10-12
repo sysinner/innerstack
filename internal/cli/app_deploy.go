@@ -34,7 +34,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewAppDeployCommand() *cobra.Command {
+func newAppDeployCommand() *cobra.Command {
 
 	var (
 		specFile       string
@@ -274,35 +274,25 @@ func NewAppDeployCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "app-deploy",
+		Use:   "deploy",
 		Short: "Deploy or update an app from spec file",
-		Long: `Deploy an app from spec file (in TOML format) to API server.
-An app instance will be created based on the spec.
-If the instance name already exists, the existing app instance will be updated.`,
+		Long: `Deploy an app from a TOML spec file. If the instance name already
+exists, the existing instance is updated.`,
 		RunE: deployRun,
-		Example: `  # Deploy a new app from spec file
-  app deploy --spec app-spec.toml --name myapp
+		Example: `  # Deploy (or update) an app
+  innerstack app deploy --spec app-spec.toml --name myapp
 
   # Deploy with 3 replicas
-  app deploy --spec app-spec.toml --name myapp --replica-cap 3
+  innerstack app deploy --spec app-spec.toml --name myapp --replica-cap 3
 
-  # Update an existing app instance
-  app deploy --spec app-spec.toml --name myapp
-
-  # Update replica count of existing instance
-  app deploy --spec app-spec.toml --name myapp --replica-cap 5
-
-  # Scale CPU of an existing instance within the spec [cpu_min, cpu_max] range
-  app deploy --spec app-spec.toml --name myapp --cpu 2000m
+  # Scale CPU within the spec [cpu_min, cpu_max] range
+  innerstack app deploy --spec app-spec.toml --name myapp --cpu 2000m
 
   # Skip interactive config input
-  app deploy --spec app-spec.toml --name myapp --skip-config
+  innerstack app deploy --spec app-spec.toml --name myapp --skip-config
 
-  # Set action on existing instance (start, stop, destroy, restart)
-  app deploy --name myapp --action start
-
-  # Restart an existing instance (bumps deploy revision to recreate containers)
-  app deploy --name myapp --action restart`,
+  # Set action on an existing instance (start, stop, destroy, restart)
+  innerstack app deploy --name myapp --action start`,
 	}
 
 	cmd.Flags().StringVarP(&specFile, "spec", "s",

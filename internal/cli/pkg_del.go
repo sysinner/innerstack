@@ -25,9 +25,9 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-// NewPkgDelCommand creates the "pkg-del" command for deleting packages.
+// newPkgDelCommand creates the "pkg delete" command for deleting packages.
 // Removes a package and all its associated data chunks from the server.
-func NewPkgDelCommand() *cobra.Command {
+func newPkgDelCommand() *cobra.Command {
 
 	var runE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -83,7 +83,7 @@ func NewPkgDelCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "pkg-del <package-id>",
+		Use:   "delete <package-id>",
 		Short: "Delete a package from zonelet server",
 		Long: `Delete a package and all its data chunks from the zonelet server.
 
@@ -94,10 +94,10 @@ WARNING: This operation is irreversible. All package data will be permanently re
 		Args: cobra.ExactArgs(1),
 		RunE: runE,
 		Example: `  # Delete a package from local server
-  cli pkg-del myapp_1.0.0_linux_amd64
+  innerstack pkg delete myapp_1.0.0_linux_amd64
 
   # Delete from remote server
-  cli pkg-del myapp_1.0.0_linux_amd64 --addr 192.168.1.100:9533`,
+  innerstack pkg delete myapp_1.0.0_linux_amd64 --addr 192.168.1.100:9533`,
 	}
 
 	return cmd

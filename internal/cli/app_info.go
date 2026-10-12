@@ -31,7 +31,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewAppInfoCommand() *cobra.Command {
+func newAppInfoCommand() *cobra.Command {
 
 	var (
 		instanceName string
@@ -90,7 +90,7 @@ func NewAppInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "app-info",
+		Use:   "info",
 		Short: "Show app instance details",
 		RunE:  run,
 	}

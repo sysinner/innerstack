@@ -33,7 +33,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewGatewayIngressSetCommand() *cobra.Command {
+func newGatewayIngressSetCommand() *cobra.Command {
 
 	var (
 		name        string
@@ -160,19 +160,19 @@ func NewGatewayIngressSetCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "ingress-set",
-		Short: "Create or update a gateway ingress rule",
-		Long: `Create or update a gateway ingress rule using individual flags (--name, etc.).
-Use --action delete to remove a record that has been disabled for more than 10 days.`,
+		Use:   "set",
+		Short: "Create or update an ingress rule",
+		Long: `Create or update a gateway ingress rule.
+Use --action delete to remove a rule that has been disabled for more than 10 days.`,
 		RunE: run,
 		Example: `  # Set ingress with flags
-  innerstack ingress-set --name example.com
+  innerstack ingress set --name example.com
 
   # Set ingress with interactive routes editing
-  innerstack ingress-set --name example.com --routes
+  innerstack ingress set --name example.com --routes
 
   # Delete a disabled ingress (allowed 10+ days after the last operation)
-  innerstack ingress-set --name example.com --action delete`,
+  innerstack ingress set --name example.com --action delete`,
 	}
 
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Gateway ingress name (required)")

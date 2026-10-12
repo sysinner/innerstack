@@ -29,9 +29,9 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-// NewAppSpecListCommand creates the "app-spec-list" command for listing all
+// newAppSpecListCommand creates the "app spec-list" command for listing all
 // application specs stored on the zonelet server.
-func NewAppSpecListCommand() *cobra.Command {
+func newAppSpecListCommand() *cobra.Command {
 
 	var showJson bool
 
@@ -118,18 +118,18 @@ func NewAppSpecListCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "app-spec-list",
+		Use:   "spec-list",
 		Short: "List all app specs",
 		Long: `List all application specifications stored on the zonelet server.
 
 Displays spec name, version, kind, image, resource limits, package and task
-counts. Use app-spec-info to look up a single spec by name.
+counts. Use app spec-info to look up a single spec by name.
 
   # List all app specs
-  cli app-spec-list
+  innerstack app spec-list
 
   # Show raw JSON output
-  cli app-spec-list --show-json`,
+  innerstack app spec-list --show-json`,
 		RunE: run,
 	}
 

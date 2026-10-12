@@ -26,7 +26,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewHostJoinCommand() *cobra.Command {
+func newHostJoinCommand() *cobra.Command {
 
 	var (
 		hostAddr      string
@@ -76,7 +76,7 @@ func NewHostJoinCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "host-join",
+		Use:   "join",
 		Short: "Join a host to the zone",
 		RunE:  run,
 	}

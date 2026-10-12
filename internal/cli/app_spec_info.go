@@ -30,10 +30,10 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-// NewAppSpecInfoCommand creates the "app-spec-info" command for looking up an
+// newAppSpecInfoCommand creates the "app spec-info" command for looking up an
 // application spec by name. It calls AppSpecList with a name filter on the
 // zonelet server.
-func NewAppSpecInfoCommand() *cobra.Command {
+func newAppSpecInfoCommand() *cobra.Command {
 
 	var (
 		specName string
@@ -103,20 +103,18 @@ func NewAppSpecInfoCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "app-spec-info",
-		Short: "Show app spec details by name",
-		Long: `Look up an application specification by name from the zonelet server.
-
-Internally calls AppSpecList with a name filter, returning the matching spec.
+		Use:   "spec-info",
+		Short: "Show an app spec by name",
+		Long: `Look up an app spec by name from the zonelet server.
 
   # Show details of a specific app spec
-  cli app-spec-info --name myapp
+  innerstack app spec-info --name myapp
 
-  # Show the spec as TOML (same format accepted by app-deploy --spec)
-  cli app-spec-info --name myapp -t
+  # Show the spec as TOML (same format accepted by app deploy --spec)
+  innerstack app spec-info --name myapp -t
 
   # Show raw JSON output
-  cli app-spec-info --name myapp --show-json`,
+  innerstack app spec-info --name myapp --show-json`,
 		RunE: run,
 	}
 

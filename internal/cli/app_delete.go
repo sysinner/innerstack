@@ -25,7 +25,7 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-func NewAppDeleteCommand() *cobra.Command {
+func newAppDeleteCommand() *cobra.Command {
 
 	var (
 		instanceName string
@@ -72,13 +72,13 @@ func NewAppDeleteCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "app-delete",
+		Use:   "delete",
 		Short: "Delete an app instance",
-		Long: `Delete an app instance by its name from the zone server.
+		Long: `Delete an app instance from the zone server.
 This action cannot be undone.`,
 		RunE: deleteRun,
 		Example: `  # Delete an app instance
-  app delete --name <instance-name>`,
+  innerstack app delete --name <instance-name>`,
 	}
 
 	cmd.Flags().StringVarP(&instanceName, "name", "n", "", "App instance name (required)")

@@ -413,7 +413,7 @@ func (s *zoneServer) validatePackageDependencies(packages []*inapi.AppSpecPackag
 	// (pkg/kvapi/read.go), so an unbounded scan silently truncates and a package
 	// sorting past the 10th key would be missed here while PackageList (which
 	// sets Limit=1000) still returns it. Match PackageList's limit to stay
-	// consistent with what the user sees via pkg-list.
+	// consistent with what the user sees via pkg list.
 	offset := inapi.NsPackageInfo("")
 	rs := data.Package.NewRanger(offset, append(offset, 0xff)).SetLimit(1000).Exec()
 

@@ -30,9 +30,9 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 )
 
-// NewPkgListCommand creates the "pkg-list" command for listing packages.
+// newPkgListCommand creates the "pkg list" command for listing packages.
 // Displays packages stored on the zonelet server in a formatted table.
-func NewPkgListCommand() *cobra.Command {
+func newPkgListCommand() *cobra.Command {
 
 	var (
 		showJson   bool
@@ -136,7 +136,7 @@ func NewPkgListCommand() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "pkg-list",
+		Use:   "list",
 		Short: "List packages on zonelet server",
 		Long: `List packages stored on the zonelet server.
 
@@ -152,34 +152,19 @@ Filter options:
   --arch    Filter by architecture (e.g., "amd64", "arm64")`,
 		RunE: runE,
 		Example: `  # List the latest version of each package (default)
-  cli pkg-list
+  innerstack pkg list
 
   # List every version, including incomplete uploads
-  cli pkg-list --all
-
-  # List packages from remote server
-  cli pkg-list --addr 192.168.1.100:9533
-
-  # Latest version of a specific package
-  cli pkg-list --name myapp
+  innerstack pkg list --all
 
   # All versions of a specific package
-  cli pkg-list --name myapp --all
+  innerstack pkg list --name myapp --all
 
-  # Filter by version (fuzzy match: 2.0 matches 2.0.0, 2.0.1, etc.)
-  cli pkg-list --version 2.0
-
-  # Filter by exact version
-  cli pkg-list --version 2.0.0
-
-  # Filter by OS and architecture
-  cli pkg-list --os linux --arch amd64
+  # Filter by version (fuzzy match: 2.0 matches 2.0.0, 2.0.1, ...)
+  innerstack pkg list --version 2.0
 
   # Combine multiple filters
-  cli pkg-list --name myapp --version 2.0 --os linux --arch amd64
-
-  # Show raw JSON output
-  cli pkg-list --json`,
+  innerstack pkg list --name myapp --version 2.0 --os linux --arch amd64`,
 	}
 
 	cmd.Flags().BoolVarP(&showJson, "json", "j", false, "Output in JSON format")
