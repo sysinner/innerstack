@@ -167,7 +167,7 @@ func (s *zoneServer) UserDelete(
 	defer userKeysMu.Unlock()
 
 	if keys, _, err := auth.AuthMgr.AccessKeysOf(
-		req.Name, "", inapi.AccessKeyListLimitMax); err != nil {
+		req.Name, "", inapi.AccessKeyPageSizeMax); err != nil {
 		return nil, err
 	} else if len(keys) > 0 {
 		return nil, fmt.Errorf(
@@ -201,21 +201,22 @@ func (s *zoneServer) UserList(
 		return nil, errors.New("invalid state filter: active | disabled")
 	}
 
-	limit := int(req.Limit)
-	if limit <= 0 {
-		limit = inapi.UserListLimitDefault
+	pageSize := int(req.PageSize)
+	if pageSize <= 0 {
+		pageSize = inapi.UserPageSizeDefault
 	}
-	if limit > inapi.UserListLimitMax {
-		limit = inapi.UserListLimitMax
+	if pageSize > inapi.UserPageSizeMax {
+		pageSize = inapi.UserPageSizeMax
 	}
 
 	prefix := inapi.NsZoneletUser(config.Config.Zonelet.ZoneName, "")
-	// kvgo ranges are (lower, upper]: the offset is the exclusive cursor.
-	lower := append(bytes.Clone(prefix), req.Offset...)
+	// kvgo ranges are (lower, upper]: the page token is the exclusive
+	// cursor.
+	lower := append(bytes.Clone(prefix), req.PageToken...)
 	upper := append(bytes.Clone(prefix), 0xff)
 
-	// The state-filtered scan pages through the namespace until limit
-	// matches are collected (plus one to prove hasMore) or the range is
+	// The state-filtered scan pages through the namespace until pageSize
+	// matches are collected (plus one to prove a next page) or the range is
 	// exhausted; a bounded first page would end the scan at filtered-out
 	// users.
 	resp := &inapi.UserListResponse{}
@@ -243,8 +244,9 @@ func (s *zoneServer) UserList(
 				continue
 			}
 
-			if len(resp.Items) >= limit {
-				resp.HasMore = true
+			if len(resp.Items) >= pageSize {
+				// The next exclusive cursor is the page's last item name.
+				resp.NextPageToken = resp.Items[len(resp.Items)-1].Name
 				return resp, nil
 			}
 			resp.Items = append(resp.Items, &user)
@@ -347,20 +349,20 @@ func (s *zoneServer) AccessKeyList(
 		return nil, errors.New("zonelet leader")
 	}
 
-	limit := int(req.Limit)
-	if limit <= 0 {
-		limit = inapi.AccessKeyListLimitDefault
+	pageSize := int(req.PageSize)
+	if pageSize <= 0 {
+		pageSize = inapi.AccessKeyPageSizeDefault
 	}
-	if limit > inapi.AccessKeyListLimitMax {
-		limit = inapi.AccessKeyListLimitMax
+	if pageSize > inapi.AccessKeyPageSizeMax {
+		pageSize = inapi.AccessKeyPageSizeMax
 	}
 
-	keys, hasMore, err := auth.AuthMgr.AccessKeysOf(req.User, req.Offset, limit)
+	keys, nextPageToken, err := auth.AuthMgr.AccessKeysOf(req.User, req.PageToken, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := &inapi.AccessKeyListResponse{HasMore: hasMore}
+	resp := &inapi.AccessKeyListResponse{NextPageToken: nextPageToken}
 	for _, key := range keys {
 		resp.Items = append(resp.Items, &inapi.AccessKeyItem{
 			KeyId:       key.Id,

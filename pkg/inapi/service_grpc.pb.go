@@ -59,6 +59,9 @@ const (
 	ZoneService_AccessKeySet_FullMethodName       = "/inapi.ZoneService/AccessKeySet"
 	ZoneService_AccessKeyDelete_FullMethodName    = "/inapi.ZoneService/AccessKeyDelete"
 	ZoneService_AccessKeyList_FullMethodName      = "/inapi.ZoneService/AccessKeyList"
+	ZoneService_AlertList_FullMethodName          = "/inapi.ZoneService/AlertList"
+	ZoneService_HostMetrics_FullMethodName        = "/inapi.ZoneService/HostMetrics"
+	ZoneService_AppLogs_FullMethodName            = "/inapi.ZoneService/AppLogs"
 )
 
 // ZoneServiceClient is the client API for ZoneService service.
@@ -132,6 +135,18 @@ type ZoneServiceClient interface {
 	// AccessKeyList lists access keys (secrets never returned). Requires the
 	// zone:ro scope.
 	AccessKeyList(ctx context.Context, in *AccessKeyListRequest, opts ...grpc.CallOption) (*AccessKeyListResponse, error)
+	// AlertList lists built-in alert state records (host_down, disk_full,
+	// replica_crashloop) with state and rule filters. Requires the zone:ro
+	// scope.
+	AlertList(ctx context.Context, in *AlertListRequest, opts ...grpc.CallOption) (*AlertListResponse, error)
+	// HostMetrics queries the built-in host metrics history (monstore blocks,
+	// default 30s x 7d) with optional field filter, time window and step
+	// downsampling. Requires the zone:ro scope.
+	HostMetrics(ctx context.Context, in *HostMetricsRequest, opts ...grpc.CallOption) (*HostMetricsResponse, error)
+	// AppLogs fetches the recent log lines of one app replica, proxied by the
+	// leader to the hosting hostlet. Single pull, no follow. Requires the
+	// app:ro scope.
+	AppLogs(ctx context.Context, in *AppLogsRequest, opts ...grpc.CallOption) (*AppLogsResponse, error)
 }
 
 type zoneServiceClient struct {
@@ -376,6 +391,33 @@ func (c *zoneServiceClient) AccessKeyList(ctx context.Context, in *AccessKeyList
 	return out, nil
 }
 
+func (c *zoneServiceClient) AlertList(ctx context.Context, in *AlertListRequest, opts ...grpc.CallOption) (*AlertListResponse, error) {
+	out := new(AlertListResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AlertList_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) HostMetrics(ctx context.Context, in *HostMetricsRequest, opts ...grpc.CallOption) (*HostMetricsResponse, error) {
+	out := new(HostMetricsResponse)
+	err := c.cc.Invoke(ctx, ZoneService_HostMetrics_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *zoneServiceClient) AppLogs(ctx context.Context, in *AppLogsRequest, opts ...grpc.CallOption) (*AppLogsResponse, error) {
+	out := new(AppLogsResponse)
+	err := c.cc.Invoke(ctx, ZoneService_AppLogs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ZoneServiceServer is the server API for ZoneService service.
 // All implementations must embed UnimplementedZoneServiceServer
 // for forward compatibility
@@ -447,6 +489,18 @@ type ZoneServiceServer interface {
 	// AccessKeyList lists access keys (secrets never returned). Requires the
 	// zone:ro scope.
 	AccessKeyList(context.Context, *AccessKeyListRequest) (*AccessKeyListResponse, error)
+	// AlertList lists built-in alert state records (host_down, disk_full,
+	// replica_crashloop) with state and rule filters. Requires the zone:ro
+	// scope.
+	AlertList(context.Context, *AlertListRequest) (*AlertListResponse, error)
+	// HostMetrics queries the built-in host metrics history (monstore blocks,
+	// default 30s x 7d) with optional field filter, time window and step
+	// downsampling. Requires the zone:ro scope.
+	HostMetrics(context.Context, *HostMetricsRequest) (*HostMetricsResponse, error)
+	// AppLogs fetches the recent log lines of one app replica, proxied by the
+	// leader to the hosting hostlet. Single pull, no follow. Requires the
+	// app:ro scope.
+	AppLogs(context.Context, *AppLogsRequest) (*AppLogsResponse, error)
 	mustEmbedUnimplementedZoneServiceServer()
 }
 
@@ -531,6 +585,15 @@ func (UnimplementedZoneServiceServer) AccessKeyDelete(context.Context, *AccessKe
 }
 func (UnimplementedZoneServiceServer) AccessKeyList(context.Context, *AccessKeyListRequest) (*AccessKeyListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AccessKeyList not implemented")
+}
+func (UnimplementedZoneServiceServer) AlertList(context.Context, *AlertListRequest) (*AlertListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AlertList not implemented")
+}
+func (UnimplementedZoneServiceServer) HostMetrics(context.Context, *HostMetricsRequest) (*HostMetricsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HostMetrics not implemented")
+}
+func (UnimplementedZoneServiceServer) AppLogs(context.Context, *AppLogsRequest) (*AppLogsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AppLogs not implemented")
 }
 func (UnimplementedZoneServiceServer) mustEmbedUnimplementedZoneServiceServer() {}
 
@@ -1013,6 +1076,60 @@ func _ZoneService_AccessKeyList_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ZoneService_AlertList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AlertListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AlertList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AlertList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AlertList(ctx, req.(*AlertListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_HostMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostMetricsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).HostMetrics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_HostMetrics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).HostMetrics(ctx, req.(*HostMetricsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ZoneService_AppLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppLogsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ZoneServiceServer).AppLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ZoneService_AppLogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZoneServiceServer).AppLogs(ctx, req.(*AppLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ZoneService_ServiceDesc is the grpc.ServiceDesc for ZoneService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1123,6 +1240,18 @@ var ZoneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AccessKeyList",
 			Handler:    _ZoneService_AccessKeyList_Handler,
+		},
+		{
+			MethodName: "AlertList",
+			Handler:    _ZoneService_AlertList_Handler,
+		},
+		{
+			MethodName: "HostMetrics",
+			Handler:    _ZoneService_HostMetrics_Handler,
+		},
+		{
+			MethodName: "AppLogs",
+			Handler:    _ZoneService_AppLogs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -1304,7 +1433,8 @@ var ZoneInternalService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	HostInternalService_HostInit_FullMethodName = "/inapi.HostInternalService/HostInit"
+	HostInternalService_HostInit_FullMethodName      = "/inapi.HostInternalService/HostInit"
+	HostInternalService_ContainerLogs_FullMethodName = "/inapi.HostInternalService/ContainerLogs"
 )
 
 // HostInternalServiceClient is the client API for HostInternalService service.
@@ -1313,6 +1443,9 @@ const (
 type HostInternalServiceClient interface {
 	// HostInit initializes a new host and registers it with the specified zone.
 	HostInit(ctx context.Context, in *HostInitRequest, opts ...grpc.CallOption) (*HostInitResponse, error)
+	// ContainerLogs reads the recent log lines of one local container on
+	// behalf of the zone leader's AppLogs proxy.
+	ContainerLogs(ctx context.Context, in *ContainerLogsRequest, opts ...grpc.CallOption) (*ContainerLogsResponse, error)
 }
 
 type hostInternalServiceClient struct {
@@ -1332,12 +1465,24 @@ func (c *hostInternalServiceClient) HostInit(ctx context.Context, in *HostInitRe
 	return out, nil
 }
 
+func (c *hostInternalServiceClient) ContainerLogs(ctx context.Context, in *ContainerLogsRequest, opts ...grpc.CallOption) (*ContainerLogsResponse, error) {
+	out := new(ContainerLogsResponse)
+	err := c.cc.Invoke(ctx, HostInternalService_ContainerLogs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HostInternalServiceServer is the server API for HostInternalService service.
 // All implementations must embed UnimplementedHostInternalServiceServer
 // for forward compatibility
 type HostInternalServiceServer interface {
 	// HostInit initializes a new host and registers it with the specified zone.
 	HostInit(context.Context, *HostInitRequest) (*HostInitResponse, error)
+	// ContainerLogs reads the recent log lines of one local container on
+	// behalf of the zone leader's AppLogs proxy.
+	ContainerLogs(context.Context, *ContainerLogsRequest) (*ContainerLogsResponse, error)
 	mustEmbedUnimplementedHostInternalServiceServer()
 }
 
@@ -1347,6 +1492,9 @@ type UnimplementedHostInternalServiceServer struct {
 
 func (UnimplementedHostInternalServiceServer) HostInit(context.Context, *HostInitRequest) (*HostInitResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HostInit not implemented")
+}
+func (UnimplementedHostInternalServiceServer) ContainerLogs(context.Context, *ContainerLogsRequest) (*ContainerLogsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ContainerLogs not implemented")
 }
 func (UnimplementedHostInternalServiceServer) mustEmbedUnimplementedHostInternalServiceServer() {}
 
@@ -1379,6 +1527,24 @@ func _HostInternalService_HostInit_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HostInternalService_ContainerLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContainerLogsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HostInternalServiceServer).ContainerLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HostInternalService_ContainerLogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HostInternalServiceServer).ContainerLogs(ctx, req.(*ContainerLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HostInternalService_ServiceDesc is the grpc.ServiceDesc for HostInternalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1389,6 +1555,10 @@ var HostInternalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HostInit",
 			Handler:    _HostInternalService_HostInit_Handler,
+		},
+		{
+			MethodName: "ContainerLogs",
+			Handler:    _HostInternalService_ContainerLogs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

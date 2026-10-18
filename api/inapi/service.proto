@@ -26,6 +26,7 @@ import "gateway.proto";
 import "package.proto";
 import "metrics.proto";
 import "audit.proto";
+import "alert.proto";
 
 // ZoneService is the gRPC service for zone-level management.
 // It handles zone initialization, host management, and application deployment.
@@ -130,6 +131,21 @@ service ZoneService {
   // AccessKeyList lists access keys (secrets never returned). Requires the
   // zone:ro scope.
   rpc AccessKeyList(AccessKeyListRequest) returns (AccessKeyListResponse) {}
+
+  // AlertList lists built-in alert state records (host_down, disk_full,
+  // replica_crashloop) with state and rule filters. Requires the zone:ro
+  // scope.
+  rpc AlertList(AlertListRequest) returns (AlertListResponse) {}
+
+  // HostMetrics queries the built-in host metrics history (monstore blocks,
+  // default 30s x 7d) with optional field filter, time window and step
+  // downsampling. Requires the zone:ro scope.
+  rpc HostMetrics(HostMetricsRequest) returns (HostMetricsResponse) {}
+
+  // AppLogs fetches the recent log lines of one app replica, proxied by the
+  // leader to the hosting hostlet. Single pull, no follow. Requires the
+  // app:ro scope.
+  rpc AppLogs(AppLogsRequest) returns (AppLogsResponse) {}
 }
 
 // ZoneInternalService is the gRPC service for internal zone communication.
@@ -156,6 +172,10 @@ service ZoneInternalService {
 service HostInternalService {
   // HostInit initializes a new host and registers it with the specified zone.
   rpc HostInit(HostInitRequest) returns (HostInitResponse) {}
+
+  // ContainerLogs reads the recent log lines of one local container on
+  // behalf of the zone leader's AppLogs proxy.
+  rpc ContainerLogs(ContainerLogsRequest) returns (ContainerLogsResponse) {}
 }
 
 // PingRequest is an empty request for connectivity checking.
@@ -207,6 +227,57 @@ message HostListRequest {}
 message HostListResponse {
   // hosts is the list of hosts in the zone.
   repeated Host hosts = 2;
+}
+
+// AppLogsRequest fetches the recent log lines of one app replica. The
+// leader locates the replica's host and proxies to its hostlet.
+message AppLogsRequest {
+  // name is the app instance name.
+  string name = 1;
+
+  // replica_id is the replica to read; default 0.
+  uint32 replica_id = 2;
+
+  // tail is the number of last lines to return; default 200, max 5000.
+  uint32 tail = 3;
+
+  // start_time is the unix second cutoff; 0 returns the whole (rotated)
+  // log.
+  int64 start_time = 4;
+}
+
+// AppLogsResponse carries the proxied container log lines.
+message AppLogsResponse {
+  // lines are stdout+stderr interleaved, docker timestamps included.
+  repeated string lines = 1;
+
+  // truncated is true when the output hit the 1MB transfer cap.
+  bool truncated = 2;
+
+  // host_id is the host that served the log.
+  string host_id = 3;
+}
+
+// ContainerLogsRequest reads the recent log lines of one local container
+// (leader -> hostlet).
+message ContainerLogsRequest {
+  // container is the container name (i8k_{instance}_{replica}).
+  string container = 1;
+
+  // tail is the number of last lines to return.
+  uint32 tail = 2;
+
+  // start_time is the unix second cutoff; 0 returns the whole (rotated)
+  // log.
+  int64 start_time = 3;
+}
+
+// ContainerLogsResponse carries the container log lines.
+message ContainerLogsResponse {
+  repeated string lines = 1;
+
+  // truncated is true when the output hit the 1MB transfer cap.
+  bool truncated = 2;
 }
 
 // HostStatusUpdateRequest is the request message for updating host status.
@@ -590,11 +661,11 @@ message UserListRequest {
   // state filters by active or disabled; empty lists all.
   string state = 1;
 
-  // limit is the page size (default 100, max 1000).
-  uint32 limit = 2;
+  // page_size is the page size (default 100, max 1000).
+  int32 page_size = 2;
 
-  // offset is the last name of the previous page (exclusive cursor).
-  string offset = 3;
+  // page_token is the name cursor of the previous page (exclusive).
+  string page_token = 3;
 }
 
 // UserListResponse is the response message containing users.
@@ -602,8 +673,8 @@ message UserListResponse {
   // items is the list of users.
   repeated User items = 1;
 
-  // has_more reports matches beyond the returned page.
-  bool has_more = 2;
+  // next_page_token is empty when no more items.
+  string next_page_token = 2;
 }
 
 // AccessKeySetRequest is the request message for creating a user access key.
@@ -643,11 +714,11 @@ message AccessKeyListRequest {
   // user filters by owning user; empty lists all keys.
   string user = 1;
 
-  // limit is the page size (default 100, max 1000).
-  uint32 limit = 2;
+  // page_size is the page size (default 100, max 1000).
+  int32 page_size = 2;
 
-  // offset is the last key id of the previous page (exclusive cursor).
-  string offset = 3;
+  // page_token is the key-id cursor of the previous page (exclusive).
+  string page_token = 3;
 }
 
 // AccessKeyItem is a listed access key without its secret.
@@ -677,6 +748,6 @@ message AccessKeyListResponse {
   // items is the list of access keys.
   repeated AccessKeyItem items = 1;
 
-  // has_more reports matches beyond the returned page.
-  bool has_more = 2;
+  // next_page_token is empty when no more items.
+  string next_page_token = 2;
 }

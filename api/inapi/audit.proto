@@ -73,9 +73,9 @@ message AuditAnchor {
 }
 
 message AuditListRequest {
-  // window
-  int64 ts_start = 1; // unix ms; 0 = unbounded
-  int64 ts_end = 2;   // unix ms; 0 = unbounded
+  // window (unix milliseconds; 0 = unbounded)
+  int64 start_time = 1;
+  int64 end_time = 2;
 
   // actor
   string actor_id = 3;   // access key id, exact match
@@ -87,14 +87,14 @@ message AuditListRequest {
   string status = 7;    // ok | denied | error | unauthenticated
 
   // paging
-  uint32 limit = 8;   // default 100, max 1000
-  bool revert = 9;    // true: oldest first; false (default): newest first
-  string offset = 10; // last id of the previous page (exclusive cursor)
+  int32 page_size = 8;   // default 100, max 1000
+  bool revert = 9;       // true: oldest first; false (default): newest first
+  string page_token = 10; // record id cursor of the previous page (exclusive)
 }
 
 message AuditListResponse {
   repeated AuditRecord items = 1;
-  bool has_more = 2;
+  string next_page_token = 2; // empty when no more items
 }
 
 message AuditVerifyRequest {}

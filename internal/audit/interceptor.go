@@ -82,7 +82,7 @@ func buildRecord(
 	req, resp any, rpcErr error,
 ) *inapi.AuditRecord {
 
-	st := statusOf(rpcErr)
+	st := StatusOf(rpcErr)
 
 	ext, known := extractors[method]
 	if !known && st != inapi.AuditStatusDenied {
@@ -199,10 +199,11 @@ func (it *authFailureCache) sweepLocked(now int64) {
 	}
 }
 
-// statusOf maps a gRPC error to an audit status: OK -> ok,
+// StatusOf maps a gRPC error to an audit status: OK -> ok,
 // PermissionDenied -> denied, Unauthenticated -> unauthenticated, anything
-// else -> error.
-func statusOf(err error) string {
+// else -> error. Shared with the rpc metrics interceptor, whose
+// innerstack_rpc_total items use the same strings.
+func StatusOf(err error) string {
 	if err == nil {
 		return inapi.AuditStatusOK
 	}

@@ -98,7 +98,7 @@ func TestUserLifecycle(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	keys, _, err := auth.AuthMgr.AccessKeysOf("tim", "", inapi.AccessKeyListLimitMax)
+	keys, _, err := auth.AuthMgr.AccessKeysOf("tim", "", inapi.AccessKeyPageSizeMax)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestUserLifecycle(t *testing.T) {
 	if keys, _, err = auth.AuthMgr.AccessKeysOf(
 		"tim",
 		"",
-		inapi.AccessKeyListLimitMax,
+		inapi.AccessKeyPageSizeMax,
 	); err != nil {
 		t.Fatal(err)
 	} else if len(keys) != 1 ||
@@ -261,8 +261,8 @@ func TestUserListStateFilter(t *testing.T) {
 	offset := ""
 	for {
 		page, err := srv.UserList(ctx, &inapi.UserListRequest{
-			Limit:  1,
-			Offset: offset,
+			PageSize:  1,
+			PageToken: offset,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -274,7 +274,7 @@ func TestUserListStateFilter(t *testing.T) {
 			t.Fatalf("user %s returned twice", page.Items[0].Name)
 		}
 		seen[page.Items[0].Name] = true
-		if !page.HasMore {
+		if page.NextPageToken == "" {
 			break
 		}
 		offset = page.Items[0].Name
@@ -305,26 +305,26 @@ func TestUserListFilteredSkewPagination(t *testing.T) {
 	}
 
 	rsp, err := srv.UserList(ctx, &inapi.UserListRequest{
-		State: inapi.UserStateActive,
-		Limit: 1,
+		State:    inapi.UserStateActive,
+		PageSize: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rsp.Items) != 1 || rsp.Items[0].Name != "uda" || !rsp.HasMore {
-		t.Fatalf("first active page = %+v has_more=%v", rsp.Items, rsp.HasMore)
+	if len(rsp.Items) != 1 || rsp.Items[0].Name != "uda" || rsp.NextPageToken == "" {
+		t.Fatalf("first active page = %+v has_more=%v", rsp.Items, rsp.NextPageToken != "")
 	}
 
 	rsp, err = srv.UserList(ctx, &inapi.UserListRequest{
-		State:  inapi.UserStateActive,
-		Limit:  1,
-		Offset: rsp.Items[0].Name,
+		State:     inapi.UserStateActive,
+		PageSize:  1,
+		PageToken: rsp.Items[0].Name,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rsp.Items) != 1 || rsp.Items[0].Name != "udc" || rsp.HasMore {
-		t.Fatalf("second active page = %+v has_more=%v", rsp.Items, rsp.HasMore)
+	if len(rsp.Items) != 1 || rsp.Items[0].Name != "udc" || rsp.NextPageToken != "" {
+		t.Fatalf("second active page = %+v has_more=%v", rsp.Items, rsp.NextPageToken != "")
 	}
 }
 

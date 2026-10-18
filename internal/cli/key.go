@@ -94,7 +94,7 @@ func newKeyListCommand() *cobra.Command {
 
 	var (
 		user  string
-		limit uint32
+		limit int32
 	)
 
 	run := func(cmd *cobra.Command, args []string) error {
@@ -108,8 +108,8 @@ func newKeyListCommand() *cobra.Command {
 		defer cancel()
 
 		resp, err := zc.AccessKeyList(ctx, &inapi.AccessKeyListRequest{
-			User:  user,
-			Limit: limit,
+			User:     user,
+			PageSize: limit,
 		})
 		if err != nil {
 			return err
@@ -146,7 +146,7 @@ func newKeyListCommand() *cobra.Command {
 		}
 
 		fmt.Print(tbuf.String())
-		if resp.HasMore {
+		if resp.NextPageToken != "" {
 			fmt.Println("(more access keys available, increase --limit)")
 		}
 		return nil
@@ -158,7 +158,7 @@ func newKeyListCommand() *cobra.Command {
 		RunE:  run,
 	}
 	cmd.Flags().StringVar(&user, "user", "", "filter by owning user")
-	cmd.Flags().Uint32Var(&limit, "limit", inapi.AccessKeyListLimitDefault, "max keys to return")
+	cmd.Flags().Int32Var(&limit, "limit", inapi.AccessKeyPageSizeDefault, "max keys to return")
 
 	return cmd
 }

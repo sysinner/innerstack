@@ -39,6 +39,7 @@ func NewHostCommand() *cobra.Command {
 	}
 	cmd.AddCommand(newHostJoinCommand())
 	cmd.AddCommand(newHostListCommand())
+	cmd.AddCommand(newHostMetricsCommand())
 	return cmd
 }
 
@@ -52,6 +53,7 @@ func NewAppCommand() *cobra.Command {
 	cmd.AddCommand(newAppListCommand())
 	cmd.AddCommand(newAppInfoCommand())
 	cmd.AddCommand(newAppDeleteCommand())
+	cmd.AddCommand(newAppLogsCommand())
 	cmd.AddCommand(newAppSpecListCommand())
 	cmd.AddCommand(newAppSpecInfoCommand())
 	return cmd

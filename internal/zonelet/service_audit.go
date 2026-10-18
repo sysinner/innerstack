@@ -43,26 +43,26 @@ func (s *zoneServer) AuditList(
 		return nil, errors.New("invalid status filter")
 	}
 
-	items, hasMore, err := audit.List(data.Zonelet, audit.ListOptions{
+	items, nextPageToken, err := audit.List(data.Zonelet, audit.ListOptions{
 		Zone:      config.Config.Zonelet.ZoneName,
-		TsStart:   req.TsStart,
-		TsEnd:     req.TsEnd,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
 		ActorId:   req.ActorId,
 		ActorUser: req.ActorUser,
 		Action:    req.Action,
 		TargetId:  req.TargetId,
 		Status:    req.Status,
-		Limit:     int(req.Limit),
+		PageSize:  int(req.PageSize),
 		Revert:    req.Revert,
-		Offset:    req.Offset,
+		PageToken: req.PageToken,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &inapi.AuditListResponse{
-		Items:   items,
-		HasMore: hasMore,
+		Items:         items,
+		NextPageToken: nextPageToken,
 	}, nil
 }
 

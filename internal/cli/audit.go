@@ -59,7 +59,7 @@ func newAuditListCommand() *cobra.Command {
 		status   string
 		since    string
 		until    string
-		limit    uint32
+		limit    int32
 		showJson bool
 	)
 
@@ -79,14 +79,14 @@ func newAuditListCommand() *cobra.Command {
 		defer cancel()
 
 		resp, err := zc.AuditList(ctx, &inapi.AuditListRequest{
-			TsStart:   tsStart,
-			TsEnd:     tsEnd,
+			StartTime: tsStart,
+			EndTime:   tsEnd,
 			ActorId:   actorId,
 			ActorUser: actorUsr,
 			Action:    action,
 			TargetId:  targetId,
 			Status:    status,
-			Limit:     limit,
+			PageSize:  limit,
 			Revert:    false, // newest first
 		})
 		if err != nil {
@@ -124,7 +124,7 @@ func newAuditListCommand() *cobra.Command {
 
 		fmt.Print(tbuf.String())
 
-		if resp.HasMore {
+		if resp.NextPageToken != "" {
 			fmt.Fprintln(os.Stderr, "more records exist, narrow the window or raise --limit")
 		}
 
@@ -148,7 +148,7 @@ func newAuditListCommand() *cobra.Command {
 	cmd.Flags().
 		StringVar(&since, "since", "", "window start: RFC3339 timestamp or duration ago (e.g. 24h)")
 	cmd.Flags().StringVar(&until, "until", "", "window end: RFC3339 timestamp")
-	cmd.Flags().Uint32Var(&limit, "limit", inapi.AuditListLimitDefault,
+	cmd.Flags().Int32Var(&limit, "limit", inapi.AuditPageSizeDefault,
 		"max records to return (server cap 1000)")
 	cmd.Flags().BoolVarP(&showJson, "show-json", "j", false, "show raw response with json")
 
@@ -198,11 +198,11 @@ func newAuditExportCommand() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
 			resp, err := zc.AuditList(ctx, &inapi.AuditListRequest{
-				TsStart: tsStart,
-				TsEnd:   tsEnd,
-				Limit:   exportPageSize,
-				Revert:  true, // oldest first for a stable export stream
-				Offset:  offset,
+				StartTime: tsStart,
+				EndTime:   tsEnd,
+				PageSize:  exportPageSize,
+				Revert:    true, // oldest first for a stable export stream
+				PageToken: offset,
 			})
 			cancel()
 			if err != nil {
@@ -227,10 +227,10 @@ func newAuditExportCommand() *cobra.Command {
 				lastHash, lastId = v.Hash, v.Id
 			}
 
-			if !resp.HasMore || len(resp.Items) == 0 {
+			if resp.NextPageToken == "" || len(resp.Items) == 0 {
 				break
 			}
-			offset = resp.Items[len(resp.Items)-1].Id
+			offset = resp.NextPageToken
 		}
 
 		// The manifest is the tamper-evidence root: stderr keeps it out of

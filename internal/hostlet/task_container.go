@@ -220,13 +220,57 @@ func containerRefresh() error {
 		return err
 	}
 	containerOrphanSweep()
+	containerRestartRefresh()
 	return nil
 }
+
+// containerRestartRefresh polls the restart counter of running managed
+// containers via driver inspect, throttled per container to one poll per
+// restartCheckInterval. The counter rides the regular replica metrics
+// report; the zone leader derives replica_crashloop alert events from its
+// deltas. The list API does not expose restart counts, hence the
+// per-container inspect.
+func containerRestartRefresh() {
+
+	if ctrDriver == nil || !hoststatus.ContainerReady.Load() {
+		return
+	}
+
+	tn := time.Now().Unix()
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContainerTimeout)
+	defer cancel()
+
+	hoststatus.ContainerList.Range(func(key, value any) bool {
+		info, ok := value.(*hostapi.ContainerInfo)
+		if !ok || info.State != inapi.OpStateRunning {
+			return true
+		}
+		if info.LastRestartCheck+restartCheckInterval > tn {
+			return true
+		}
+		info.LastRestartCheck = tn
+
+		ctrInfo, err := ctrDriver.ContainerInspect(ctx, info.Name)
+		if err != nil {
+			slog.Debug("restart count inspect failed",
+				"container", info.Name, "err", err)
+			return true
+		}
+		info.RestartCount = ctrInfo.RestartCount
+		return true
+	})
+}
+
+// restartCheckInterval bounds how often one container's restart counter is
+// polled; a restart between polls is timestamped at the next poll, which is
+// well inside the crashloop window.
+const restartCheckInterval int64 = 30
 
 // lxcfsDetect checks if an lxcfs binary is running on the host.
 // It sets lxcfsEnabled to true if config enables it and the process is detected.
 func lxcfsDetect() {
-	if !config.Config.Hostlet.LxcFsEnable || lxcfsEnabled.Load() {
+	if !config.Config.Hostlet.LxcFsEnabled || lxcfsEnabled.Load() {
 		return
 	}
 	for _, vp := range lxcfsBinPaths {
@@ -1262,7 +1306,7 @@ func provisionInnerStack(rep *inapi.AppReplicaInstance) error {
 	inagentPath := appPaths.InagentFile()
 
 	var srcInagentPath string
-	if config.Config.Hostlet.InagentSlimEnable {
+	if config.Config.Hostlet.InagentSlimEnabled {
 		srcInagentPath = srcPaths.InagentSlimSrc(arch)
 		if _, err := os.Stat(srcInagentPath); err != nil {
 			slog.Warn("inagent-slim binary not found, falling back to Go inagent",
@@ -1611,6 +1655,7 @@ func containerStatsToNodeMetrics(
 
 	if info != nil && info.Created > 0 && now > info.Created {
 		m.Uptime = now - info.Created
+		m.RestartCount = int32(info.RestartCount)
 	}
 
 	return m

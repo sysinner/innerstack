@@ -62,43 +62,44 @@ func recordHash(rec *inapi.AuditRecord) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// ListOptions filters an audit query. Offset is the exclusive id cursor of
-// the previous page's last item (in return order).
+// ListOptions filters an audit query. PageToken is the exclusive id cursor
+// of the previous page's last item (in return order).
 type ListOptions struct {
-	Zone           string
-	TsStart, TsEnd int64  // unix ms, 0 = unbounded
-	ActorId        string // access key id, exact match
-	ActorUser      string // user id, exact match
-	Action         string
-	TargetId       string // prefix match
-	Status         string
-	Limit          int
-	Revert         bool // true: oldest first (chronological); false: newest first
-	Offset         string
+	Zone               string
+	StartTime, EndTime int64  // unix ms, 0 = unbounded
+	ActorId            string // access key id, exact match
+	ActorUser          string // user id, exact match
+	Action             string
+	TargetId           string // prefix match
+	Status             string
+	PageSize           int
+	Revert             bool // true: oldest first (chronological); false: newest first
+	PageToken          string
 }
 
 // List scans a zone's records and filters in memory (kvgo has no secondary
-// index), bounded by inapi.AuditScanLimit keys. hasMore reports possible
-// matches beyond the returned page.
-func List(db kvapi.Client, opt ListOptions) ([]*inapi.AuditRecord, bool, error) {
+// index), bounded by inapi.AuditScanLimit keys. nextPageToken is the id of
+// the returned page's last item when more matches may follow, or empty when
+// the listing is complete.
+func List(db kvapi.Client, opt ListOptions) ([]*inapi.AuditRecord, string, error) {
 
-	limit := opt.Limit
+	limit := opt.PageSize
 	if limit <= 0 {
-		limit = inapi.AuditListLimitDefault
+		limit = inapi.AuditPageSizeDefault
 	}
-	if limit > inapi.AuditListLimitMax {
-		limit = inapi.AuditListLimitMax
+	if limit > inapi.AuditPageSizeMax {
+		limit = inapi.AuditPageSizeMax
 	}
 
 	prefix := inapi.NsZoneletAuditLogPrefix(opt.Zone)
 
 	// kvgo ranges are ascending (lower, upper] / descending [lower, upper):
 	// the cursor bound is exclusive in both directions.
-	lower := append(bytes.Clone(prefix), minIdOfTs(opt.TsStart)...)
-	upper := append(bytes.Clone(prefix), maxIdOfTs(opt.TsEnd)...)
+	lower := append(bytes.Clone(prefix), minIdOfTs(opt.StartTime)...)
+	upper := append(bytes.Clone(prefix), maxIdOfTs(opt.EndTime)...)
 
-	if opt.Offset != "" {
-		cursor := append(bytes.Clone(prefix), opt.Offset...)
+	if opt.PageToken != "" {
+		cursor := append(bytes.Clone(prefix), opt.PageToken...)
 		if opt.Revert {
 			lower = maxBytes(lower, cursor)
 		} else {
@@ -128,7 +129,7 @@ func List(db kvapi.Client, opt ListOptions) ([]*inapi.AuditRecord, bool, error) 
 			if rs.NotFound() {
 				break
 			}
-			return nil, false, rs.Error()
+			return nil, "", rs.Error()
 		}
 		if len(rs.Items) == 0 {
 			break
@@ -149,8 +150,9 @@ func List(db kvapi.Client, opt ListOptions) ([]*inapi.AuditRecord, bool, error) 
 
 			items = append(items, &rec)
 			if len(items) > limit {
-				// One extra matching record proves more pages exist.
-				return items[:limit], true, nil
+				// One extra matching record proves more pages exist; the
+				// page's last id is the next exclusive cursor.
+				return items[:limit], items[limit-1].Id, nil
 			}
 		}
 
@@ -164,17 +166,20 @@ func List(db kvapi.Client, opt ListOptions) ([]*inapi.AuditRecord, bool, error) 
 		}
 	}
 
-	// Scan budget exhausted: more matching records may exist.
-	hasMore := scanned >= inapi.AuditScanLimit
+	// Scan budget exhausted: more matching records may exist; the page's
+	// last id becomes the next exclusive cursor.
+	if scanned >= inapi.AuditScanLimit && len(items) > 0 {
+		return items, items[len(items)-1].Id, nil
+	}
 
-	return items, hasMore, nil
+	return items, "", nil
 }
 
 func matchRecord(rec *inapi.AuditRecord, opt ListOptions) bool {
-	if opt.TsStart > 0 && rec.Ts < opt.TsStart {
+	if opt.StartTime > 0 && rec.Ts < opt.StartTime {
 		return false
 	}
-	if opt.TsEnd > 0 && rec.Ts > opt.TsEnd {
+	if opt.EndTime > 0 && rec.Ts > opt.EndTime {
 		return false
 	}
 	if opt.ActorId != "" && rec.ActorId != opt.ActorId {

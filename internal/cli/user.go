@@ -122,7 +122,7 @@ func newUserListCommand() *cobra.Command {
 
 	var (
 		state string
-		limit uint32
+		limit int32
 	)
 
 	run := func(cmd *cobra.Command, args []string) error {
@@ -136,8 +136,8 @@ func newUserListCommand() *cobra.Command {
 		defer cancel()
 
 		resp, err := zc.UserList(ctx, &inapi.UserListRequest{
-			State: state,
-			Limit: limit,
+			State:    state,
+			PageSize: limit,
 		})
 		if err != nil {
 			return err
@@ -164,7 +164,7 @@ func newUserListCommand() *cobra.Command {
 		}
 
 		fmt.Print(tbuf.String())
-		if resp.HasMore {
+		if resp.NextPageToken != "" {
 			fmt.Println("(more users available, increase --limit)")
 		}
 		return nil
@@ -176,7 +176,7 @@ func newUserListCommand() *cobra.Command {
 		RunE:  run,
 	}
 	cmd.Flags().StringVar(&state, "state", "", "filter by state: active | disabled")
-	cmd.Flags().Uint32Var(&limit, "limit", inapi.UserListLimitDefault, "max users to return")
+	cmd.Flags().Int32Var(&limit, "limit", inapi.UserPageSizeDefault, "max users to return")
 
 	return cmd
 }

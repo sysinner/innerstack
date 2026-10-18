@@ -35,9 +35,10 @@ import (
 
 const auditTestZone = "audittest"
 
-// setupAuditTest wires a temp zonelet database, the zone config and leader
-// state, returning an admin context and a cleanup func.
-func setupAuditTest(t *testing.T) context.Context {
+// setupZoneletStoreTest wires a temp zonelet database, the zone config and
+// leader state for a zone-name-scoped test, returning an admin (wildcard)
+// context. Shared by the audit and alert test suites.
+func setupZoneletStoreTest(t *testing.T, zone string) context.Context {
 	t.Helper()
 
 	db, err := kvrep.NewReplica(&storage.Options{DataDirectory: t.TempDir()})
@@ -48,7 +49,7 @@ func setupAuditTest(t *testing.T) context.Context {
 	prevDB := data.Zonelet
 	data.Zonelet = db
 	prevZone := config.Config.Zonelet.ZoneName
-	config.Config.Zonelet.ZoneName = auditTestZone
+	config.Config.Zonelet.ZoneName = zone
 
 	zstatus.ZoneletLeader = config.Config.Hostlet.HostId
 	zstatus.ZoneletLeaderUpdated = time.Now().UnixMilli()
@@ -72,6 +73,12 @@ func setupAuditTest(t *testing.T) context.Context {
 	})
 
 	return inauth.NewAppContext(context.Background(), av)
+}
+
+// setupAuditTest wires the audit suite's zone and store.
+func setupAuditTest(t *testing.T) context.Context {
+	t.Helper()
+	return setupZoneletStoreTest(t, auditTestZone)
 }
 
 // seedAuditRecords writes n plain records with the given action/status
@@ -112,8 +119,8 @@ func TestServiceAuditListPagination(t *testing.T) {
 	offset := ""
 	for {
 		rsp, err := srv.AuditList(ctx, &inapi.AuditListRequest{
-			Limit:  10,
-			Offset: offset,
+			PageSize:  10,
+			PageToken: offset,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -127,7 +134,7 @@ func TestServiceAuditListPagination(t *testing.T) {
 			}
 			seen[v.Id] = true
 		}
-		if !rsp.HasMore {
+		if rsp.NextPageToken == "" {
 			break
 		}
 		offset = rsp.Items[len(rsp.Items)-1].Id
@@ -227,7 +234,7 @@ func TestServiceAuditListTimeWindow(t *testing.T) {
 
 	seedAuditRecords(t, 2, "a/y", inapi.AuditStatusOK)
 
-	rsp, err := srv.AuditList(ctx, &inapi.AuditListRequest{TsStart: split})
+	rsp, err := srv.AuditList(ctx, &inapi.AuditListRequest{StartTime: split})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +242,7 @@ func TestServiceAuditListTimeWindow(t *testing.T) {
 		t.Fatalf("got %d items after ts_start, want 2", len(rsp.Items))
 	}
 
-	rsp, err = srv.AuditList(ctx, &inapi.AuditListRequest{TsEnd: split})
+	rsp, err = srv.AuditList(ctx, &inapi.AuditListRequest{EndTime: split})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -16,6 +16,7 @@ package inapi
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -86,6 +87,58 @@ func NsZoneletAuditAnchor(zone, date string) []byte {
 // of a zone.
 func NsZoneletAuditAnchorPrefix(zone string) []byte {
 	return []byte(NsPrefix + fmt.Sprintf("zone/%s/audit/anchor/", zone))
+}
+
+// NsZoneletAlert returns the KV key for one alert state record. The id is
+// "{rule}/{target}": fixed key order (rule, then target) makes the prefix
+// scan deterministic and lets the id double as the pagination cursor.
+func NsZoneletAlert(zone, id string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/alert/%s", zone, id))
+}
+
+// NsZoneletAlertPrefix returns the KV key prefix of all alert state records
+// of a zone.
+func NsZoneletAlertPrefix(zone string) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/alert/", zone))
+}
+
+// MonBlockSeconds is the time span covered by one monstore block; a block
+// is flushed to kvgo (with retention TTL) when it rotates.
+const MonBlockSeconds int64 = 600
+
+// MonFields are the host-level series stored by the monstore, name-aligned
+// with the exported gauges.
+var MonFields = []string{
+	"cpu_millicores", "mem_used", "mem_available",
+	"disk_free", "disk_total", "net_recv", "net_sent",
+	"disk_read", "disk_write",
+}
+
+// MonFieldValid reports whether f is a known monstore field.
+func MonFieldValid(f string) bool {
+	return slices.Contains(MonFields, f)
+}
+
+// MonBlockId renders a block start timestamp as the fixed-width 10-digit
+// hexadecimal key suffix (lexicographic order equals time order).
+func MonBlockId(blockStart int64) string {
+	return fmt.Sprintf("%010x", blockStart)
+}
+
+// NsZoneletMonBlock returns the KV key of one monstore block: one (host,
+// field) series over one block window.
+func NsZoneletMonBlock(zone, host, field string, blockStart int64) []byte {
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/mon/host/%s/%s/%s",
+		zone, host, field, MonBlockId(blockStart)))
+}
+
+// NsZoneletMonBlockPrefix returns the KV key prefix of all monstore blocks
+// of one host, or of one (host, field) series when field is non-empty.
+func NsZoneletMonBlockPrefix(zone, host, field string) []byte {
+	if field == "" {
+		return []byte(NsPrefix + fmt.Sprintf("zone/%s/mon/host/%s/", zone, host))
+	}
+	return []byte(NsPrefix + fmt.Sprintf("zone/%s/mon/host/%s/%s/", zone, host, field))
 }
 
 func NsHostInfo(zone, host string) []byte {

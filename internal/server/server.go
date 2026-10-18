@@ -27,6 +27,7 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/audit"
 	"github.com/sysinner/innerstack/v2/internal/auth"
 	"github.com/sysinner/innerstack/v2/internal/config"
+	"github.com/sysinner/innerstack/v2/internal/metrics"
 )
 
 type RpcServer = grpc.Server
@@ -45,13 +46,20 @@ var (
 // Setup initializes the gRPC server with optional interceptors
 func Setup() error {
 
-	// Chain order: auth first (injects the actor into ctx); auth failures
-	// are recorded by audit.AuthFailure inside the auth interceptor. No
+	// Chain order: metrics outermost so unauthenticated and denied calls
+	// are counted too; auth next (injects the actor into ctx; auth failures
+	// are recorded by audit.AuthFailure inside the auth interceptor). The
+	// metrics interceptor is installed only when [metrics] is explicitly
+	// enabled - the same switch that mounts the /metrics endpoints. No
 	// stream RPCs today; extend the stream chain if one is added.
-	unaryChain := []grpc.UnaryServerInterceptor{
+	unaryChain := make([]grpc.UnaryServerInterceptor, 0, 3)
+	if config.Config.Metrics.On() {
+		unaryChain = append(unaryChain, metrics.UnaryInterceptor())
+	}
+	unaryChain = append(unaryChain,
 		auth.AuthMgr.GrpcAuthInterceptor(),
 		audit.Interceptor(),
-	}
+	)
 
 	opts := []grpc.ServerOption{
 		grpc.MaxSendMsgSize(grpcMsgByteMax),

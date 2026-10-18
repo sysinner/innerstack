@@ -16,12 +16,14 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -394,6 +396,10 @@ func (it *dockerDriver) ContainerInspect(
 		info.Started = container.State.StartedAt.Unix()
 	}
 
+	// Cumulative restarts driven by the container restart policy; the zone
+	// leader derives replica_crashloop alert events from its deltas.
+	info.RestartCount = container.RestartCount
+
 	// Extract port bindings
 	for port, bindings := range container.HostConfig.PortBindings {
 		for _, binding := range bindings {
@@ -533,6 +539,14 @@ func (it *dockerDriver) ContainerCreate(
 	// Restart policy
 	if opts.RestartPolicy != "" {
 		hostConfig.RestartPolicy = drvClient.RestartPolicy{Name: opts.RestartPolicy}
+	}
+
+	// Log rotation default: cap every container's json-file logs at
+	// max-size x max-file (~30MB) so runaway logging cannot fill the data
+	// disk. Existing containers pick this up on recreate.
+	hostConfig.LogConfig = drvClient.LogConfig{
+		Type:   "json-file",
+		Config: map[string]string{"max-size": "10m", "max-file": "3"},
 	}
 
 	// DNS servers
@@ -766,6 +780,55 @@ func (it *dockerDriver) ImagePull(ctx context.Context, image string) error {
 		return fmt.Errorf("[docker.ImagePull] pull %s failed: %w", image, err)
 	}
 	return nil
+}
+
+// ContainerLogs reads the recent stdout+stderr log lines of a container.
+// Both streams multiplex into one buffer in arrival order, docker json-file
+// timestamps included. A missing container returns empty output without
+// error, mirroring the stop/remove idempotency.
+func (it *dockerDriver) ContainerLogs(
+	ctx context.Context, nameOrId string, tail uint32, since int64,
+) ([]string, error) {
+	defer recoverPanic()
+
+	if err := it.init(); err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	err := it.client.Logs(drvClient.LogsOptions{
+		Container:    nameOrId,
+		OutputStream: &buf,
+		ErrorStream:  &buf,
+		Stdout:       true,
+		Stderr:       true,
+		Timestamps:   true,
+		Tail:         strconv.FormatInt(int64(tail), 10),
+		Since:        since,
+		Context:      ctx,
+	})
+	if err != nil {
+		if isDockerError(err, "No such container") {
+			return nil, nil
+		}
+		return nil, fmt.Errorf(
+			"[docker.ContainerLogs] logs %s failed: %w", nameOrId, err)
+	}
+
+	return splitLogLines(buf.Bytes()), nil
+}
+
+// splitLogLines splits a raw log stream into lines, dropping the trailing
+// empty element of a newline-terminated stream.
+func splitLogLines(b []byte) []string {
+	if len(b) == 0 {
+		return nil
+	}
+	lines := strings.Split(string(b), "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
 }
 
 // ContainerStats fetches resource usage statistics for a running container.

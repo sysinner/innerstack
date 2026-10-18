@@ -80,7 +80,7 @@ func TestStatusMapping(t *testing.T) {
 
 	for _, f := range fixtures {
 		t.Run(f.name, func(t *testing.T) {
-			if got := statusOf(f.err); got != f.want {
+			if got := StatusOf(f.err); got != f.want {
 				t.Fatalf("statusOf = %q, want %q", got, f.want)
 			}
 		})

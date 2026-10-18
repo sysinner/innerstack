@@ -99,9 +99,9 @@ const (
 // Audit query limits; AuditScanLimit bounds one AuditList scan (kvgo has no
 // secondary index).
 const (
-	AuditListLimitDefault = 100
-	AuditListLimitMax     = 1000
-	AuditScanLimit        = 10000
+	AuditPageSizeDefault = 100
+	AuditPageSizeMax     = 1000
+	AuditScanLimit       = 10000
 )
 
 // AuditRecord.Status values: the outcome of the audited RPC attempt.
@@ -127,13 +127,52 @@ const (
 	UserStateDisabled = "disabled"
 )
 
+// Built-in alert rule ids and Alert.state values, shared by the zonelet
+// evaluation loop, the persisted Alert records and the CLI.
+const (
+	// AlertRuleHostDown fires when a registered host's last status report is
+	// older than the freshness threshold.
+	AlertRuleHostDown = "host_down"
+	// AlertRuleDiskFull fires when a host's free disk ratio stays below the
+	// configured threshold for consecutive evaluations.
+	AlertRuleDiskFull = "disk_full"
+	// AlertRuleReplicaCrashloop fires when a replica's container restarts
+	// too often within the crashloop window.
+	AlertRuleReplicaCrashloop = "replica_crashloop"
+
+	AlertStateFiring   = "firing"
+	AlertStateResolved = "resolved"
+)
+
+// AlertList paging limits; AlertScanLimit bounds one AlertList scan (kvgo has
+// no secondary index).
+const (
+	AlertPageSizeDefault = 100
+	AlertPageSizeMax     = 1000
+	AlertScanLimit       = 4096
+)
+
+// HostMetrics paging limits and the monstore block-scan bound, sharing the
+// alert-query convention.
+const (
+	HostMetricsMaxPointsDefault = 1000
+	HostMetricsMaxPointsMax     = 10000
+	MonBlockScanLimit           = 4096
+)
+
+// AppLogs tail defaults; the hostlet applies the default and the max.
+const (
+	AppLogsTailDefault = 200
+	AppLogsTailMax     = 5000
+)
+
 // AccessKey management list limits.
 const (
-	AccessKeyListLimitDefault = 100
-	AccessKeyListLimitMax     = 1000
+	AccessKeyPageSizeDefault = 100
+	AccessKeyPageSizeMax     = 1000
 
-	UserListLimitDefault = 100
-	UserListLimitMax     = 1000
+	UserPageSizeDefault = 100
+	UserPageSizeMax     = 1000
 )
 
 const (

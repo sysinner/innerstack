@@ -22,6 +22,7 @@
 //   - Gateway Commands: ingress
 //   - Package Commands: pkg
 //   - Security Commands: user, key, audit
+//   - Observability Commands: alert
 //
 // Usage:
 //
@@ -98,6 +99,7 @@ func main() {
 		&cobra.Group{ID: "gateway", Title: "Gateway Commands:"},
 		&cobra.Group{ID: "pkg", Title: "Package Commands:"},
 		&cobra.Group{ID: "security", Title: "Security Commands:"},
+		&cobra.Group{ID: "observe", Title: "Observability Commands:"},
 	)
 
 	// Register the command tree, one help section per entry.
@@ -114,6 +116,7 @@ func main() {
 		{cli.NewUserCommand(), "security"},
 		{cli.NewKeyCommand(), "security"},
 		{cli.NewAuditCommand(), "security"},
+		{cli.NewAlertCommand(), "observe"},
 	}
 	for _, c := range cmds {
 		c.cmd.GroupID = c.grp

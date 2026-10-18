@@ -68,4 +68,49 @@ message NodeMetrics {
   int64 disk_total_bytes = 54;
   // disk_free_bytes is the free disk space in bytes.
   int64 disk_free_bytes = 55;
+
+  // restart_count is the container driver's cumulative restart counter
+  // (docker RestartCount), carried on the regular replica metrics report.
+  // The zone leader derives replica_crashloop alert events from its
+  // deltas; a decrease means the container was recreated and the event
+  // window restarts from zero.
+  int32 restart_count = 60;
+}
+
+// HostMetricsRequest queries the built-in host metrics history (monstore).
+message HostMetricsRequest {
+  // host_id is the host to query; required, exact match.
+  string host_id = 1;
+
+  // field filters to one monstore field (cpu_millicores, mem_used, ...);
+  // empty returns all fields.
+  string field = 2;
+
+  // window bounds in unix seconds; 0 means unbounded.
+  int64 start_time = 3;
+  int64 end_time = 4;
+
+  // step_seconds downsamples the series by taking the last raw sample of
+  // each step bucket; 0 returns the raw samples.
+  int64 step_seconds = 5;
+
+  // max_points caps the returned points per series (default 1000,
+  // max 10000).
+  int32 max_points = 6;
+}
+
+// HostMetricsPoint is one sample of a host metrics series.
+message HostMetricsPoint {
+  int64 time = 1;  // unix seconds
+  int64 value = 2; // field-dependent unit (millicores, bytes, bytes/s)
+}
+
+// HostMetricsSeries is the point list of one field.
+message HostMetricsSeries {
+  string field = 1;
+  repeated HostMetricsPoint points = 2;
+}
+
+message HostMetricsResponse {
+  repeated HostMetricsSeries series = 1;
 }

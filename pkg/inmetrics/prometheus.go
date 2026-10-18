@@ -34,6 +34,13 @@ import (
 // See https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details
 var escaper = strings.NewReplacer("\\", `\\`, "\n", `\n`, "\"", `\"`)
 
+// EscapeLabel escapes a label value for the Prometheus text format
+// (backslash, double quote, newline). Shared by this package's renderer and
+// other in-tree exposition writers (internal/metricspage).
+func EscapeLabel(v string) string {
+	return escaper.Replace(v)
+}
+
 // writePrometheusText renders the snapshots in the Prometheus text
 // exposition format: metric names in ascending order, entries of one name
 // in registration order, HELP/TYPE headers emitted once per name.

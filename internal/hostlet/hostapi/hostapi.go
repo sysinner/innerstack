@@ -74,23 +74,25 @@ type DriverInfo struct {
 
 // ContainerInfo represents container instance details.
 type ContainerInfo struct {
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	Image       string                `json:"image"`
-	ImageID     string                `json:"image_id"`
-	State       string                `json:"state"`             // running, exited, paused, etc.
-	Status      string                `json:"status"`            // detailed status
-	Pid         int                   `json:"pid"`               // process ID
-	IP          string                `json:"ip"`                // container IP
-	Ports       map[int32]PortBinding `json:"ports"`             // port mappings (key: container port)
-	Created     int64                 `json:"created"`           // unix timestamp (seconds)
-	Started     int64                 `json:"started,omitempty"` // unix timestamp (seconds)
-	Labels      map[string]string     `json:"labels,omitempty"`
-	CpuLimit    int64                 `json:"cpu_limit,omitempty"`    // CPU limit (millicores)
-	MemoryLimit int64                 `json:"memory_limit,omitempty"` // memory limit (bytes)
-	Binds       []string              `json:"binds,omitempty"`        // volume binds from HostConfig
+	ID           string                `json:"id"`
+	Name         string                `json:"name"`
+	Image        string                `json:"image"`
+	ImageID      string                `json:"image_id"`
+	State        string                `json:"state"`             // running, exited, paused, etc.
+	Status       string                `json:"status"`            // detailed status
+	Pid          int                   `json:"pid"`               // process ID
+	IP           string                `json:"ip"`                // container IP
+	Ports        map[int32]PortBinding `json:"ports"`             // port mappings (key: container port)
+	Created      int64                 `json:"created"`           // unix timestamp (seconds)
+	Started      int64                 `json:"started,omitempty"` // unix timestamp (seconds)
+	Labels       map[string]string     `json:"labels,omitempty"`
+	CpuLimit     int64                 `json:"cpu_limit,omitempty"`     // CPU limit (millicores)
+	MemoryLimit  int64                 `json:"memory_limit,omitempty"`  // memory limit (bytes)
+	Binds        []string              `json:"binds,omitempty"`         // volume binds from HostConfig
+	RestartCount int                   `json:"restart_count,omitempty"` // driver cumulative restarts (docker RestartCount)
 
-	LastInspectTime int64 `json:"-"`
+	LastInspectTime  int64 `json:"-"`
+	LastRestartCheck int64 `json:"-"` // last restart-count poll (unix seconds)
 }
 
 // PortBinding represents a port mapping configuration.
@@ -180,6 +182,14 @@ type Driver interface {
 	// running container. Callers should skip non-running containers; the
 	// returned values are cumulative counters where applicable.
 	ContainerStats(ctx context.Context, nameOrId string) (*ContainerStats, error)
+
+	// ContainerLogs reads the recent stdout+stderr log lines of a container
+	// (docker json-file, timestamps included). tail limits the last lines
+	// (0 = all); since is a unix-second cutoff (0 = all). A missing
+	// container returns empty output without error, mirroring the
+	// idempotent stop/remove semantics.
+	ContainerLogs(ctx context.Context, nameOrId string, tail uint32, since int64) (
+		[]string, error)
 
 	ImageList(ctx context.Context) ([]*ImageInfo, error)
 	ImagePull(ctx context.Context, image string) error

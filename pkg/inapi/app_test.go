@@ -138,3 +138,31 @@ func snapshotResources(r *AppSpecResources) resourceSnapshot {
 func snapshotEqual(a, b resourceSnapshot) bool {
 	return a == b
 }
+
+func TestParseContainerName(t *testing.T) {
+	tests := []struct {
+		name     string
+		instance string
+		repId    uint32
+		ok       bool
+	}{
+		{"i8k_myapp_0", "myapp", 0, true},
+		{"i8k_my-app_1", "my-app", 1, true},
+		{"i8k_my-app-1", "", 0, false}, // no replica separator
+		{"i8k_myapp_127", "myapp", 127, true},
+		{"i8k_myapp_128", "myapp", 128, true},
+		{"myapp_0", "", 0, false},      // no prefix
+		{"i8k__0", "", 0, false},       // empty instance
+		{"i8k_myapp", "", 0, false},    // no replica segment
+		{"i8k_myapp_x", "", 0, false},  // non-numeric replica
+		{"i8k_my_app_3", "", 0, false}, // underscore in instance name
+		{"", "", 0, false},
+	}
+	for _, tt := range tests {
+		instance, repId, ok := ParseContainerName(tt.name)
+		if ok != tt.ok || instance != tt.instance || repId != tt.repId {
+			t.Errorf("ParseContainerName(%q) = (%q, %d, %v), want (%q, %d, %v)",
+				tt.name, instance, repId, ok, tt.instance, tt.repId, tt.ok)
+		}
+	}
+}

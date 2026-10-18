@@ -3,6 +3,7 @@ package inapi
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -95,6 +96,30 @@ func (x *AppInstance) InstanceName() string {
 // Format: i8k_{instanceName}_{replicaId}
 func ContainerName(instanceName string, repId uint32) string {
 	return fmt.Sprintf("i8k_%s_%d", instanceName, repId)
+}
+
+// ParseContainerName splits a container name built by ContainerName back
+// into its instance name and replica id. ok is false when the name does not
+// follow the i8k_{instanceName}_{replicaId} layout (the instance name
+// itself may contain hyphens but not underscores).
+func ParseContainerName(name string) (string, uint32, bool) {
+	const prefix = "i8k_"
+	if !strings.HasPrefix(name, prefix) {
+		return "", 0, false
+	}
+	idx := strings.LastIndex(name, "_")
+	if idx < len(prefix) {
+		return "", 0, false
+	}
+	repId, err := strconv.ParseUint(name[idx+1:], 10, 32)
+	if err != nil {
+		return "", 0, false
+	}
+	instance := name[len(prefix):idx]
+	if instance == "" || strings.Contains(instance, "_") {
+		return "", 0, false
+	}
+	return instance, uint32(repId), true
 }
 
 // ContainerName returns the container name for the app replica instance.

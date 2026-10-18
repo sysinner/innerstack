@@ -82,6 +82,12 @@ type NodeMetrics struct {
 	DiskTotalBytes int64 `protobuf:"varint,54,opt,name=disk_total_bytes,json=diskTotalBytes,proto3" json:"disk_total_bytes,omitempty" toml:"disk_total_bytes,omitempty"`
 	// disk_free_bytes is the free disk space in bytes.
 	DiskFreeBytes int64 `protobuf:"varint,55,opt,name=disk_free_bytes,json=diskFreeBytes,proto3" json:"disk_free_bytes,omitempty" toml:"disk_free_bytes,omitempty"`
+	// restart_count is the container driver's cumulative restart counter
+	// (docker RestartCount), carried on the regular replica metrics report.
+	// The zone leader derives replica_crashloop alert events from its
+	// deltas; a decrease means the container was recreated and the event
+	// window restarts from zero.
+	RestartCount int32 `protobuf:"varint,60,opt,name=restart_count,json=restartCount,proto3" json:"restart_count,omitempty" toml:"restart_count,omitempty"`
 }
 
 func (x *NodeMetrics) Reset() {
@@ -242,11 +248,273 @@ func (x *NodeMetrics) GetDiskFreeBytes() int64 {
 	return 0
 }
 
+func (x *NodeMetrics) GetRestartCount() int32 {
+	if x != nil {
+		return x.RestartCount
+	}
+	return 0
+}
+
+// HostMetricsRequest queries the built-in host metrics history (monstore).
+type HostMetricsRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// host_id is the host to query; required, exact match.
+	HostId string `protobuf:"bytes,1,opt,name=host_id,json=hostId,proto3" json:"host_id,omitempty" toml:"host_id,omitempty"`
+	// field filters to one monstore field (cpu_millicores, mem_used, ...);
+	// empty returns all fields.
+	Field string `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty" toml:"field,omitempty"`
+	// window bounds in unix seconds; 0 means unbounded.
+	StartTime int64 `protobuf:"varint,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty" toml:"start_time,omitempty"`
+	EndTime   int64 `protobuf:"varint,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty" toml:"end_time,omitempty"`
+	// step_seconds downsamples the series by taking the last raw sample of
+	// each step bucket; 0 returns the raw samples.
+	StepSeconds int64 `protobuf:"varint,5,opt,name=step_seconds,json=stepSeconds,proto3" json:"step_seconds,omitempty" toml:"step_seconds,omitempty"`
+	// max_points caps the returned points per series (default 1000,
+	// max 10000).
+	MaxPoints int32 `protobuf:"varint,6,opt,name=max_points,json=maxPoints,proto3" json:"max_points,omitempty" toml:"max_points,omitempty"`
+}
+
+func (x *HostMetricsRequest) Reset() {
+	*x = HostMetricsRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_metrics_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HostMetricsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostMetricsRequest) ProtoMessage() {}
+
+func (x *HostMetricsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_metrics_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostMetricsRequest.ProtoReflect.Descriptor instead.
+func (*HostMetricsRequest) Descriptor() ([]byte, []int) {
+	return file_metrics_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *HostMetricsRequest) GetHostId() string {
+	if x != nil {
+		return x.HostId
+	}
+	return ""
+}
+
+func (x *HostMetricsRequest) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *HostMetricsRequest) GetStartTime() int64 {
+	if x != nil {
+		return x.StartTime
+	}
+	return 0
+}
+
+func (x *HostMetricsRequest) GetEndTime() int64 {
+	if x != nil {
+		return x.EndTime
+	}
+	return 0
+}
+
+func (x *HostMetricsRequest) GetStepSeconds() int64 {
+	if x != nil {
+		return x.StepSeconds
+	}
+	return 0
+}
+
+func (x *HostMetricsRequest) GetMaxPoints() int32 {
+	if x != nil {
+		return x.MaxPoints
+	}
+	return 0
+}
+
+// HostMetricsPoint is one sample of a host metrics series.
+type HostMetricsPoint struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Time  int64 `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty" toml:"time,omitempty"`    // unix seconds
+	Value int64 `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty" toml:"value,omitempty"` // field-dependent unit (millicores, bytes, bytes/s)
+}
+
+func (x *HostMetricsPoint) Reset() {
+	*x = HostMetricsPoint{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_metrics_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HostMetricsPoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostMetricsPoint) ProtoMessage() {}
+
+func (x *HostMetricsPoint) ProtoReflect() protoreflect.Message {
+	mi := &file_metrics_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostMetricsPoint.ProtoReflect.Descriptor instead.
+func (*HostMetricsPoint) Descriptor() ([]byte, []int) {
+	return file_metrics_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *HostMetricsPoint) GetTime() int64 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
+func (x *HostMetricsPoint) GetValue() int64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+// HostMetricsSeries is the point list of one field.
+type HostMetricsSeries struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Field  string              `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty" toml:"field,omitempty"`
+	Points []*HostMetricsPoint `protobuf:"bytes,2,rep,name=points,proto3" json:"points,omitempty" toml:"points,omitempty"`
+}
+
+func (x *HostMetricsSeries) Reset() {
+	*x = HostMetricsSeries{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_metrics_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HostMetricsSeries) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostMetricsSeries) ProtoMessage() {}
+
+func (x *HostMetricsSeries) ProtoReflect() protoreflect.Message {
+	mi := &file_metrics_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostMetricsSeries.ProtoReflect.Descriptor instead.
+func (*HostMetricsSeries) Descriptor() ([]byte, []int) {
+	return file_metrics_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *HostMetricsSeries) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *HostMetricsSeries) GetPoints() []*HostMetricsPoint {
+	if x != nil {
+		return x.Points
+	}
+	return nil
+}
+
+type HostMetricsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Series []*HostMetricsSeries `protobuf:"bytes,1,rep,name=series,proto3" json:"series,omitempty" toml:"series,omitempty"`
+}
+
+func (x *HostMetricsResponse) Reset() {
+	*x = HostMetricsResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_metrics_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *HostMetricsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostMetricsResponse) ProtoMessage() {}
+
+func (x *HostMetricsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_metrics_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostMetricsResponse.ProtoReflect.Descriptor instead.
+func (*HostMetricsResponse) Descriptor() ([]byte, []int) {
+	return file_metrics_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *HostMetricsResponse) GetSeries() []*HostMetricsSeries {
+	if x != nil {
+		return x.Series
+	}
+	return nil
+}
+
 var File_metrics_proto protoreflect.FileDescriptor
 
 var file_metrics_proto_rawDesc = []byte{
 	0x0a, 0x0d, 0x6d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12,
-	0x05, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x22, 0xfb, 0x04, 0x0a, 0x0b, 0x4e, 0x6f, 0x64, 0x65, 0x4d,
+	0x05, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x22, 0xa0, 0x05, 0x0a, 0x0b, 0x4e, 0x6f, 0x64, 0x65, 0x4d,
 	0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x75, 0x70, 0x74, 0x69, 0x6d, 0x65,
 	0x18, 0x05, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x75, 0x70, 0x74, 0x69, 0x6d, 0x65, 0x12, 0x18,
 	0x0a, 0x07, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x18, 0x06, 0x20, 0x01, 0x28, 0x03, 0x52,
@@ -286,8 +554,37 @@ var file_metrics_proto_rawDesc = []byte{
 	0x73, 0x6b, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x42, 0x79, 0x74, 0x65, 0x73, 0x12, 0x26, 0x0a, 0x0f,
 	0x64, 0x69, 0x73, 0x6b, 0x5f, 0x66, 0x72, 0x65, 0x65, 0x5f, 0x62, 0x79, 0x74, 0x65, 0x73, 0x18,
 	0x37, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0d, 0x64, 0x69, 0x73, 0x6b, 0x46, 0x72, 0x65, 0x65, 0x42,
-	0x79, 0x74, 0x65, 0x73, 0x42, 0x0c, 0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x69, 0x6e, 0x61,
-	0x70, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x79, 0x74, 0x65, 0x73, 0x12, 0x23, 0x0a, 0x0d, 0x72, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x5f,
+	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x18, 0x3c, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0c, 0x72, 0x65, 0x73,
+	0x74, 0x61, 0x72, 0x74, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x22, 0xbf, 0x01, 0x0a, 0x12, 0x48, 0x6f,
+	0x73, 0x74, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x17, 0x0a, 0x07, 0x68, 0x6f, 0x73, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x06, 0x68, 0x6f, 0x73, 0x74, 0x49, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x66, 0x69, 0x65,
+	0x6c, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x12,
+	0x1d, 0x0a, 0x0a, 0x73, 0x74, 0x61, 0x72, 0x74, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x03, 0x52, 0x09, 0x73, 0x74, 0x61, 0x72, 0x74, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x19,
+	0x0a, 0x08, 0x65, 0x6e, 0x64, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x03,
+	0x52, 0x07, 0x65, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x21, 0x0a, 0x0c, 0x73, 0x74, 0x65,
+	0x70, 0x5f, 0x73, 0x65, 0x63, 0x6f, 0x6e, 0x64, 0x73, 0x18, 0x05, 0x20, 0x01, 0x28, 0x03, 0x52,
+	0x0b, 0x73, 0x74, 0x65, 0x70, 0x53, 0x65, 0x63, 0x6f, 0x6e, 0x64, 0x73, 0x12, 0x1d, 0x0a, 0x0a,
+	0x6d, 0x61, 0x78, 0x5f, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x73, 0x18, 0x06, 0x20, 0x01, 0x28, 0x05,
+	0x52, 0x09, 0x6d, 0x61, 0x78, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x73, 0x22, 0x3c, 0x0a, 0x10, 0x48,
+	0x6f, 0x73, 0x74, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x12,
+	0x12, 0x0a, 0x04, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x74,
+	0x69, 0x6d, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x03, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x5a, 0x0a, 0x11, 0x48, 0x6f, 0x73,
+	0x74, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x12, 0x14,
+	0x0a, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x66,
+	0x69, 0x65, 0x6c, 0x64, 0x12, 0x2f, 0x0a, 0x06, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x73, 0x18, 0x02,
+	0x20, 0x03, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x2e, 0x48, 0x6f, 0x73,
+	0x74, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x06, 0x70,
+	0x6f, 0x69, 0x6e, 0x74, 0x73, 0x22, 0x47, 0x0a, 0x13, 0x48, 0x6f, 0x73, 0x74, 0x4d, 0x65, 0x74,
+	0x72, 0x69, 0x63, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x30, 0x0a, 0x06,
+	0x73, 0x65, 0x72, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x69,
+	0x6e, 0x61, 0x70, 0x69, 0x2e, 0x48, 0x6f, 0x73, 0x74, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73,
+	0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x52, 0x06, 0x73, 0x65, 0x72, 0x69, 0x65, 0x73, 0x42, 0x0c,
+	0x48, 0x03, 0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x69, 0x6e, 0x61, 0x70, 0x69, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -302,16 +599,22 @@ func file_metrics_proto_rawDescGZIP() []byte {
 	return file_metrics_proto_rawDescData
 }
 
-var file_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_metrics_proto_goTypes = []interface{}{
-	(*NodeMetrics)(nil), // 0: inapi.NodeMetrics
+	(*NodeMetrics)(nil),         // 0: inapi.NodeMetrics
+	(*HostMetricsRequest)(nil),  // 1: inapi.HostMetricsRequest
+	(*HostMetricsPoint)(nil),    // 2: inapi.HostMetricsPoint
+	(*HostMetricsSeries)(nil),   // 3: inapi.HostMetricsSeries
+	(*HostMetricsResponse)(nil), // 4: inapi.HostMetricsResponse
 }
 var file_metrics_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: inapi.HostMetricsSeries.points:type_name -> inapi.HostMetricsPoint
+	3, // 1: inapi.HostMetricsResponse.series:type_name -> inapi.HostMetricsSeries
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_metrics_proto_init() }
@@ -332,6 +635,54 @@ func file_metrics_proto_init() {
 				return nil
 			}
 		}
+		file_metrics_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HostMetricsRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_metrics_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HostMetricsPoint); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_metrics_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HostMetricsSeries); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_metrics_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*HostMetricsResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -339,7 +690,7 @@ func file_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_metrics_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

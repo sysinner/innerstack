@@ -66,6 +66,20 @@ func (it *hostStatusMut) lock(fn func()) {
 	fn()
 }
 
+// ContainersSnapshot copies the per-driver container counts under RLock for
+// scrape-time rendering, without cloning the whole proto.
+func (it *hostStatusMut) ContainersSnapshot() map[string]int32 {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	out := make(map[string]int32, len(it.Containers))
+	for driver, ctr := range it.Containers {
+		if ctr != nil {
+			out[driver] = ctr.ContainerNum
+		}
+	}
+	return out
+}
+
 // statusRefresh collects host metrics and reports to zone leader.
 func statusRefresh() error {
 	// Reported counters are window deltas; the zonelet scheduler converts

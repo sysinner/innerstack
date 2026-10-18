@@ -26,6 +26,7 @@ package inmetrics
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"maps"
 	"math"
 	"net/http"
@@ -332,13 +333,19 @@ func NewBuckets(start, factor float64, count int) []float64 {
 	return buckets
 }
 
+// WriteTo renders every registered metric in the Prometheus text
+// exposition format to w.
+func WriteTo(w io.Writer) {
+	var buf bytes.Buffer
+	writePrometheusText(&buf, snapshot())
+	w.Write(buf.Bytes())
+}
+
 // HttpHandler serves every registered metric in the Prometheus text
 // exposition format.
 func HttpHandler(w http.ResponseWriter, _ *http.Request) {
-	var buf bytes.Buffer
-	writePrometheusText(&buf, snapshot())
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	w.Write(buf.Bytes())
+	WriteTo(w)
 }
 
 type counterMap struct {

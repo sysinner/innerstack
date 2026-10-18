@@ -25,6 +25,8 @@ import (
 	"github.com/sysinner/innerstack/v2/internal/config"
 	"github.com/sysinner/innerstack/v2/internal/data"
 	"github.com/sysinner/innerstack/v2/internal/hostlet"
+	"github.com/sysinner/innerstack/v2/internal/metrics"
+	"github.com/sysinner/innerstack/v2/internal/metricspage"
 	"github.com/sysinner/innerstack/v2/internal/server"
 	"github.com/sysinner/innerstack/v2/internal/zonelet"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
@@ -74,13 +76,27 @@ func main() {
 		log.Fatalf("server start error %s", err.Error())
 	}
 
-	if config.Config.Server.PublicApiEnable {
+	if config.Config.Server.PublicApiEnabled {
 		zonelet.RegisterPublicRoutes(server.HttpRouter().Group("/in/api/v2/public"))
 	}
 
 	// Hostlet local API (inagent stage-progress reporting), served on the
 	// shared HTTP server (ServerConfig.HttpPort).
 	hostlet.RegisterHostletRoutes(server.HttpRouter().Group("/in/api/v2/hostlet"))
+
+	// Optional /metrics Prometheus export (default
+	// off): nothing is wired unless [metrics] is explicitly enabled - no
+	// routes, no sections, no runtime refresh goroutine, no gRPC metrics
+	// interceptor (server.Setup applies the same switch to the chain).
+	if config.Config.Metrics.On() {
+		metricspage.Setup(true, config.Config.Metrics.TokenV())
+		metrics.RegisterProcessSection()
+		hostlet.RegisterMetricsExport()
+		zonelet.RegisterMetricsExport()
+		metricspage.RegisterRoutes(server.HttpRouter())
+
+		signals.Go(metrics.RuntimeRefreshLoop, nil)
+	}
 
 	// Teardown order: gRPC stop (no new events) -> audit flush -> db close
 	// (deferred data.Close).

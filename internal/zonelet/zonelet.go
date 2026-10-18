@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/sysinner/innerstack/v2/internal/audit"
+	"github.com/sysinner/innerstack/v2/internal/config"
 	"github.com/sysinner/innerstack/v2/internal/zonelet/network"
 	"github.com/sysinner/innerstack/v2/pkg/inapi"
 	"github.com/sysinner/innerstack/v2/pkg/signals"
@@ -35,6 +36,11 @@ var (
 )
 
 func Run() {
+
+	// ticks counts 1s loop passes to drive sub-cadence tasks without extra
+	// goroutines: alert evaluation every alertEvalTicks (5s), monstore
+	// sampling every 30 ticks.
+	var ticks uint64
 
 	tr := time.NewTimer(1e9)
 	defer tr.Stop()
@@ -61,6 +67,14 @@ func Run() {
 			}
 			// Pin the audit chain head once per local day (no-op otherwise).
 			audit.AnchorRefresh()
+
+			ticks++
+			if ticks%alertEvalTicks == 0 {
+				alertsRefresh(time.Now().Unix())
+			}
+			if ticks%uint64(config.Config.Monstore.SampleIntervalSec()) == 0 {
+				monstoreTick(time.Now().Unix())
+			}
 		}
 		tr.Reset(1e9)
 	}

@@ -91,7 +91,7 @@ func emit(t *testing.T, m *Manager, action, status string) {
 
 func allRecords(t *testing.T, db kvapi.Client) []*inapi.AuditRecord {
 	t.Helper()
-	items, _, err := List(db, ListOptions{Zone: testZone, Revert: true, Limit: 1000})
+	items, _, err := List(db, ListOptions{Zone: testZone, Revert: true, PageSize: 1000})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestManagerWriteOrderAndChain(t *testing.T) {
 	}
 
 	// Newest first by default.
-	desc, _, err := List(db, ListOptions{Zone: testZone, Limit: 10})
+	desc, _, err := List(db, ListOptions{Zone: testZone, PageSize: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestListCursorPagination(t *testing.T) {
 	offset := ""
 	pages := 0
 	for {
-		items, more, err := List(db, ListOptions{Zone: testZone, Limit: 10, Offset: offset})
+		items, more, err := List(db, ListOptions{Zone: testZone, PageSize: 10, PageToken: offset})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -178,7 +178,7 @@ func TestListCursorPagination(t *testing.T) {
 			seen[r.Id] = true
 		}
 		pages++
-		if !more {
+		if more == "" {
 			break
 		}
 		offset = items[len(items)-1].Id
@@ -195,7 +195,7 @@ func TestListCursorPagination(t *testing.T) {
 	offset = ""
 	for {
 		items, more, err := List(db, ListOptions{
-			Zone: testZone, Limit: 7, Revert: true, Offset: offset,
+			Zone: testZone, PageSize: 7, Revert: true, PageToken: offset,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -209,7 +209,7 @@ func TestListCursorPagination(t *testing.T) {
 			}
 			seen[r.Id] = true
 		}
-		if !more {
+		if more == "" {
 			break
 		}
 		offset = items[len(items)-1].Id
@@ -261,26 +261,26 @@ func TestListFiltersAndWindow(t *testing.T) {
 		{
 			name: "window_covers_all",
 			opt: ListOptions{
-				Zone:    testZone,
-				TsStart: recs[0].Ts - 1,
-				TsEnd:   recs[2].Ts,
+				Zone:      testZone,
+				StartTime: recs[0].Ts - 1,
+				EndTime:   recs[2].Ts,
 			},
 			want: []string{recs[2].Id, recs[1].Id, recs[0].Id},
 		},
 		{
 			name: "window_excludes_newest",
 			opt: ListOptions{
-				Zone:    testZone,
-				TsStart: recs[0].Ts,
-				TsEnd:   recs[1].Ts,
+				Zone:      testZone,
+				StartTime: recs[0].Ts,
+				EndTime:   recs[1].Ts,
 			},
 			want: []string{recs[1].Id, recs[0].Id},
 		},
 		{
 			name: "window_empty",
 			opt: ListOptions{
-				Zone:    testZone,
-				TsStart: recs[2].Ts + 1,
+				Zone:      testZone,
+				StartTime: recs[2].Ts + 1,
 			},
 			want: nil,
 		},

@@ -282,3 +282,15 @@ func TestProvisionInnerStackUpdatesInagent(t *testing.T) {
 		t.Fatalf("inagent content = %q, want %q (not refreshed)", got, "inagent-v2")
 	}
 }
+
+func TestReplicaStatsRestartCount(t *testing.T) {
+	entry := hoststatus.ReplicaStats("i8k_restart_0")
+	defer hoststatus.ReplicaStatsSet.Delete("i8k_restart_0")
+
+	info := &hostapi.ContainerInfo{Created: 1700000000, RestartCount: 3}
+	m := containerStatsToNodeMetrics(entry, info, nil, 4, 1700000030)
+	if m.RestartCount != 3 {
+		t.Fatalf("NodeMetrics.RestartCount = %d, want 3 (driver counter passthrough)",
+			m.RestartCount)
+	}
+}

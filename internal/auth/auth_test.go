@@ -111,28 +111,28 @@ func TestAccessKeysOfFilteredSkew(t *testing.T) {
 		}
 	}
 
-	keys, hasMore, err := AuthMgr.AccessKeysOf("x", "", 1)
+	keys, nextToken, err := AuthMgr.AccessKeysOf("x", "", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(keys) != 1 || keys[0].Id != "bbb000000002" || !hasMore {
-		t.Fatalf("first page keys=%+v has_more=%v", keys, hasMore)
+	if len(keys) != 1 || keys[0].Id != "bbb000000002" || nextToken == "" {
+		t.Fatalf("first page keys=%+v next=%q", keys, nextToken)
 	}
 
-	keys, hasMore, err = AuthMgr.AccessKeysOf("x", "bbb000000002", 1)
+	keys, nextToken, err = AuthMgr.AccessKeysOf("x", "bbb000000002", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(keys) != 1 || keys[0].Id != "ddd000000004" || hasMore {
-		t.Fatalf("second page keys=%+v has_more=%v", keys, hasMore)
+	if len(keys) != 1 || keys[0].Id != "ddd000000004" || nextToken != "" {
+		t.Fatalf("second page keys=%+v next=%q", keys, nextToken)
 	}
 
 	// The unfiltered listing still covers all keys.
-	keys, hasMore, err = AuthMgr.AccessKeysOf("", "", 100)
+	keys, nextToken, err = AuthMgr.AccessKeysOf("", "", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(keys) != 4 || hasMore {
-		t.Fatalf("unfiltered keys=%d has_more=%v", len(keys), hasMore)
+	if len(keys) != 4 || nextToken != "" {
+		t.Fatalf("unfiltered keys=%d next=%q", len(keys), nextToken)
 	}
 }

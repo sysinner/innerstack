@@ -290,22 +290,24 @@ func (it *AuthManager) KeyMgr() *inauth.AccessKeyManager {
 const scanPageSize = 1000
 
 // AccessKeysOf loads the DB-managed access keys of one user (all keys when
-// userId is empty), in key-id order with an exclusive-cursor offset.
-// hasMore reports matches beyond limit. A filtered scan pages through the
-// namespace until limit matches are collected (plus one to prove hasMore)
-// or the range is exhausted, so non-matching keys cannot end the scan
-// early.
+// userId is empty), in key-id order with an exclusive page-token cursor.
+// nextPageToken is the returned page's last key id when more matches may
+// follow, or empty when the listing is complete. A filtered scan pages
+// through the namespace until pageSize matches are collected (plus one to
+// prove a next page) or the range is exhausted, so non-matching keys cannot
+// end the scan early.
 func (am *AuthManager) AccessKeysOf(
-	userId, offset string, limit int,
-) ([]*inauth.AccessKey, bool, error) {
+	userId, pageToken string, pageSize int,
+) ([]*inauth.AccessKey, string, error) {
 
-	if limit <= 0 {
-		limit = inapi.AccessKeyListLimitDefault
+	if pageSize <= 0 {
+		pageSize = inapi.AccessKeyPageSizeDefault
 	}
 
 	prefix := inapi.NsZoneletAccessKey(config.Config.Zonelet.ZoneName, "")
-	// kvgo ranges are (lower, upper]: the offset is the exclusive cursor.
-	lower := append(bytes.Clone(prefix), offset...)
+	// kvgo ranges are (lower, upper]: the page token is the exclusive
+	// cursor.
+	lower := append(bytes.Clone(prefix), pageToken...)
 	upper := append(bytes.Clone(prefix), 0xff)
 
 	var keys []*inauth.AccessKey
@@ -317,7 +319,7 @@ func (am *AuthManager) AccessKeysOf(
 			if rs.NotFound() {
 				break
 			}
-			return nil, false, rs.Error()
+			return nil, "", rs.Error()
 		}
 		if len(rs.Items) == 0 {
 			break
@@ -331,9 +333,10 @@ func (am *AuthManager) AccessKeysOf(
 			if userId != "" && key.User != userId {
 				continue
 			}
-			if len(keys) >= limit {
-				// One extra match proves more pages exist.
-				return keys, true, nil
+			if len(keys) >= pageSize {
+				// One extra match proves more pages exist; the page's
+				// last key id is the next exclusive cursor.
+				return keys, keys[len(keys)-1].Id, nil
 			}
 			keys = append(keys, &key)
 		}
@@ -343,7 +346,7 @@ func (am *AuthManager) AccessKeysOf(
 		lower = bytes.Clone(rs.Items[len(rs.Items)-1].Key)
 	}
 
-	return keys, false, nil
+	return keys, "", nil
 }
 
 // SetUserKeysEnabled toggles every DB-managed key of a user: disabling
@@ -352,7 +355,7 @@ func (am *AuthManager) AccessKeysOf(
 // in-memory manager; enabling restores AccessKey_State_Active.
 func (am *AuthManager) SetUserKeysEnabled(userId string, enabled bool) error {
 
-	keys, _, err := am.AccessKeysOf(userId, "", inapi.AccessKeyListLimitMax)
+	keys, _, err := am.AccessKeysOf(userId, "", inapi.AccessKeyPageSizeMax)
 	if err != nil {
 		return err
 	}

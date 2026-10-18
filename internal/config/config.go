@@ -33,13 +33,20 @@ import (
 	"github.com/sysinner/innerstack/v2/pkg/inlog"
 )
 
+// ConfigCommon is the root of etc/innerstack.toml. Naming conventions:
+// boolean switches use the participle form - a section master switch is
+// "enabled", a feature nested in a broader section is "<feature>_enabled";
+// unset-safe numerics use zero-value-unset semantics with getter fallbacks.
 type ConfigCommon struct {
 	filepath string
 
-	Server  ServerConfig  `json:"server"  toml:"server"`
-	Zonelet ZoneletConfig `json:"zonelet" toml:"zonelet"`
-	Hostlet HostletConfig `json:"hostlet" toml:"hostlet"`
-	Audit   AuditConfig   `json:"audit"   toml:"audit"`
+	Server   ServerConfig   `json:"server"   toml:"server"`
+	Zonelet  ZoneletConfig  `json:"zonelet"  toml:"zonelet"`
+	Hostlet  HostletConfig  `json:"hostlet"  toml:"hostlet"`
+	Audit    AuditConfig    `json:"audit"    toml:"audit"`
+	Alerts   AlertsConfig   `json:"alerts"   toml:"alerts"`
+	Monstore MonstoreConfig `json:"monstore" toml:"monstore"`
+	Metrics  MetricsConfig  `json:"metrics"  toml:"metrics"`
 
 	ZoneDatabase    *kvclient.Config `json:"zone_database,omitempty"    toml:"zone_database,omitempty"`
 	PackageDatabase *kvclient.Config `json:"package_database,omitempty" toml:"package_database,omitempty"`
@@ -81,12 +88,116 @@ func (it *AuditConfig) RetentionMs() int64 {
 	return int64(*it.RetentionDays) * 86400000
 }
 
+// Alert rule default parameters, applied by the value getters when a field
+// is unset (zero) or out of range, so a single source defines each default.
+const (
+	AlertHostDownSecondsDefault        = 30
+	AlertDiskFreePercentDefault        = 10
+	AlertCrashloopWindowSecondsDefault = 600
+	AlertCrashloopRestartsDefault      = 3
+)
+
+// AlertsConfig configures the built-in alert rules evaluated by the zone
+// leader. Value fields with zero-value-unset semantics: the getters fall
+// back to the defaults above for zero or invalid values, and an empty
+// webhook disables notification.
+type AlertsConfig struct {
+	HostDownSeconds        int    `json:"host_down_seconds,omitempty"        toml:"host_down_seconds,omitempty"`
+	DiskFreePercent        int    `json:"disk_free_percent,omitempty"        toml:"disk_free_percent,omitempty"`
+	CrashloopWindowSeconds int    `json:"crashloop_window_seconds,omitempty" toml:"crashloop_window_seconds,omitempty"`
+	CrashloopRestarts      int    `json:"crashloop_restarts,omitempty"       toml:"crashloop_restarts,omitempty"`
+	WebhookURL             string `json:"webhook_url,omitempty"              toml:"webhook_url,omitempty"`
+}
+
+// HostDownSec returns the freshness threshold in seconds.
+func (it *AlertsConfig) HostDownSec() int64 {
+	if it.HostDownSeconds <= 0 {
+		return AlertHostDownSecondsDefault
+	}
+	return int64(it.HostDownSeconds)
+}
+
+// DiskFreePercentV returns the free-disk threshold in whole percent (1..99).
+func (it *AlertsConfig) DiskFreePercentV() int64 {
+	if it.DiskFreePercent <= 0 || it.DiskFreePercent >= 100 {
+		return AlertDiskFreePercentDefault
+	}
+	return int64(it.DiskFreePercent)
+}
+
+// CrashloopWindowSec returns the crashloop sliding window in seconds.
+func (it *AlertsConfig) CrashloopWindowSec() int64 {
+	if it.CrashloopWindowSeconds <= 0 {
+		return AlertCrashloopWindowSecondsDefault
+	}
+	return int64(it.CrashloopWindowSeconds)
+}
+
+// CrashloopRestartsV returns the restart count that fires replica_crashloop
+// within the window.
+func (it *AlertsConfig) CrashloopRestartsV() int32 {
+	if it.CrashloopRestarts <= 0 {
+		return AlertCrashloopRestartsDefault
+	}
+	return int32(it.CrashloopRestarts)
+}
+
+// Webhook returns the alert webhook URL; empty disables notification.
+func (it *AlertsConfig) Webhook() string {
+	return it.WebhookURL
+}
+
+// MonstoreConfig configures the built-in host metrics history blocks.
+// retention_days = 0 disables history storage entirely (the system keeps
+// only the latest per-host snapshot, the pre-monstore behavior); a zero
+// sample interval falls back to the 30-second default.
+type MonstoreConfig struct {
+	RetentionDays      int `json:"retention_days,omitempty"          toml:"retention_days,omitempty"`
+	SampleIntervalSecs int `json:"sample_interval_seconds,omitempty" toml:"sample_interval_seconds,omitempty"`
+}
+
+// RetentionMs returns the block TTL in milliseconds; 0 disables monstore.
+func (it *MonstoreConfig) RetentionMs() int64 {
+	if it.RetentionDays <= 0 {
+		return 0
+	}
+	return int64(it.RetentionDays) * 86400000
+}
+
+// SampleIntervalSec returns the sampling cadence in seconds, clamped to
+// [10, 3600]; zero means the 30-second default.
+func (it *MonstoreConfig) SampleIntervalSec() int64 {
+	if it.SampleIntervalSecs <= 0 {
+		return 30
+	}
+	return min(max(int64(it.SampleIntervalSecs), 10), 3600)
+}
+
+// MetricsConfig configures the optional /metrics Prometheus export.
+// Disabled by default: the export is an opt-in extension for deployments
+// with an external scraper (Prometheus / VictoriaMetrics); the built-in
+// alerts and metrics history work without it.
+type MetricsConfig struct {
+	Enabled bool   `json:"enabled,omitempty" toml:"enabled,omitempty"`
+	Token   string `json:"token,omitempty"   toml:"token,omitempty"`
+}
+
+// On reports whether the /metrics endpoints answer.
+func (it *MetricsConfig) On() bool {
+	return it.Enabled
+}
+
+// TokenV returns the optional Bearer token; empty disables authentication.
+func (it *MetricsConfig) TokenV() string {
+	return it.Token
+}
+
 type ServerConfig struct {
 	HttpPort  int      `json:"http_port"  toml:"http_port"`
 	PeerPort  int      `json:"peer_port"  toml:"peer_port"`
 	ZoneHosts []string `json:"zone_hosts" toml:"zone_hosts"`
 
-	PublicApiEnable bool `json:"public_api_enable" toml:"public_api_enable"`
+	PublicApiEnabled bool `json:"public_api_enabled" toml:"public_api_enabled"`
 }
 
 type HostletConfig struct {
@@ -98,11 +209,11 @@ type HostletConfig struct {
 
 	AppPath string `json:"app_path" toml:"app_path"`
 
-	LxcFsEnable bool `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
+	LxcFsEnabled bool `json:"lxc_fs_enabled" toml:"lxc_fs_enabled"`
 
-	// InagentSlimEnable selects the C++ inagent-slim binary as the container
+	// InagentSlimEnabled selects the C++ inagent-slim binary as the container
 	// inagent when true. Defaults to false, using the Go inagent build.
-	InagentSlimEnable bool `json:"inagent_slim_enable,omitempty" toml:"inagent_slim_enable,omitempty"`
+	InagentSlimEnabled bool `json:"inagent_slim_enabled,omitempty" toml:"inagent_slim_enabled,omitempty"`
 
 	VpcBridgeIP     string `json:"vpc_bridge_ip,omitempty"     toml:"vpc_bridge_ip,omitempty"`
 	VpcInstanceCIDR string `json:"vpc_instance_cidr,omitempty" toml:"vpc_instance_cidr,omitempty"`
