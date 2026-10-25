@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -42,6 +43,7 @@ import (
 	"github.com/hooto/htoml4g/htoml"
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/time/rate"
 
 	"github.com/sysinner/innerstack/v2/internal/client"
@@ -239,7 +241,8 @@ type ConfigServer struct {
 	// indefinitely. Streaming keeps memory bounded regardless; this cap bounds
 	// the transfer itself (e.g. a dripping upstream pinning a goroutine).
 	// Scope: proxied routes only (localfs serves operator-owned static
-	// content and is uncapped); event streams are exempt because a healthy
+	// content and is uncapped; hijacked proxy tunnels are raw byte streams
+	// outside this pipeline); event streams are exempt because a healthy
 	// stream legitimately accumulates bytes over its lifetime.
 	MaxRespSize int64 `toml:"max_resp_size"`
 	// ShutdownTimeout bounds the graceful-drain wait on SIGTERM. Streaming
@@ -326,19 +329,26 @@ func (it *DomainEntry) LetsencryptEnabled() bool {
 // it, so it lives here instead of the GatewayIngressType_* set in pkg/inapi.
 const gatewayIngressTypeLocalfs = "localfs"
 
-// appendLocalfsRoutes appends src's localfs routes that dst does not already
-// carry (matched by path), returning the extended dst. The zonelet never
-// pushes this route type: localfs routes exist only in the operator's TOML,
-// and every domain proto that flows into cfg.Domains -- and from there into
-// etc/ingate.toml -- must be re-merged with them, or the config write
-// silently drops operator config, which only resurfaces as missing routes
-// after the next restart. Route objects are appended verbatim, never
-// re-synthesized, so proto fields unknown to this code survive the merge.
-func appendLocalfsRoutes(
+// gatewayIngressTypeProxy is an ingate-local route type (operator TOML
+// only): transparent tunnel to a fixed upstream. Upgrades (WebSocket etc.)
+// pass through hijacked; plain requests proxy with immediate flush.
+const gatewayIngressTypeProxy = "proxy"
+
+// isLocalRouteType reports an operator-TOML-only route type (localfs, proxy).
+func isLocalRouteType(t string) bool {
+	return t == gatewayIngressTypeLocalfs || t == gatewayIngressTypeProxy
+}
+
+// appendLocalRoutes appends src's ingate-local routes (localfs/proxy) that
+// dst does not carry (matched by path). The zonelet never pushes these
+// types, so protos flowing into cfg.Domains must re-merge them or the
+// config write silently drops operator config. Routes are appended verbatim
+// so unknown proto fields survive.
+func appendLocalRoutes(
 	dst, src []*inapi.GatewayIngressDeploy_HttpRoute,
 ) []*inapi.GatewayIngressDeploy_HttpRoute {
 	for _, route := range src {
-		if route.Type != gatewayIngressTypeLocalfs {
+		if !isLocalRouteType(route.Type) {
 			continue
 		}
 		if slices.ContainsFunc(dst, func(a *inapi.GatewayIngressDeploy_HttpRoute) bool {
@@ -351,27 +361,25 @@ func appendLocalfsRoutes(
 	return dst
 }
 
-// mergeLocalfsRoutes folds the entry's retained localfs routes into an
-// incoming pushed proto, keeping the persisted view (cfg.Domains) in sync
-// with the runtime index. No-op when the proto already carries them.
-func (it *DomainEntry) mergeLocalfsRoutes(domain *inapi.GatewayIngressDeploy) {
+// mergeLocalRoutes folds the entry's retained ingate-local routes into an
+// incoming pushed proto; no-op when already carried.
+func (it *DomainEntry) mergeLocalRoutes(domain *inapi.GatewayIngressDeploy) {
 	it.mu.RLock()
 	defer it.mu.RUnlock()
 	if it.Domain == nil {
 		return
 	}
-	domain.Routes = appendLocalfsRoutes(domain.Routes, it.Domain.Routes)
+	domain.Routes = appendLocalRoutes(domain.Routes, it.Domain.Routes)
 }
 
-// hasLocalfsRoutes reports whether the domain is TOML-owned: localfs routes
-// are never pushed by the zonelet (see appendLocalfsRoutes), so their
-// presence marks operator config that full refreshes must not evict.
-func (it *DomainEntry) hasLocalfsRoutes() bool {
+// hasLocalRoutes reports a TOML-owned domain: ingate-local routes are never
+// pushed, so their presence marks config full refreshes must not evict.
+func (it *DomainEntry) hasLocalRoutes() bool {
 	it.mu.RLock()
 	defer it.mu.RUnlock()
 	return it.Domain != nil && slices.ContainsFunc(it.Domain.Routes,
 		func(route *inapi.GatewayIngressDeploy_HttpRoute) bool {
-			return route.Type == gatewayIngressTypeLocalfs
+			return isLocalRouteType(route.Type)
 		})
 }
 
@@ -382,6 +390,17 @@ type DomainEntryRoute struct {
 
 	callCount    uint64
 	reverseProxy []*httputil.ReverseProxy
+}
+
+// pickProxy returns the next proxy round-robin, or nil when the route has
+// no valid target (only proxy routes can: parse failures logged at setup);
+// callers answer 502 so the path never falls through to another route.
+func (it *DomainEntryRoute) pickProxy() *httputil.ReverseProxy {
+	if len(it.reverseProxy) == 0 {
+		return nil
+	}
+	idx := int(atomic.AddUint64(&it.callCount, 1) % uint64(len(it.reverseProxy)))
+	return it.reverseProxy[idx]
 }
 
 func (it *DomainEntry) lookup(urlPath string) *DomainEntryRoute {
@@ -591,11 +610,9 @@ func domainFresh(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
 	domainEntry.setupRevision = domain.Revision
 	domainEntry.Domain = domain
 
-	// Retain operator-defined localfs routes the push does not carry by
-	// merging them into the incoming proto: the rebuild below then re-derives
-	// their runtime state (re-stat'ing the root each refresh), and the proto
-	// itself is the merged view that persistence writes.
-	domain.Routes = appendLocalfsRoutes(domain.Routes, prevDomain.Routes)
+	// Retain ingate-local routes the push does not carry; the rebuild below
+	// re-derives their runtime state and persistence writes this merged view.
+	domain.Routes = appendLocalRoutes(domain.Routes, prevDomain.Routes)
 
 	for _, location := range domain.Routes {
 
@@ -660,6 +677,47 @@ func domainFresh(domainEntry *DomainEntry, domain *inapi.GatewayIngressDeploy) {
 					domain.Domain, route.Path, localPath))
 			}
 
+			domainEntry.Routes = append(domainEntry.Routes, route)
+			domainEntry.indexRoutes[route.Path] = route
+
+		case gatewayIngressTypeProxy:
+
+			route := &DomainEntryRoute{
+				Path: location.Path,
+				Type: location.Type,
+			}
+
+			// FlushInterval -1: flush each upstream write immediately
+			// (nginx "proxy_buffering off").
+			for _, tg := range location.Targets {
+				u, err := parseProxyTarget(tg.Backend)
+				if err != nil {
+					slog.Warn(fmt.Sprintf("domain %s, route %s, parse proxy target %q fail : %s",
+						domain.Domain, route.Path, tg.Backend, err.Error()))
+					continue
+				}
+				rp := newReverseProxy(u)
+				rp.FlushInterval = -1
+				// Log upstream handshake rejections (non-101 reply to an
+				// upgrade request); invisible on the gateway side otherwise.
+				rp.ModifyResponse = func(res *http.Response) error {
+					if res.StatusCode != http.StatusSwitchingProtocols &&
+						res.Request.Header.Get("Upgrade") != "" &&
+						upgradeRequestType(res.Request.Header) != "" {
+						slog.Warn("proxy tunnel handshake fail",
+							"target", u.Host,
+							"path", res.Request.URL.Path,
+							"status", strconv.Itoa(res.StatusCode))
+					}
+					return nil
+				}
+				route.reverseProxy = append(route.reverseProxy, rp)
+				slog.Info(fmt.Sprintf("domain %s, route %s, proxy %s",
+					domain.Domain, route.Path, u.Host))
+			}
+
+			// Register even with no valid target: 502 at serve time instead
+			// of falling through to another route.
 			domainEntry.Routes = append(domainEntry.Routes, route)
 			domainEntry.indexRoutes[route.Path] = route
 		}
@@ -745,9 +803,10 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 
 		// Steady-state refreshes re-deliver protos at an unchanged revision,
 		// so domainFresh does not run and the fresh proto lacks the retained
-		// localfs routes; merge them so cfg.Domains (and the TOML write on
-		// flush) keeps the operator's routes. No-op right after domainFresh.
-		domainEntry.mergeLocalfsRoutes(domain)
+		// ingate-local routes; merge them so cfg.Domains (and the TOML write
+		// on flush) keeps the operator's routes. No-op right after
+		// domainFresh.
+		domainEntry.mergeLocalRoutes(domain)
 
 		//
 		if len(domainEntry.Routes) == 0 {
@@ -781,12 +840,12 @@ func configRefresh(domains []*inapi.GatewayIngressDeploy) error {
 			if p := lynkapi.SlicesSearchFunc(newDomains, func(a *inapi.GatewayIngressDeploy) bool {
 				return a.Domain == domain.Domain
 			}); p == nil {
-				// TOML-owned domain (localfs-bearing, never pushed): keep
-				// it in the index and the persisted config; deletion is
+				// TOML-owned domain (ingate-local routes, never pushed):
+				// keep it in the index and the persisted config; deletion is
 				// reserved for domains the zonelet stopped pushing, i.e.
 				// CLI removals.
 				if entry, ok := cfg.indexDomains[domain.Domain]; ok &&
-					entry.hasLocalfsRoutes() {
+					entry.hasLocalRoutes() {
 					newDomains = append(newDomains, domain)
 					continue
 				}
@@ -882,6 +941,31 @@ var reverseProxyTransport = &http.Transport{
 	ResponseHeaderTimeout: 30 * time.Second,
 }
 
+// parseProxyTarget parses a proxy backend: "host:port" defaults to http,
+// else "scheme://host[:port]". A path prefix joins onto the request path;
+// without one the original path passes through unchanged.
+func parseProxyTarget(backend string) (*url.URL, error) {
+	s := strings.TrimSpace(backend)
+	if s == "" {
+		return nil, errors.New("empty backend")
+	}
+	if !strings.Contains(s, "://") {
+		s = "http://" + s
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, errors.New("unsupported scheme " + u.Scheme)
+	}
+	// url.Parse accepts "http://:8080"; the host itself must be present.
+	if u.Hostname() == "" {
+		return nil, errors.New("missing host")
+	}
+	return u, nil
+}
+
 func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = reverseProxyTransport
@@ -900,12 +984,8 @@ func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 		// X-Real-IP ($remote_addr)
 		req.Header.Set("X-Real-IP", clientIP)
 
-		// X-Forwarded-For ($proxy_add_x_forwarded_for)
-		if prior := req.Header.Get("X-Forwarded-For"); prior != "" {
-			req.Header.Set("X-Forwarded-For", prior+", "+clientIP)
-		} else {
-			req.Header.Set("X-Forwarded-For", clientIP)
-		}
+		// X-Forwarded-For ($proxy_add_x_forwarded_for) is appended by
+		// ReverseProxy itself.
 
 		// X-Forwarded-Proto ($scheme)
 		if req.TLS != nil {
@@ -914,6 +994,14 @@ func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 			req.Header.Set("X-Forwarded-Proto", "http")
 		}
 	}
+
+	// Log upstream dial failures; the default writes a bare unlogged 502.
+	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
+		slog.Warn("proxy upstream fail",
+			"target", target.Host, "path", req.URL.Path, "err", err.Error())
+		rw.WriteHeader(http.StatusBadGateway)
+	}
+
 	return proxy
 }
 
@@ -1240,11 +1328,21 @@ func setProxyBadge(h http.Header) {
 
 type httpRootHandler struct{}
 
+// stripHostPort removes the port from an authority-form Host value, keeping
+// bracketed IPv6 literals intact. Domain lookup, module lookup and metric
+// labels all key on the bare host, and both server entry points must apply
+// it: the HTTPS server mounts rootHandler through the mux directly, never
+// passing through httpRootHandler.
+func stripHostPort(host string) string {
+	if i := strings.LastIndexByte(host, ':'); i > strings.LastIndexByte(host, ']') {
+		return host[:i]
+	}
+	return host
+}
+
 func (it httpRootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	if n := strings.IndexByte(r.Host, ':'); n > 0 {
-		r.Host = r.Host[:n]
-	}
+	r.Host = stripHostPort(r.Host)
 
 	if domain := cfg.Domain(r.Host); domain == nil {
 
@@ -1261,6 +1359,12 @@ func (it httpRootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Domain lookup uses the bare host: a port in the Host header
+	// ("example.com:443" is legal on the wire) must not miss the index.
+	// The HTTPS mux mounts rootHandler directly, so the strip cannot live
+	// only in httpRootHandler.
+	r.Host = stripHostPort(r.Host)
 
 	r.Body = http.MaxBytesReader(w, r.Body, cfg.Server.MaxBodySize)
 
@@ -1280,6 +1384,14 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	// localfs is served straight from disk by localfsServe, streaming the file
 	// under the rate limit with accurate Content-Length and Range support.
 	if localfsServe(w, r, urlPath) {
+		return
+	}
+
+	// Protocol upgrades on proxy routes (WebSocket tunnels) need the raw
+	// ResponseWriter for Hijack, so they are dispatched before the writer
+	// wrappers below; rate limit, gzip and size caps do not apply to a
+	// hijacked byte tunnel.
+	if proxyTunnelServe(w, r, urlPath) {
 		return
 	}
 
@@ -1341,11 +1453,14 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		switch route.Type {
 
 		case inapi.GatewayIngressType_Instance,
-			inapi.GatewayIngressType_Upstream:
+			inapi.GatewayIngressType_Upstream,
+			gatewayIngressTypeProxy:
 
-			if len(route.reverseProxy) > 0 {
-				idx := int(atomic.AddUint64(&route.callCount, 1) % uint64(len(route.reverseProxy)))
-				route.reverseProxy[idx].ServeHTTP(w2, r)
+			if rp := route.pickProxy(); rp != nil {
+				rp.ServeHTTP(w2, r)
+			} else {
+				// Proxy route with no valid target; see pickProxy.
+				http.Error(w2, "Bad Gateway", http.StatusBadGateway)
 			}
 			return route
 
@@ -1479,6 +1594,90 @@ func localfsServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
 	// so the byte count always matches -- HTTP/2 is happy as long as the
 	// transfer is not interrupted, which the deadline clear above guarantees.
 	http.ServeContent(tw, r, st.Name(), st.ModTime(), f)
+	return true
+}
+
+// upgradeRequestType returns the Upgrade protocol when Connection carries
+// the "upgrade" token (RFC 7230), mirroring ReverseProxy's stdlib logic.
+func upgradeRequestType(h http.Header) string {
+	if httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade") {
+		return h.Get("Upgrade")
+	}
+	return ""
+}
+
+// tunnelResponseWriter exposes Hijack (the pipeline writers do not) so
+// ReverseProxy can switch protocols, and enables TCP keepalive: ReverseProxy
+// clears all deadlines after hijacking, so nothing else bounds the tunnel.
+type tunnelResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (w tunnelResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("ResponseWriter does not support Hijack")
+	}
+	conn, rw, err := hj.Hijack()
+	if err != nil {
+		return nil, nil, err
+	}
+	if c, ok := conn.(*net.TCPConn); ok {
+		_ = c.SetKeepAlive(true)
+		_ = c.SetKeepAlivePeriod(30 * time.Second)
+	}
+	return conn, rw, nil
+}
+
+// proxyTunnelServe serves an upgrade request on a proxy route via hijack.
+// It must run BEFORE rootHandler wraps w: the wrappers do not implement
+// Hijacker. Returns false for non-upgrade requests (regular proxied path).
+func proxyTunnelServe(w http.ResponseWriter, r *http.Request, urlPath string) bool {
+
+	// Cheap gate first: most traffic is non-upgrade.
+	if upgradeRequestType(r.Header) == "" {
+		return false
+	}
+
+	domain := cfg.Domain(r.Host)
+	if domain == nil {
+		return false
+	}
+
+	route := domain.lookup(urlPath)
+	if route == nil || route.Type != gatewayIngressTypeProxy {
+		return false
+	}
+
+	// Metrics: this path returns before rootHandler's defer installs them.
+	tn := time.Now()
+	metricComplex.Add("Service", "RootHandler", 1, 0, 0)
+	metricComplex.Add("Service", "RouteType:"+route.Type, 1, 0, 0)
+	defer func() {
+		metricComplex.Add("HostService", r.Host+":"+route.Path, 1, 0, time.Since(tn))
+	}()
+
+	setProxyBadge(w.Header())
+
+	rp := route.pickProxy()
+	if rp == nil {
+		http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		return true
+	}
+
+	// Hijack needs an HTTP/1.1 writer: curl sends Upgrade over HTTP/2
+	// without downgrading (browsers fall back). Fail explicitly instead of
+	// a silent empty 200.
+	if _, ok := w.(http.Hijacker); !ok {
+		slog.Warn("proxy tunnel rejected: response writer not hijackable (HTTP/2)",
+			"path", r.URL.Path)
+		http.Error(w, "protocol upgrade requires HTTP/1.1",
+			http.StatusNotImplemented)
+		return true
+	}
+
+	// ServeHTTP blocks for the tunnel lifetime.
+	rp.ServeHTTP(tunnelResponseWriter{w}, r)
 	return true
 }
 

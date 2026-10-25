@@ -136,19 +136,10 @@ func backupConfig(t *testing.T) {
 	}
 }
 
-func instanceRoute(path string) *inapi.GatewayIngressDeploy_HttpRoute {
+// routeWithBackend builds a single-target route proto.
+func routeWithBackend(routeType, path, backend string) *inapi.GatewayIngressDeploy_HttpRoute {
 	return &inapi.GatewayIngressDeploy_HttpRoute{
-		Type: inapi.GatewayIngressType_Instance,
-		Path: path,
-		Targets: []*inapi.GatewayIngressDeploy_HttpRoute_Target{
-			{Backend: "10.0.0.1:8080"},
-		},
-	}
-}
-
-func localfsRoute(path, backend string) *inapi.GatewayIngressDeploy_HttpRoute {
-	return &inapi.GatewayIngressDeploy_HttpRoute{
-		Type: gatewayIngressTypeLocalfs,
+		Type: routeType,
 		Path: path,
 		Targets: []*inapi.GatewayIngressDeploy_HttpRoute_Target{
 			{Backend: backend},
@@ -156,14 +147,22 @@ func localfsRoute(path, backend string) *inapi.GatewayIngressDeploy_HttpRoute {
 	}
 }
 
-func localfsRouteCount(routes []*inapi.GatewayIngressDeploy_HttpRoute) int {
+func countRoutes(routes []*inapi.GatewayIngressDeploy_HttpRoute, routeType string) int {
 	n := 0
 	for _, route := range routes {
-		if route.Type == gatewayIngressTypeLocalfs {
+		if route.Type == routeType {
 			n++
 		}
 	}
 	return n
+}
+
+func instanceRoute(path string) *inapi.GatewayIngressDeploy_HttpRoute {
+	return routeWithBackend(inapi.GatewayIngressType_Instance, path, "10.0.0.1:8080")
+}
+
+func localfsRoute(path, backend string) *inapi.GatewayIngressDeploy_HttpRoute {
+	return routeWithBackend(gatewayIngressTypeLocalfs, path, backend)
 }
 
 // TestConfigRefreshPersistsMergedLocalfsRoutes pins the disappearing-localfs
@@ -227,7 +226,7 @@ func TestConfigRefreshPersistsMergedLocalfsRoutes(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if localfsRouteCount(onDisk.Domains[0].Routes) != 1 {
+	if countRoutes(onDisk.Domains[0].Routes, gatewayIngressTypeLocalfs) != 1 {
 		t.Fatal("localfs route missing from persisted ingate.toml")
 	}
 
@@ -245,8 +244,78 @@ func TestConfigRefreshPersistsMergedLocalfsRoutes(t *testing.T) {
 	if err := configRefresh([]*inapi.GatewayIngressDeploy{pushed}); err != nil {
 		t.Fatal(err)
 	}
-	if n := localfsRouteCount(cfg.Domains[0].Routes); n != 1 {
+	if n := countRoutes(cfg.Domains[0].Routes, gatewayIngressTypeLocalfs); n != 1 {
 		t.Fatalf("localfs route count = %d after repeat push, want 1", n)
+	}
+}
+
+// TestConfigRefreshPersistsMergedProxyRoutes is the proxy-route variant of
+// TestConfigRefreshPersistsMergedLocalfsRoutes.
+func TestConfigRefreshPersistsMergedProxyRoutes(t *testing.T) {
+	backupConfig(t)
+
+	// Operator TOML view: proxy /tunnel + instance /.
+	tomlDomain := &inapi.GatewayIngressDeploy{
+		Domain:   "example.com",
+		Revision: 1,
+		Routes: []*inapi.GatewayIngressDeploy_HttpRoute{
+			proxyRoute("/tunnel", "127.0.0.1:18080"),
+			instanceRoute("/"),
+		},
+	}
+	if err := configRefresh([]*inapi.GatewayIngressDeploy{tomlDomain}); err != nil {
+		t.Fatal(err)
+	}
+
+	entry := cfg.Domain("example.com")
+	if entry == nil {
+		t.Fatal("domain entry missing after initial refresh")
+	}
+	route := entry.lookup("/tunnel/ws")
+	if route == nil || route.Type != gatewayIngressTypeProxy {
+		t.Fatalf("lookup(/tunnel/ws) = %+v, want the proxy route", route)
+	}
+	if len(route.reverseProxy) != 1 {
+		t.Fatalf("reverseProxy count = %d, want 1", len(route.reverseProxy))
+	}
+
+	// Zonelet push at a higher revision: same domain, no proxy route.
+	pushed := &inapi.GatewayIngressDeploy{
+		Domain:   "example.com",
+		Revision: 2,
+		Routes: []*inapi.GatewayIngressDeploy_HttpRoute{
+			instanceRoute("/"),
+		},
+	}
+	if err := configRefresh([]*inapi.GatewayIngressDeploy{pushed}); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(cfg.Domains) != 1 {
+		t.Fatalf("cfg.Domains = %d domains, want 1", len(cfg.Domains))
+	}
+	if n := countRoutes(cfg.Domains[0].Routes, gatewayIngressTypeProxy); n != 1 {
+		t.Fatalf("proxy route count in cfg.Domains = %d, want 1", n)
+	}
+
+	// And it must survive the TOML round-trip on disk.
+	var onDisk Config
+	if err := htoml.DecodeFromFile(
+		filepath.Join(prefix, "etc", appName+".toml"),
+		&onDisk,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRoutes(onDisk.Domains[0].Routes, gatewayIngressTypeProxy); n != 1 {
+		t.Fatal("proxy route missing from persisted ingate.toml")
+	}
+
+	// Idempotence: a second push at the same revision must not duplicate it.
+	if err := configRefresh([]*inapi.GatewayIngressDeploy{pushed}); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRoutes(cfg.Domains[0].Routes, gatewayIngressTypeProxy); n != 1 {
+		t.Fatalf("proxy route count = %d after repeat push, want 1", n)
 	}
 }
 

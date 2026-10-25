@@ -16,3 +16,5 @@ innerstack
 perf.md
 todo.md
 misc/skills/
+*.tar.gz
+*.tgz
